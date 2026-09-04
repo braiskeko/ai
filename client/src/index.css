@@ -4,8 +4,78 @@
 
 @layer base {
   :root {
-    --yes: 142 71% 45%;
-    --no: 0 84% 60%;
+    --background: 0 0% 100%;
+    --foreground: 210 33% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 33% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 33% 17%;
+    --primary: 228 100% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 20% 96%;
+    --secondary-foreground: 210 33% 17%;
+    --muted: 216 20% 96%;
+    --muted-foreground: 214 16% 50%;
+    --accent: 216 20% 94%;
+    --accent-foreground: 210 33% 17%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 17% 91%;
+    --input: 220 17% 91%;
+    --ring: 228 100% 59%;
+    --radius: 0.75rem;
+    --yes: 145 63% 42%;
+    --no: 19 100% 45%;
+    --chart-1: 228 100% 59%;
+    --chart-2: 24 100% 62%;
+    --chart-3: 262 83% 66%;
+    --chart-4: 173 80% 40%;
+    --chart-5: 330 81% 60%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 210 33% 17%;
+    --sidebar-primary: 228 100% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 216 20% 94%;
+    --sidebar-accent-foreground: 210 33% 17%;
+    --sidebar-border: 220 17% 91%;
+    --sidebar-ring: 228 100% 59%;
+  }
+
+  .dark {
+    --background: 210 33% 12%;
+    --foreground: 210 20% 96%;
+    --card: 210 30% 16%;
+    --card-foreground: 210 20% 96%;
+    --popover: 210 30% 16%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 228 100% 64%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 25% 21%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 210 25% 21%;
+    --muted-foreground: 214 15% 65%;
+    --accent: 210 25% 24%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 25%;
+    --input: 210 20% 25%;
+    --ring: 228 100% 64%;
+    --yes: 145 63% 48%;
+    --no: 19 100% 55%;
+    --chart-1: 228 100% 64%;
+    --chart-2: 24 100% 65%;
+    --chart-3: 262 83% 70%;
+    --chart-4: 173 70% 48%;
+    --chart-5: 330 81% 65%;
+    --sidebar-background: 210 30% 16%;
+    --sidebar-foreground: 210 20% 96%;
+    --sidebar-primary: 228 100% 64%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 25% 24%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 210 20% 25%;
+    --sidebar-ring: 228 100% 64%;
   }
 
   * {
@@ -13,6 +83,13 @@
   }
 
   html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  html.dark {
     color-scheme: dark;
   }
 
@@ -21,6 +98,23 @@
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
       sans-serif;
     font-feature-settings: "cv11", "ss01", "tnum";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus for plain interactive elements (shadcn components bring their own rings). */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
   }
 
   ::-webkit-scrollbar {
@@ -28,7 +122,10 @@
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted rounded-full;
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -45,5 +142,10 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  /* Hides recharts' default focus outline on the chart surface */
+  .recharts-wrapper:focus,
+  .recharts-surface:focus {
+    outline: none;
   }
 }

@@ -5,6 +5,20 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -81,10 +95,25 @@ export default {
             height: "0",
           },
         },
+        "pulse-dot": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.4" },
+        },
+        "flash-yes": {
+          "0%": { backgroundColor: "hsl(var(--yes) / 0.25)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "flash-no": {
+          "0%": { backgroundColor: "hsl(var(--no) / 0.25)" },
+          "100%": { backgroundColor: "transparent" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-dot": "pulse-dot 1.5s ease-in-out infinite",
+        "flash-yes": "flash-yes 1.2s ease-out",
+        "flash-no": "flash-no 1.2s ease-out",
       },
     },
   },

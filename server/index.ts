@@ -1,70 +1,106 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import express, { type NextFunction, type Request, type Response } from "express";
+import { broadcast, closeRealtime, registerRoutes } from "./routes";
+import { log, serveStatic, setupVite } from "./vite";
+import { config } from "./config";
+import { initStorage, storage } from "./storage";
+import { deriveDepositAddress, startDepositWatcher } from "./chain";
+
+const SHUTDOWN_TIMEOUT_MS = 8_000;
 
 const app = express();
-app.use(express.json());
+// Behind a single reverse proxy (Replit, Render, Fly...) so req.ip is the real client for rate limiting.
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));
 
+// Request log for API calls: method, path, status, duration. Bodies are deliberately
+// not logged (they contain emails, balances and wallet addresses).
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
+    if (!path.startsWith("/api")) return;
+    log(`${req.method} ${path} ${res.statusCode} in ${Date.now() - start}ms`);
   });
-
   next();
 });
 
-(async () => {
+async function main(): Promise<void> {
+  if (config.sessionSecretIsEphemeral) log("SESSION_SECRET not set: sessions reset on restart", "config");
+  if (!config.databaseUrl) log(`DATABASE_URL not set: persisting to ${config.dataFile}`, "config");
+
+  await initStorage({ deriveDepositAddress });
+
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
+  // Last-resort handler for errors outside /api (Vite / static serving). Respond and stop;
+  // rethrowing after a response has been sent would crash the process.
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    const e = (err ?? {}) as { status?: unknown; statusCode?: unknown; message?: unknown };
+    const status =
+      typeof e.status === "number" ? e.status : typeof e.statusCode === "number" ? e.statusCode : 500;
+    const message = typeof e.message === "string" && status < 500 ? e.message : "Internal Server Error";
     if (status >= 500) console.error(err);
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
     res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  // Vite (dev) / static (prod) must be registered after the API so its catch-all
+  // route does not shadow /api.
+  if (!config.isProd) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = Number(process.env.PORT) || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  let stopDepositWatcher: () => void = () => {};
+
+  // Serves both the API and the client on the single exposed port.
+  server.listen({ port: config.port, host: "0.0.0.0", reusePort: true }, () => {
+    log(`${config.appName} serving on port ${config.port} (${config.isProd ? "production" : "development"})`);
+    stopDepositWatcher = startDepositWatcher((userId, deposit) => broadcast("deposit", { userId, deposit }));
   });
-})();
+
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log(`${signal} received, shutting down`);
+
+    stopDepositWatcher();
+    closeRealtime();
+
+    let forceTimer: NodeJS.Timeout | undefined;
+    const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+    const timedOut = new Promise<void>((resolve) => {
+      forceTimer = setTimeout(() => {
+        log(`connections still open after ${SHUTDOWN_TIMEOUT_MS}ms, exiting anyway`);
+        resolve();
+      }, SHUTDOWN_TIMEOUT_MS);
+    });
+
+    try {
+      await storage.flush();
+      await Promise.race([closed, timedOut]);
+      // In-flight requests may have mutated state while we drained.
+      await storage.flush();
+    } catch (err) {
+      console.error("error during shutdown", err);
+      process.exit(1);
+    } finally {
+      if (forceTimer) clearTimeout(forceTimer);
+    }
+    process.exit(0);
+  };
+
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => void shutdown("SIGINT"));
+}
+
+main().catch((err) => {
+  console.error("fatal: failed to start server", err);
+  process.exit(1);
+});
