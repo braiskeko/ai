@@ -1,0 +1,33 @@
+# Dependencias
+node_modules/
+
+# Salida de la compilación (vite build + esbuild)
+dist/
+
+# Estado local de la app (persistencia JSON cuando no hay DATABASE_URL)
+data/
+
+# Variables de entorno: NUNCA subir secretos. Sólo se versiona la plantilla.
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+.tsbuildinfo
+
+# Editores
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

@@ -1,0 +1,91 @@
+# =============================================================================
+#  Foresight · Render Blueprint (Infrastructure as Code)
+#
+#  Cómo usarlo (≈5 minutos):
+#    1. Sube este repositorio a GitHub (o GitLab/Bitbucket).
+#    2. Entra en https://dashboard.render.com → New + → Blueprint.
+#    3. Conecta tu cuenta de GitHub y elige este repositorio. Render detecta
+#       este archivo y muestra el servicio "foresight" con sus variables.
+#    4. Rellena las variables marcadas con `sync: false` (Render las pide en
+#       ese momento; las que no tengas aún puedes dejarlas vacías y añadirlas
+#       después en Dashboard → foresight → Environment):
+#         APP_URL        → la URL que Render asigna al servicio, p. ej.
+#                          https://foresight.onrender.com (si cambias el
+#                          nombre del servicio, cambia la URL). Si aún no la
+#                          conoces, déjala vacía, despliega, cópiala y vuelve
+#                          a guardarla: Render redesplegará automáticamente.
+#         ADMIN_EMAILS   → tu correo (serás administrador al iniciar sesión).
+#         DATABASE_URL   → cadena de conexión de Neon (https://neon.tech, plan
+#                          gratuito). Sin ella el estado se guarda en el disco
+#                          efímero de Render y SE BORRA en cada despliegue.
+#         El resto (Google, Apple, Resend, mnemónica, tesorería) son
+#         opcionales: la app funciona en modo demo sin ellos.
+#    5. Pulsa "Apply". Render compila (`npm ci && npm run build`) y arranca
+#       (`npm start`). Cada push a la rama principal redespliega (autoDeploy).
+#
+#  Notas del plan gratuito:
+#    - La instancia se duerme tras 15 min sin tráfico y tarda ~1 min en
+#      despertar con la primera petición. Mientras duerme no se vigilan
+#      depósitos ni se pagan retiros automáticamente.
+#    - El sistema de archivos es efímero: usa DATABASE_URL.
+#    - WebSockets (gráficos en tiempo real) funcionan sin configuración extra.
+#
+#  Documentación de cada variable: ver .env.example.
+# =============================================================================
+
+services:
+  - type: web
+    name: foresight
+    runtime: node
+    plan: free
+    region: frankfurt
+    # `--include=dev` es imprescindible: NODE_ENV=production (definido abajo)
+    # también está presente durante el build y haría que `npm ci` omitiera las
+    # devDependencies (vite, esbuild, typescript…), rompiendo la compilación.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/config
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Misma versión de Node que el Dockerfile y la CI.
+      - key: NODE_VERSION
+        value: "20"
+      # Secreto de sesión generado por Render una sola vez y persistente entre
+      # despliegues, para que los usuarios no pierdan la sesión.
+      - key: SESSION_SECRET
+        generateValue: true
+      # Red por defecto: Polygon Amoy (testnet). Para dinero real cambia a
+      # "polygon" o "base" y configura RPC_URL, DEPOSIT_MNEMONIC y
+      # TREASURY_PRIVATE_KEY (ver README, sección "Pasar a mainnet").
+      - key: CHAIN
+        value: amoy
+      - key: DEPOSITS_ENABLED
+        value: "1"
+
+      # --- Se rellenan en el panel de Render al crear el Blueprint -----------
+      - key: APP_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APPLE_CLIENT_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DEPOSIT_MNEMONIC
+        sync: false
+      - key: TREASURY_PRIVATE_KEY
+        sync: false
+
+      # --- Opcionales: descomenta si los necesitas ---------------------------
+      # - key: APP_NAME
+      #   value: Foresight
+      # - key: EMAIL_FROM
+      #   value: Foresight <onboarding@resend.dev>
+      # - key: RPC_URL
+      #   sync: false
