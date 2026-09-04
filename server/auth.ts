@@ -134,7 +134,10 @@ export async function getUserFromRequest(req: Request): Promise<User | null> {
   if (!token) return null;
   const userId = await verifySessionToken(token);
   if (userId === null) return null;
-  return storage.getUser(userId) ?? null;
+  // `await` is harmless on the synchronous storage API and keeps this working
+  // should getUser ever become async.
+  const user = await storage.getUser(userId);
+  return user ?? null;
 }
 
 /** Express guard: 401 unless the session middleware attached a user. */
@@ -364,9 +367,10 @@ function hashMagicToken(token: string): string {
 }
 
 function purgeExpiredMagicTokens(now: number): void {
-  for (const [hash, record] of magicTokens) {
+  // Deleting the current entry inside Map#forEach is well-defined in ECMAScript.
+  magicTokens.forEach((record, hash) => {
     if (record.expiresAt <= now) magicTokens.delete(hash);
-  }
+  });
 }
 
 /** Create a single-use sign-in token for the email and remember its hash. */
