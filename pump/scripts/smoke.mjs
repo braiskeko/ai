@@ -127,7 +127,10 @@ if (me) {
     const t = await api("POST", `/api/coins/${created.ca}/trade`, { side: "buy", amount: 50 });
     if (!(t.coin.price > created.price)) throw new Error("price did not rise after buy");
     const after = await api("GET", "/api/me");
-    if (Math.abs(before.balance - after.balance - 50) > 1e-6) throw new Error("balance not debited by 50");
+    // The trader is also the creator, so 10% of the 2.7% fee flows straight back to them.
+    const creatorRebate = 50 * 0.027 * 0.1;
+    if (Math.abs(before.balance - after.balance - (50 - creatorRebate)) > 1e-6)
+      throw new Error(`balance debited by ${before.balance - after.balance}, expected ${50 - creatorRebate}`);
     const s = await api("POST", `/api/coins/${created.ca}/trade`, { side: "sell", amount: t.trade.tokens / 2 });
     if (!(s.trade.usdc > 0 && s.trade.usdc < 25)) throw new Error(`sell usdc ${s.trade.usdc}`);
     const detail = await api("GET", `/api/coins/${created.ca}`);

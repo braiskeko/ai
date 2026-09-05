@@ -216,11 +216,28 @@ function readPalette(): Palette {
   const border = read("--border");
   if (!muted) return fallback;
   return {
-    text: `hsl(${muted})`,
-    grid: border ? `hsl(${border} / 0.45)` : fallback.grid,
-    border: border ? `hsl(${border})` : fallback.border,
+    text: cssHsl(muted),
+    grid: border ? cssHsl(border, 0.45) : fallback.grid,
+    border: border ? cssHsl(border) : fallback.border,
     key: `${muted}|${border}`,
   };
+}
+
+/**
+ * Tailwind stores HSL tokens as space-separated triplets ("222 13% 60%"). The canvas
+ * color parser used by lightweight-charts understands neither HSL nor that syntax, so
+ * convert the token to rgb()/rgba().
+ */
+function cssHsl(token: string, alpha?: number): string {
+  const parts = token.replace(/\//g, " ").split(/\s+/).filter(Boolean);
+  const h = parseFloat(parts[0] ?? "0") || 0;
+  const sat = (parseFloat(parts[1] ?? "0") || 0) / 100;
+  const light = (parseFloat(parts[2] ?? "0") || 0) / 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = sat * Math.min(light, 1 - light);
+  const f = (n: number) => Math.round(255 * (light - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  const [r, g, b] = [f(0), f(8), f(4)];
+  return alpha === undefined ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function useChartPalette(): Palette {
@@ -422,7 +439,14 @@ export function CandleChart({
     const el = containerRef.current;
     if (!el || !hasData) return;
 
-    const locale = typeof navigator !== "undefined" ? navigator.language : "en-US";
+    // Some environments report tags Intl rejects (e.g. "en-US@posix"): fall back to en-US.
+    let locale = "en-US";
+    try {
+      const candidate = typeof navigator !== "undefined" ? navigator.language : "en-US";
+      locale = Intl.NumberFormat.supportedLocalesOf([candidate])[0] ?? "en-US";
+    } catch {
+      locale = "en-US";
+    }
     const chart = createChart(el, {
       width: el.clientWidth || 300,
       height,
