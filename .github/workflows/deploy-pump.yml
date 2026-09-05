@@ -2,13 +2,9 @@ name: Deploy Noxia (pump) to cPanel
 
 # Builds the pump app (./pump) and deploys it to app.noxia.work through the cPanel API
 # (no SSH needed) — the same mechanism as deploy-cpanel.yml for Foresight. Trigger it
-# manually from the Actions tab, or push a change to this workflow file on the
-# claude/polymarket-platform-w64s54 branch. Store credentials as repository secrets
+# manually from the Actions tab (Run workflow). Store credentials as repository secrets
 # (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
 on:
-  push:
-    branches: [claude/polymarket-platform-w64s54]
-    paths: [".github/workflows/deploy-pump.yml"]
   workflow_dispatch:
     inputs:
       cpanel_host:
@@ -112,10 +108,9 @@ jobs:
           ORIGIN_IP: ${{ inputs.origin_ip || '66.29.141.35' }}
         run: |
           set -euo pipefail
-          # Temporary one-off fallbacks (removed as soon as this deploy succeeds).
-          export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-noxia.work}}"
-          export CPANEL_USER="${IN_USER:-${SECRET_USER:-noxihwge}}"
-          export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-EBB633ICCZSJMAJK91VZZ67CWCISB1W6}}"
+          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
+          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
+          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
           echo "::add-mask::$CPANEL_TOKEN"
           if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
             echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
