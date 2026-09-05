@@ -1,0 +1,86 @@
+name: Deploy to cPanel
+
+# Builds the app and deploys it to a cPanel host through the cPanel API (no SSH needed).
+# Trigger it manually from the Actions tab. Store credentials as repository secrets
+# (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
+on:
+  workflow_dispatch:
+    inputs:
+      cpanel_host:
+        description: "cPanel host (e.g. noxia.work)"
+        required: false
+        default: ""
+      cpanel_user:
+        description: "cPanel username"
+        required: false
+        default: ""
+      cpanel_token:
+        description: "cPanel API token (Manage API Tokens). Prefer the CPANEL_TOKEN secret."
+        required: false
+        default: ""
+      domain:
+        description: "Domain the app is served on"
+        required: true
+        default: "noxia.work"
+      app_url:
+        description: "Public URL (APP_URL)"
+        required: true
+        default: "https://noxia.work"
+      admin_emails:
+        description: "Comma-separated admin emails"
+        required: false
+        default: ""
+      chain:
+        description: "amoy | polygon | base | base-sepolia"
+        required: true
+        default: "amoy"
+      wipe_public_html:
+        description: "Move the current public_html contents to a backup folder"
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-cpanel
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build release package
+        run: bash scripts/package-cpanel.sh
+
+      - name: Deploy through the cPanel API
+        env:
+          IN_HOST: ${{ inputs.cpanel_host }}
+          IN_USER: ${{ inputs.cpanel_user }}
+          IN_TOKEN: ${{ inputs.cpanel_token }}
+          SECRET_HOST: ${{ secrets.CPANEL_HOST }}
+          SECRET_USER: ${{ secrets.CPANEL_USER }}
+          SECRET_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          DOMAIN: ${{ inputs.domain }}
+          APP_URL: ${{ inputs.app_url }}
+          ADMIN_EMAILS: ${{ inputs.admin_emails }}
+          CHAIN: ${{ inputs.chain }}
+          WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
+          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
+          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
+          echo "::add-mask::$CPANEL_TOKEN"
+          if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
+            echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
+          fi
+          node scripts/cpanel-remote-deploy.mjs

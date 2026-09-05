@@ -17,7 +17,7 @@ bash scripts/package-cpanel.sh
 Se crea `foresight-cpanel.zip` con:
 
 - `dist/` (servidor compilado + cliente estático)
-- `app.js` (arranque para Passenger), `package.json` solo con dependencias de producción
+- `app.cjs` (arranque para Passenger), `package.json` solo con dependencias de producción
 - `.env.example` (documentación de todas las variables)
 
 ## 2. Subir y descomprimir
@@ -39,7 +39,7 @@ cPanel → **Setup Node.js App** → **Create Application**:
 | Application mode | Production |
 | Application root | `foresight` |
 | Application URL | tu dominio (raíz `/`) |
-| Application startup file | `app.js` |
+| Application startup file | `app.cjs` |
 
 Pulsa **Create**. Después, en la misma pantalla:
 
