@@ -84,9 +84,10 @@ async function api2(module, func, params = {}) {
 async function uploadFile(localPath, remoteDir) {
   const form = new FormData();
   form.set("dir", remoteDir);
+  form.set("overwrite", "1");
   const bytes = fs.readFileSync(localPath);
   form.set("file-1", new Blob([bytes]), path.basename(localPath));
-  const data = await uapi("Fileman/upload_files", {}, form);
+  const data = await uapi("Fileman/upload_files", { overwrite: 1 }, form);
   const failed = (data?.failed ?? []).length;
   if (failed) throw new Error(`upload reported failures: ${JSON.stringify(data)}`);
   return data;
