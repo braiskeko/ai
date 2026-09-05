@@ -136,10 +136,15 @@ async function main() {
   const confPath = path.join(path.dirname(ZIP), "deploy.conf");
   fs.writeFileSync(confPath, conf);
 
-  // 2. upload zip + conf
+  // 2. upload zip + conf; blank out the previous run's status file and remember the
+  //    current log length so we only react to THIS deploy's output.
   log(`uploading ${ZIP} (${(fs.statSync(ZIP).size / 1024).toFixed(0)} KB)`);
   await uploadFile(ZIP, homeDir);
   await uploadFile(confPath, homeDir);
+  const statusPath = path.join(path.dirname(ZIP), "foresight-deploy.status");
+  fs.writeFileSync(statusPath, "");
+  await uploadFile(statusPath, homeDir);
+  const previousLog = (await readRemoteFile(`${homeDir}/foresight-deploy.log`)) ?? "";
   log("uploaded");
 
   // 3. schedule the single-use deploy cron (fires on the next minute boundary)
@@ -153,7 +158,7 @@ async function main() {
   // 4. poll status
   const deadline = Date.now() + TIMEOUT_MIN * 60_000;
   let status = null;
-  let lastLogLen = 0;
+  let lastLogLen = previousLog.length;
   while (Date.now() < deadline) {
     await sleep(20_000);
     const logText = (await readRemoteFile(`${homeDir}/foresight-deploy.log`)) ?? "";
