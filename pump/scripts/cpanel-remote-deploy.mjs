@@ -22,6 +22,8 @@
  */
 import fs from "node:fs";
 import https from "node:https";
+import http from "node:http";
+import dns from "node:dns/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 
@@ -49,6 +51,10 @@ const INITIAL_CREDITS = env("INITIAL_CREDITS", "");
 const WALLETCONNECT_PROJECT_ID = env("WALLETCONNECT_PROJECT_ID", "");
 const PORT = env("CPANEL_PORT", "2083");
 const TIMEOUT_MIN = Number(env("DEPLOY_TIMEOUT_MIN", "20"));
+// Public IP of the cPanel server. Used to reach the app directly (Host header) while the
+// domain's DNS record does not exist yet — e.g. when DNS is hosted at Cloudflare and the
+// subdomain created by cPanel has no record there.
+const ORIGIN_IP = env("ORIGIN_IP", "");
 
 const base = `https://${HOST}:${PORT}`;
 const authHeaders = { Authorization: `cpanel ${USER}:${TOKEN}` };
@@ -239,10 +245,96 @@ function printTlsNote(subdomainIsNew) {
   );
 }
 
+
+/** A records of DOMAIN, or [] when the name does not resolve. */
+async function resolveDomain() {
+  try {
+    return await dns.resolve4(DOMAIN);
+  } catch {
+    return [];
+  }
+}
+
+/** Nameservers of the registrable domain (best effort; used only for the hint text). */
+async function nameservers() {
+  const parts = DOMAIN.split(".");
+  const apex = parts.slice(-2).join(".");
+  try {
+    return await dns.resolveNs(apex);
+  } catch {
+    return [];
+  }
+}
+
+/** Plain-http probe of the origin server with a Host header (bypasses DNS). */
+function probeOrigin(ip) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(
+      { host: ip, port: 80, path: "/api/config", timeout: 15_000, headers: { host: DOMAIN, accept: "application/json" } },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          if (res.statusCode !== 200) return resolve({ ok: false, status: res.statusCode });
+          try {
+            resolve({ ok: true, cfg: JSON.parse(body) });
+          } catch {
+            resolve({ ok: false, status: res.statusCode });
+          }
+        });
+      },
+    );
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+  });
+}
+
+function printDnsNote(ns) {
+  const atCloudflare = ns.some((n) => /cloudflare/i.test(n));
+  console.log(
+    [
+      "",
+      `ACTION NEEDED: ${DOMAIN} has no DNS record, so nobody can reach it yet.`,
+      atCloudflare
+        ? `The DNS zone is hosted at Cloudflare (${ns.join(", ")}). In the Cloudflare dashboard → DNS → Records, add:`
+        : `Add this record at your DNS provider${ns.length ? ` (${ns.join(", ")})` : ""}:`,
+      `  Type A   Name ${DOMAIN.split(".")[0]}   Content ${ORIGIN_IP || "<server IP>"}   Proxy: on (orange cloud) for free https`,
+      "It usually starts working within a minute or two.",
+      "",
+    ].join("\n"),
+  );
+}
+
 async function verify(subdomainIsNew) {
   const httpsUrl = APP_URL.startsWith("http://") ? null : APP_URL;
   const httpUrl = APP_URL.replace(/^https:/, "http:");
   log(`verifying ${APP_URL}/api/config`);
+  const records = await resolveDomain();
+  if (records.length === 0) {
+    log(`${DOMAIN} does not resolve (no DNS record yet)`);
+    if (!ORIGIN_IP) {
+      printDnsNote(await nameservers());
+      throw new Error(`${DOMAIN} has no DNS record; set ORIGIN_IP to verify the app directly on the server`);
+    }
+    let last = "";
+    for (let i = 0; i < 12; i++) {
+      try {
+        const r = await probeOrigin(ORIGIN_IP);
+        if (r.ok) {
+          log(`LIVE on the server (${ORIGIN_IP}, Host: ${DOMAIN}): ${describe(r.cfg)}`);
+          printDnsNote(await nameservers());
+          return;
+        }
+        last = `HTTP ${r.status}`;
+      } catch (e) {
+        last = e.code ?? e.message;
+      }
+      log(`origin not ready yet: ${last}`);
+      await sleep(10_000);
+    }
+    throw new Error(`deploy reported OK but the app does not answer on the server (${last}) — open the Node.js App page in cPanel and press Restart`);
+  }
   for (let i = 0; i < 12; i++) {
     let tlsFailed = false;
     if (httpsUrl) {

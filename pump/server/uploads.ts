@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import sharp from "sharp";
+import type Sharp from "sharp";
 import { config } from "./config";
 import { HttpError } from "./storage";
 
@@ -18,6 +18,31 @@ import { HttpError } from "./storage";
  */
 
 export type UploadKind = "coins" | "comments" | "avatars";
+
+type SharpFactory = typeof Sharp;
+let sharpFactory: SharpFactory | null | undefined;
+
+/**
+ * sharp ships native binaries that some shared hosts cannot install. Load it lazily and,
+ * when it is missing, fall back to storing the (already client-resized) image as-is.
+ */
+async function loadSharp(): Promise<SharpFactory | null> {
+  if (sharpFactory !== undefined) return sharpFactory;
+  try {
+    const mod = (await import("sharp")) as unknown as { default?: SharpFactory } & SharpFactory;
+    sharpFactory = mod.default ?? mod;
+  } catch (err) {
+    console.warn(`[uploads] sharp unavailable (${(err as Error).message}); storing images unprocessed`);
+    sharpFactory = null;
+  }
+  return sharpFactory;
+}
+
+/** Extension for an image data URL's mime type. */
+function rawExtension(dataUrl: string): string {
+  const mime = /^data:image\/(png|jpe?g|webp|gif)/i.exec(dataUrl)?.[1]?.toLowerCase() ?? "png";
+  return mime === "jpeg" || mime === "jpg" ? "jpg" : mime;
+}
 
 export const UPLOAD_KINDS: readonly UploadKind[] = ["coins", "comments", "avatars"];
 
@@ -43,13 +68,13 @@ export async function ensureUploadDirs(): Promise<void> {
 }
 
 /** Absolute path on disk for an upload, given its kind and base name. */
-export function uploadPath(kind: UploadKind, name: string): string {
-  return path.join(UPLOADS_ROOT, kind, `${name}.webp`);
+export function uploadPath(kind: UploadKind, name: string, ext = "webp"): string {
+  return path.join(UPLOADS_ROOT, kind, `${name}.${ext}`);
 }
 
 /** Public URL for an upload, as stored in `imageUrl` fields. */
-export function uploadUrl(kind: UploadKind, name: string): string {
-  return `/uploads/${kind}/${name}.webp`;
+export function uploadUrl(kind: UploadKind, name: string, ext = "webp"): string {
+  return `/uploads/${kind}/${name}.${ext}`;
 }
 
 /** Decode the base64 payload of an image data URL. Throws HttpError 400 when malformed or too large. */
@@ -77,6 +102,16 @@ export async function saveImage(dataUrl: string, kind: UploadKind, name: string,
   if (!Number.isInteger(size) || size <= 0 || size > 4096) throw new HttpError(400, "Invalid image size");
 
   const input = decodeDataUrl(dataUrl);
+
+  const sharp = await loadSharp();
+  if (!sharp) {
+    // No image processing available: keep the bytes the browser sent (it already resized them).
+    const ext = rawExtension(dataUrl);
+    const target = uploadPath(kind, name, ext);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, input);
+    return uploadUrl(kind, name, ext);
+  }
 
   // `animated: false` (the default) keeps only the first frame of GIFs / animated WebP.
   // `failOn: "none"` tolerates the minor encoder quirks (odd CRCs, missing ancillary chunks) found
@@ -116,10 +151,10 @@ export async function saveImage(dataUrl: string, kind: UploadKind, name: string,
 
 /** Best-effort removal of an upload (e.g. when the record it belonged to was never created). */
 export async function deleteImage(url: string): Promise<void> {
-  const match = /^\/uploads\/(coins|comments|avatars)\/([A-Za-z0-9_-]+)\.webp$/.exec(url);
+  const match = /^\/uploads\/(coins|comments|avatars)\/([A-Za-z0-9_-]+)\.(webp|png|jpg|gif)$/.exec(url);
   if (!match) return;
   try {
-    await fs.unlink(uploadPath(match[1] as UploadKind, match[2]));
+    await fs.unlink(uploadPath(match[1] as UploadKind, match[2], match[3]));
   } catch {
     // already gone or never written
   }

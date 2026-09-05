@@ -115,15 +115,42 @@ fi
 # ---- (re)create the application -----------------------------------------------
 # A stale registration keeps old settings/.htaccess; recreate for a clean state.
 $SEL destroy --json --interpreter nodejs --app-root "$APP_ROOT" >/dev/null 2>&1 || true
+# The selector exits 0 even when it refuses an operation (it reports {"result": "<error text>"}
+# instead), so every step checks the JSON result rather than the exit code.
+sel_ok() { echo "$1" | grep -q '"result": *"success"'; }
+
 echo "creating application on $DOMAIN"
-if ! $SEL create --json --interpreter nodejs --version "$NODE_VERSION" --app-root "$APP_ROOT" \
-  --domain "$DOMAIN" --app-uri / --app-mode production --startup-file app.cjs --env-vars "$ENV_JSON"; then
-  fail "SELECTOR_CREATE"
-fi
+OUT="$($SEL create --json --interpreter nodejs --version "$NODE_VERSION" --app-root "$APP_ROOT" \
+  --domain "$DOMAIN" --app-uri / --app-mode production --startup-file app.cjs --env-vars "$ENV_JSON" 2>&1)"
+echo "$OUT"
+sel_ok "$OUT" || fail "SELECTOR_CREATE"
+
 echo "installing production dependencies (npm install)"
-$SEL install-modules --json --interpreter nodejs --app-root "$APP_ROOT" || fail "NPM_INSTALL"
+OUT="$($SEL install-modules --json --interpreter nodejs --app-root "$APP_ROOT" 2>&1)"
+echo "$OUT"
+if ! sel_ok "$OUT"; then
+  # The selector refuses to install while the domain does not resolve yet ("Web application
+  # is inaccessible by its address"). npm inside the app's own nodevenv does not care.
+  echo "selector install refused; running npm inside the app's nodevenv instead"
+  VENV="$HOME/nodevenv/$APP_ROOT/$NODE_VERSION/bin/activate"
+  if [ -f "$VENV" ]; then
+    # shellcheck disable=SC1090
+    ( source "$VENV" && cd "$HOME/$APP_ROOT" && npm install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
+  else
+    NPM_BIN="/opt/alt/alt-nodejs$NODE_VERSION/root/usr/bin/npm"
+    [ -x "$NPM_BIN" ] || fail "NPM_INSTALL_NO_NPM"
+    ( cd "$HOME/$APP_ROOT" && "$NPM_BIN" install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
+  fi
+fi
+[ -d "$HOME/$APP_ROOT/node_modules/express" ] || fail "NPM_INSTALL_INCOMPLETE"
+if [ ! -d "$HOME/$APP_ROOT/node_modules/sharp" ]; then
+  echo "WARNING: sharp did not install; uploaded images will be stored unprocessed"
+fi
+
 echo "restarting"
-$SEL restart --json --interpreter nodejs --app-root "$APP_ROOT" || fail "RESTART"
+OUT="$($SEL restart --json --interpreter nodejs --app-root "$APP_ROOT" 2>&1)"
+echo "$OUT"
+sel_ok "$OUT" || fail "RESTART"
 
 echo "OK" >"$STATUS"
 echo "=== deploy OK $(date -u +%FT%TZ)"
