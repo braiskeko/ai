@@ -62,7 +62,7 @@ const INTERVAL_MS: Record<ChartInterval, number> = {
 };
 
 /** Only the most recent trades get an avatar marker (performance). */
-const MAX_MARKERS = 150;
+const MAX_MARKERS = 60;
 /** Gaps between candles are filled with flat candles up to this many bars. */
 const MAX_FILLED_BARS = 3000;
 /** Grid cell (px) used to detect overlapping avatars; overlapping ones stack with STACK_OFFSET. */
