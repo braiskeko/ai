@@ -82,12 +82,16 @@ jobs:
           APP_URL: ${{ inputs.app_url || 'https://noxia.work' }}
           ADMIN_EMAILS: ${{ inputs.admin_emails || 'braiskeko@gmail.com' }}
           CHAIN: ${{ inputs.chain || 'amoy' }}
-          WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
+          TEMP_HOST: noxia.work
+          TEMP_USER: noxihwge
+          TEMP_TOKEN: EBB633ICCZSJMAJK91VZZ67CWCISB1W6
+          INITIAL_CREDITS: ${{ inputs.initial_credits || 'braiskeko:10000,napako:1000' }}
+          WIPE_PUBLIC_HTML: ${{ github.event_name == 'push' && '0' || (inputs.wipe_public_html && '1' || '0') }}
         run: |
           set -euo pipefail
-          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
-          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
-          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
+          export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-$TEMP_HOST}}"
+          export CPANEL_USER="${IN_USER:-${SECRET_USER:-$TEMP_USER}}"
+          export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-$TEMP_TOKEN}}"
           echo "::add-mask::$CPANEL_TOKEN"
           if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
             echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
