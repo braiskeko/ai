@@ -112,7 +112,7 @@ jobs:
           ORIGIN_IP: ${{ inputs.origin_ip || '66.29.141.35' }}
         run: |
           set -euo pipefail
-          # Temporary one-off fallbacks (removed right after this deploy succeeds).
+          # Temporary one-off fallbacks (removed as soon as this deploy succeeds).
           export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-noxia.work}}"
           export CPANEL_USER="${IN_USER:-${SECRET_USER:-noxihwge}}"
           export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-EBB633ICCZSJMAJK91VZZ67CWCISB1W6}}"

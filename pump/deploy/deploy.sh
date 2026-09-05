@@ -130,18 +130,22 @@ OUT="$($SEL install-modules --json --interpreter nodejs --app-root "$APP_ROOT" 2
 echo "$OUT"
 if ! sel_ok "$OUT"; then
   # The selector refuses to install while the domain does not resolve yet ("Web application
-  # is inaccessible by its address"). npm inside the app's own nodevenv does not care.
-  echo "selector install refused; running npm inside the app's nodevenv instead"
-  VENV="$HOME/nodevenv/$APP_ROOT/$NODE_VERSION/bin/activate"
-  if [ -f "$VENV" ]; then
-    # shellcheck disable=SC1090
-    # The activate script references unset variables; relax `set -u` inside the subshell.
-    ( set +u; source "$VENV" && cd "$HOME/$APP_ROOT" && npm install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
+  # is inaccessible by its address"). Plain npm from the same Node.js build does not care.
+  # node_modules is a symlink into ~/nodevenv/<app>/<version>/lib created by `create`, so the
+  # packages land exactly where the selector expects them.
+  ALT_BIN="/opt/alt/alt-nodejs$NODE_VERSION/root/usr/bin"
+  if [ -x "$ALT_BIN/npm" ]; then
+    echo "selector install refused; running $ALT_BIN/npm directly"
+    ( cd "$HOME/$APP_ROOT" && PATH="$ALT_BIN:$PATH" timeout 900 "$ALT_BIN/npm" install --omit=dev --no-audit --no-fund --loglevel=error </dev/null ) || fail "NPM_INSTALL"
   else
-    NPM_BIN="/opt/alt/alt-nodejs$NODE_VERSION/root/usr/bin/npm"
-    [ -x "$NPM_BIN" ] || fail "NPM_INSTALL_NO_NPM"
-    ( cd "$HOME/$APP_ROOT" && "$NPM_BIN" install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
+    echo "selector install refused; running npm inside the app's nodevenv instead"
+    VENV="$HOME/nodevenv/$APP_ROOT/$NODE_VERSION/bin/activate"
+    [ -f "$VENV" ] || fail "NPM_INSTALL_NO_NPM"
+    # The activate script references unset variables; relax `set -u` inside the subshell.
+    # shellcheck disable=SC1090
+    ( set +u; source "$VENV" && cd "$HOME/$APP_ROOT" && timeout 900 npm install --omit=dev --no-audit --no-fund --loglevel=error </dev/null ) || fail "NPM_INSTALL"
   fi
+  echo "npm install finished"
 fi
 [ -d "$HOME/$APP_ROOT/node_modules/express" ] || fail "NPM_INSTALL_INCOMPLETE"
 if [ ! -d "$HOME/$APP_ROOT/node_modules/sharp" ]; then
@@ -149,9 +153,14 @@ if [ ! -d "$HOME/$APP_ROOT/node_modules/sharp" ]; then
 fi
 
 echo "restarting"
-OUT="$($SEL restart --json --interpreter nodejs --app-root "$APP_ROOT" 2>&1)"
+OUT="$(timeout 180 $SEL restart --json --interpreter nodejs --app-root "$APP_ROOT" 2>&1)"
 echo "$OUT"
-sel_ok "$OUT" || fail "RESTART"
+if ! sel_ok "$OUT"; then
+  # Passenger (re)starts the app on the next request when tmp/restart.txt is touched, and the
+  # selector refuses to restart while the domain does not resolve — so do not fail on this.
+  echo "WARNING: selector restart refused; touching tmp/restart.txt for Passenger instead"
+  mkdir -p "$HOME/$APP_ROOT/tmp" && touch "$HOME/$APP_ROOT/tmp/restart.txt"
+fi
 
 echo "OK" >"$STATUS"
 echo "=== deploy OK $(date -u +%FT%TZ)"

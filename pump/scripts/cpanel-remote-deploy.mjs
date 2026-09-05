@@ -475,7 +475,19 @@ async function main() {
     log(`could not clean cron entry (${e.message}); deploy.sh removes it itself when it runs`);
   }
 
-  if (!status) throw new Error(`deploy did not report a status within ${TIMEOUT_MIN} minutes — check ~/${APP_ROOT}-deploy.log in cPanel`);
+  if (!status) {
+    // deploy.sh went quiet (killed by a resource limit, or a selector call hung). The app may
+    // still be serving — Passenger starts it on the first request — so check before giving up.
+    log(`deploy.sh did not report a status within ${TIMEOUT_MIN} minutes; checking whether the app answers anyway`);
+    try {
+      await verify(subdomainIsNew);
+      console.log(`NOTE: deploy.sh never wrote its status file — review ~/${APP_ROOT}-deploy.log in cPanel → File Manager.`);
+      return;
+    } catch (e) {
+      log(`app not answering either: ${e.message}`);
+    }
+    throw new Error(`deploy did not report a status within ${TIMEOUT_MIN} minutes — check ~/${APP_ROOT}-deploy.log in cPanel`);
+  }
   if (status !== "OK") throw new Error(`deploy failed on the host: ${status} (see log above)`);
 
   // 7. verify the live site
