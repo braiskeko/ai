@@ -21,6 +21,7 @@ import {
   OUTCOME_COLORS,
   YES_COLOR,
   type ActivityItem,
+  type AdminUserRow,
   type AuthProvider,
   type Comment,
   type CommentView,
@@ -106,6 +107,10 @@ export interface State {
   comments: Comment[];
   deposits: Deposit[];
   withdrawals: Withdrawal[];
+  /** admin credits waiting for a user with that (lowercase) username to appear */
+  pendingCredits: Record<string, number>;
+  /** INITIAL_CREDITS entries ("user:amount") that were already applied */
+  appliedCredits: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +217,8 @@ function emptyState(): State {
     comments: [],
     deposits: [],
     withdrawals: [],
+    pendingCredits: {},
+    appliedCredits: [],
   };
 }
 
@@ -233,6 +240,8 @@ interface LooseState {
   comments?: Partial<Comment>[];
   deposits?: Partial<Deposit>[];
   withdrawals?: Partial<Withdrawal>[];
+  pendingCredits?: Record<string, number>;
+  appliedCredits?: string[];
 }
 
 /** Fills fields missing from a loaded record with sensible defaults. */
@@ -351,6 +360,8 @@ function restoreState(json: string): State {
     version: 1,
     mnemonic: loose.mnemonic ?? null,
     lastScannedBlock: loose.lastScannedBlock ?? null,
+    pendingCredits: loose.pendingCredits ?? {},
+    appliedCredits: loose.appliedCredits ?? [],
     ids: {
       user: nextIdAfter(users, loose.ids?.user),
       market: nextIdAfter(markets, loose.ids?.market),
@@ -537,8 +548,96 @@ export class Storage {
       createdAt: nowIso(),
     });
     if (bootstrapAdmin) log(`${normalized} is the first account on this deployment and was granted admin`, "storage");
+    this.applyPendingCredit(user);
     this.persist();
     return { user, created: true };
+  }
+
+  /** Case-insensitive username lookup. */
+  getUserByUsername(username: string): User | undefined {
+    const lower = username.trim().replace(/^@/, "").toLowerCase();
+    return this.state.users.find((u) => u.username.toLowerCase() === lower);
+  }
+
+  /** Admin listing for the users tab (bots excluded); newest first, optional substring filter. */
+  listUsers(search = "", limit = 50): AdminUserRow[] {
+    const needle = search.trim().replace(/^@/, "").toLowerCase();
+    return this.state.users
+      .filter((u) => u.depositIndex >= 0)
+      .filter((u) => !needle || u.username.toLowerCase().includes(needle) || u.email.includes(needle))
+      .sort(newestFirst)
+      .slice(0, limit)
+      .map((u) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        balance: u.balance,
+        isAdmin: u.isAdmin,
+        createdAt: u.createdAt,
+        positions: this.state.positions.filter((p) => p.userId === u.id && p.shares > SHARE_EPSILON).length,
+      }));
+  }
+
+  /**
+   * Adds (or, with a negative amount, removes) USDC from a user's balance. When no
+   * user has that username yet the credit is queued and applied the moment an
+   * account with that username appears (sign-up or rename).
+   */
+  adminCreditBalance(username: string, amount: number): { user: User | null; queued: boolean } {
+    const handle = username.trim().replace(/^@/, "");
+    if (!/^[a-zA-Z0-9_]{3,24}$/.test(handle)) throw new HttpError(400, "Invalid username");
+    if (!Number.isFinite(amount) || amount === 0) throw new HttpError(400, "Amount must be a non-zero number");
+    const user = this.getUserByUsername(handle);
+    if (user) {
+      const next = round6(user.balance + amount);
+      if (next < 0) throw new HttpError(400, `Balance cannot go below zero (current ${user.balance})`);
+      user.balance = next;
+      log(`admin credit: ${amount} USDC -> @${user.username} (balance ${user.balance})`, "storage");
+      this.persist();
+      return { user, queued: false };
+    }
+    if (amount < 0) throw new HttpError(404, `No user named @${handle}`);
+    const key = handle.toLowerCase();
+    this.state.pendingCredits[key] = round6((this.state.pendingCredits[key] ?? 0) + amount);
+    log(`admin credit queued: ${amount} USDC for @${handle} (not registered yet)`, "storage");
+    this.persist();
+    return { user: null, queued: true };
+  }
+
+  /** Applies a queued credit to a user whose username now matches one. */
+  private applyPendingCredit(user: User): void {
+    const key = user.username.toLowerCase();
+    const amount = this.state.pendingCredits[key];
+    if (!amount) return;
+    delete this.state.pendingCredits[key];
+    user.balance = round6(user.balance + amount);
+    log(`applied queued credit of ${amount} USDC to @${user.username}`, "storage");
+  }
+
+  /**
+   * INITIAL_CREDITS="alice:1000,bob:250" — one-off credits given at boot. Each entry is
+   * applied exactly once per deployment (tracked in state.appliedCredits) so restarts
+   * never double-credit.
+   */
+  applyInitialCredits(spec: string): void {
+    for (const raw of spec.split(",")) {
+      const entry = raw.trim();
+      if (!entry) continue;
+      if (this.state.appliedCredits.includes(entry)) continue;
+      const [name, amt] = entry.split(":");
+      const amount = Number(amt);
+      if (!name || !Number.isFinite(amount) || amount <= 0) {
+        log(`ignoring malformed INITIAL_CREDITS entry "${entry}"`, "storage");
+        continue;
+      }
+      try {
+        this.adminCreditBalance(name, amount);
+        this.state.appliedCredits.push(entry);
+        this.persist();
+      } catch (e) {
+        log(`INITIAL_CREDITS "${entry}" failed: ${(e as Error).message}`, "storage");
+      }
+    }
   }
 
   /** Sanitises a preferred handle to [a-zA-Z0-9_], 3-24 chars, and makes it unique with a numeric suffix. */
@@ -563,6 +662,7 @@ export class Storage {
     const user = this.mustUser(userId);
     if (this.usernameTaken(username, userId)) throw new HttpError(409, "That username is already taken");
     user.username = username;
+    this.applyPendingCredit(user);
     this.persist();
     return user;
   }
@@ -1546,5 +1646,6 @@ export async function initStorage(opts: StorageOptions): Promise<Storage> {
   }
 
   instance.bindPersister(new Persister(backend, () => instance.snapshot()));
+  if (config.initialCredits) instance.applyInitialCredits(config.initialCredits);
   return instance;
 }

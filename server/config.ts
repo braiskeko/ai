@@ -66,6 +66,9 @@ export const config = {
   sessionSecret: env("SESSION_SECRET") || randomBytes(32).toString("hex"),
   sessionSecretIsEphemeral: !env("SESSION_SECRET"),
 
+  /** One-off balance credits applied at boot, e.g. "alice:1000,bob:250" (each entry applied once). */
+  initialCredits: env("INITIAL_CREDITS"),
+
   /** Comma separated list of admin emails. */
   adminEmails: env("ADMIN_EMAILS")
     .split(",")

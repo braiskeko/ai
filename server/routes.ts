@@ -8,6 +8,7 @@ import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import {
   MARKET_STATUSES,
+  adminCreditSchema,
   commentSchema,
   createMarketSchema,
   idTokenSchema,
@@ -566,6 +567,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const withdrawal = storage.updateWithdrawal(id, { status, txHash, error });
       broadcast("withdrawal:updated", { userId: withdrawal.userId, withdrawal });
       res.json(withdrawal);
+    }),
+  );
+
+  app.get(
+    "/api/admin/users",
+    requireAdmin,
+    wrap((req, res) => {
+      res.json(storage.listUsers(queryString(req.query.search) ?? ""));
+    }),
+  );
+
+  app.post(
+    "/api/admin/users/credit",
+    requireAdmin,
+    wrap((req, res) => {
+      const { username, amount } = adminCreditSchema.parse(req.body);
+      const { user, queued } = storage.adminCreditBalance(username, amount);
+      if (user) broadcast("balance:updated", { userId: user.id, balance: user.balance });
+      res.json({ user: user ? storage.toSafeUser(user) : null, queued });
     }),
   );
 

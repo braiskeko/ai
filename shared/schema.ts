@@ -357,6 +357,21 @@ export interface ActivityItem {
   market: Pick<Market, "id" | "slug" | "question" | "imageEmoji" | "outcomes" | "binary">;
 }
 
+export interface AdminUserRow {
+  id: number;
+  username: string;
+  email: string;
+  balance: number;
+  isAdmin: boolean;
+  createdAt: string;
+  positions: number;
+}
+
+export const adminCreditSchema = z.object({
+  username: z.string().trim().min(3).max(25),
+  amount: z.number().finite().refine((n) => n !== 0, "Amount must be non-zero"),
+});
+
 export interface PlatformStats {
   volume: number;
   traders: number;

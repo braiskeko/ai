@@ -4,6 +4,11 @@ name: Deploy to cPanel
 # Trigger it manually from the Actions tab. Store credentials as repository secrets
 # (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
 on:
+  # One-off: pushing this file to the deploy branch runs the deployment with the
+  # embedded credentials below (temporary — removed right after the deploy).
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/deploy-cpanel.yml"]
   workflow_dispatch:
     inputs:
       cpanel_host:
@@ -34,6 +39,10 @@ on:
         description: "amoy | polygon | base | base-sepolia"
         required: true
         default: "amoy"
+      initial_credits:
+        description: "One-off balance credits, e.g. alice:1000,bob:250"
+        required: false
+        default: ""
       wipe_public_html:
         description: "Move the current public_html contents to a backup folder"
         type: boolean

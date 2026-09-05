@@ -28,7 +28,8 @@ type LiveFrame =
   | { event: "comment:created"; payload: CommentView }
   | { event: "comment:updated"; payload: CommentView }
   | { event: "deposit"; payload: { userId: number; deposit: Deposit } }
-  | { event: "withdrawal:updated"; payload: { userId: number; withdrawal: Withdrawal } };
+  | { event: "withdrawal:updated"; payload: { userId: number; withdrawal: Withdrawal } }
+  | { event: "balance:updated"; payload: { userId: number; balance: number } };
 
 export type LiveStatus = "connected" | "connecting" | "offline";
 
@@ -138,6 +139,15 @@ function handleFrame(frame: LiveFrame) {
       void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
       toast({ title: "Deposit confirmed", description: `${usd(deposit.amount)} USDC has been added to your balance.` });
+      break;
+    }
+    case "balance:updated": {
+      const { userId, balance } = frame.payload;
+      if (userId !== currentUserId()) break;
+      void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      toast({ title: "Balance updated", description: `Your cash balance is now ${usd(balance)}.` });
       break;
     }
     case "withdrawal:updated": {

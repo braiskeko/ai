@@ -32,6 +32,7 @@ const CHAIN = env("CHAIN", "amoy");
 const WIPE = env("WIPE_PUBLIC_HTML", "1");
 const SESSION_SECRET = env("SESSION_SECRET", randomBytes(32).toString("hex"));
 const ZIP = env("ZIP_PATH", "foresight-cpanel.zip");
+const INITIAL_CREDITS = env("INITIAL_CREDITS", "");
 const PORT = env("CPANEL_PORT", "2083");
 const TIMEOUT_MIN = Number(env("DEPLOY_TIMEOUT_MIN", "20"));
 
@@ -122,6 +123,7 @@ async function main() {
     CHAIN,
     INSTANT_EMAIL_LOGIN: "1",
     DEPOSITS_ENABLED: "1",
+    ...(INITIAL_CREDITS ? { INITIAL_CREDITS } : {}),
   };
   const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
   const conf = [

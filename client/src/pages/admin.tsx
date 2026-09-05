@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, ExternalLink, Gavel, Loader2, ShieldAlert, Star, X } from "lucide-react";
-import type { MarketSummary, Withdrawal, WithdrawalStatus } from "@shared/schema";
+import { Check, Coins, ExternalLink, Gavel, Loader2, Search, ShieldAlert, Star, X } from "lucide-react";
+import type { AdminUserRow, MarketSummary, SafeUser, Withdrawal, WithdrawalStatus } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { OutcomeChip } from "@/components/OutcomeChip";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -545,6 +545,155 @@ function WithdrawalsTab() {
 // Page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Users: search accounts and credit / debit balances
+// ---------------------------------------------------------------------------
+
+function UsersTab() {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [username, setUsername] = useState("");
+  const [amount, setAmount] = useState("");
+  const usersKey = `/api/admin/users?search=${encodeURIComponent(search.trim())}`;
+  const { data, isLoading, error } = useQuery<AdminUserRow[]>({ queryKey: [usersKey] });
+
+  const credit = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/users/credit", {
+        username: username.trim().replace(/^@/, ""),
+        amount: Number(amount),
+      });
+      return (await res.json()) as { user: SafeUser | null; queued: boolean };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/users") });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leaderboard"] });
+      toast({
+        title: result.queued ? "Credit queued" : "Balance updated",
+        description: result.queued
+          ? `@${username.replace(/^@/, "")} has not signed up yet. The credit will be applied automatically when they do.`
+          : `@${result.user?.username} now has ${usd(result.user?.balance ?? 0)}.`,
+      });
+      setAmount("");
+    },
+    onError: (err) => toast({ variant: "destructive", title: "Could not update balance", description: apiErrorMessage(err) }),
+  });
+
+  const parsedAmount = Number(amount);
+  const canSubmit = username.trim().length >= 3 && Number.isFinite(parsedAmount) && parsedAmount !== 0 && !credit.isPending;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Coins className="h-4 w-4 text-primary" />
+          <h3 className="font-semibold">Credit or debit a balance</h3>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Adds USDC to a user's cash balance (use a negative amount to remove funds). If the username does not exist yet the
+          credit is queued and applied when that account is created.
+        </p>
+        <form
+          className="grid gap-3 sm:grid-cols-[1fr_160px_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (canSubmit) credit.mutate();
+          }}
+        >
+          <div>
+            <Label htmlFor="credit-username" className="text-xs">
+              Username
+            </Label>
+            <Input
+              id="credit-username"
+              placeholder="@username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="credit-amount" className="text-xs">
+              Amount (USDC)
+            </Label>
+            <Input
+              id="credit-amount"
+              inputMode="decimal"
+              placeholder="1000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.-]/g, ""))}
+              className="mt-1 tabular"
+            />
+          </div>
+          <Button type="submit" disabled={!canSubmit} className="self-end">
+            {credit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+          </Button>
+        </form>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border p-3">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by username or email"
+            className="h-9 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+        {isLoading ? (
+          <div className="p-4">
+            <ListSkeleton rows={4} height={40} />
+          </div>
+        ) : error ? (
+          <p className="p-4 text-sm text-destructive">{apiErrorMessage(error)}</p>
+        ) : !data?.length ? (
+          <p className="p-6 text-center text-sm text-muted-foreground">No users match.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Positions</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        <UserAvatar seed={String(u.id)} name={u.username} size={24} />@{u.username}
+                        {u.isAdmin && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">admin</span>
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="text-right tabular font-semibold">{usd(u.balance)}</TableCell>
+                    <TableCell className="text-right tabular">{u.positions}</TableCell>
+                    <TableCell className="text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" onClick={() => setUsername(u.username)}>
+                        Credit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { isAdmin, isLoading, user } = useAuth();
   const pending = useQuery<MarketSummary[]>({ queryKey: [...PENDING_KEY], enabled: isAdmin });
@@ -589,7 +738,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Admin</h1>
-            <p className="text-sm text-muted-foreground">Review submissions, resolve markets and process withdrawals.</p>
+            <p className="text-sm text-muted-foreground">Review submissions, resolve markets, process withdrawals and manage user balances.</p>
           </div>
         </div>
 
@@ -607,6 +756,9 @@ export default function AdminPage() {
               Withdrawals
               <CountBadge n={pendingWithdrawals} />
             </TabsTrigger>
+            <TabsTrigger value="users" className="rounded-md">
+              Users
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="pending" className="mt-4">
             <PendingTab />
@@ -616,6 +768,9 @@ export default function AdminPage() {
           </TabsContent>
           <TabsContent value="withdrawals" className="mt-4">
             <WithdrawalsTab />
+          </TabsContent>
+          <TabsContent value="users" className="mt-4">
+            <UsersTab />
           </TabsContent>
         </Tabs>
       </div>
