@@ -1,0 +1,27 @@
+name: Verify app.noxia.work
+
+# Checks that the deployed Noxia app answers on its public URL (DNS, TLS, API and
+# the built client). Run it from the Actions tab, or push a change to this file.
+on:
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/verify-pump.yml"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: DNS
+        run: |
+          set -x
+          getent hosts app.noxia.work || true
+      - name: API over https
+        run: |
+          set -x
+          curl -sS -m 30 -D - https://app.noxia.work/api/config | head -c 1500
+          echo
+          curl -sS -m 30 -o /dev/null -w "coins %{http_code} %{time_total}s\n" https://app.noxia.work/api/coins
+          curl -sS -m 30 -o /dev/null -w "home %{http_code} %{time_total}s\n" https://app.noxia.work/
+          curl -sS -m 30 https://app.noxia.work/ | head -c 600
