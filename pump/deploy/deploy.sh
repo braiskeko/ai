@@ -135,7 +135,8 @@ if ! sel_ok "$OUT"; then
   VENV="$HOME/nodevenv/$APP_ROOT/$NODE_VERSION/bin/activate"
   if [ -f "$VENV" ]; then
     # shellcheck disable=SC1090
-    ( source "$VENV" && cd "$HOME/$APP_ROOT" && npm install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
+    # The activate script references unset variables; relax `set -u` inside the subshell.
+    ( set +u; source "$VENV" && cd "$HOME/$APP_ROOT" && npm install --omit=dev --no-audit --no-fund --loglevel=error ) || fail "NPM_INSTALL"
   else
     NPM_BIN="/opt/alt/alt-nodejs$NODE_VERSION/root/usr/bin/npm"
     [ -x "$NPM_BIN" ] || fail "NPM_INSTALL_NO_NPM"
