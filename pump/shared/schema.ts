@@ -12,10 +12,17 @@ export const SWAP_FEE = 0.027;
 export const CREATOR_FEE_SHARE = 0.1;
 /** Creator can keep between 0% and this share of the supply at launch. */
 export const MAX_CREATOR_ALLOCATION = 0.3;
-/** Virtual USDC reserve seeding the constant-product curve (sets the launch price). */
-export const VIRTUAL_USDC_RESERVE = 4000;
-/** Virtual token reserve seeding the curve. Launch market cap ≈ VIRTUAL_USDC / VIRTUAL_TOKENS × TOTAL_SUPPLY. */
-export const VIRTUAL_TOKEN_RESERVE = 1_073_000_000;
+/**
+ * Virtual USDC reserve seeding the constant-product curve (sets the launch price).
+ * Launch market cap = VIRTUAL_USDC / (TOTAL_SUPPLY + VIRTUAL_TOKENS) × TOTAL_SUPPLY ≈ 5,040 USDC.
+ */
+export const VIRTUAL_USDC_RESERVE = 6900;
+/**
+ * Virtual token reserve seeding the curve. Selling the whole supply through the curve
+ * multiplies the price by ((TOTAL_SUPPLY + VIRTUAL_TOKENS) / VIRTUAL_TOKENS)² ≈ 13.8×,
+ * so the curve sells out at ≈ 69,400 USDC — just past GRADUATION_MCAP — after ≈ 18.5k USDC of net buys.
+ */
+export const VIRTUAL_TOKEN_RESERVE = 369_000_000;
 /** Market cap (USDC) at which a coin is considered "graduated" (cosmetic milestone, like pump.fun's bonding completion). */
 export const GRADUATION_MCAP = 69_000;
 /** Market cap (USDC) that makes a coin "King of the Hill" on the home page. */

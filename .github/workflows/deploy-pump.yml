@@ -1,0 +1,118 @@
+name: Deploy Noxia (pump) to cPanel
+
+# Builds the pump app (./pump) and deploys it to app.noxia.work through the cPanel API
+# (no SSH needed) — the same mechanism as deploy-cpanel.yml for Foresight. Trigger it
+# manually from the Actions tab, or push a change to this workflow file on the
+# claude/polymarket-platform-w64s54 branch. Store credentials as repository secrets
+# (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
+on:
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/deploy-pump.yml"]
+  workflow_dispatch:
+    inputs:
+      cpanel_host:
+        description: "cPanel host (e.g. noxia.work)"
+        required: false
+        default: ""
+      cpanel_user:
+        description: "cPanel username"
+        required: false
+        default: ""
+      cpanel_token:
+        description: "cPanel API token (Manage API Tokens). Prefer the CPANEL_TOKEN secret."
+        required: false
+        default: ""
+      app_root:
+        description: "Application root folder inside the cPanel home (Node.js Selector app-root)"
+        required: true
+        default: "noxia-pump"
+      domain:
+        description: "Domain the app is served on (created as a subdomain if missing)"
+        required: true
+        default: "app.noxia.work"
+      app_url:
+        description: "Public URL (APP_URL)"
+        required: true
+        default: "https://app.noxia.work"
+      admin_emails:
+        description: "Comma-separated admin emails"
+        required: false
+        default: ""
+      chain:
+        description: "amoy | polygon | base | base-sepolia"
+        required: true
+        default: "amoy"
+      initial_credits:
+        description: "One-off balance credits, e.g. alice:1000,bob:250"
+        required: false
+        default: ""
+      wipe_public_html:
+        description: "Move the main domain's public_html contents to a backup folder (not needed for a subdomain)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-pump-cpanel
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: pump
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pump/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Build release package
+        env:
+          APP_ROOT: ${{ inputs.app_root || 'noxia-pump' }}
+          SKIP_BUILD: "1"
+        run: bash scripts/package-cpanel.sh
+
+      - name: Deploy through the cPanel API
+        working-directory: ${{ github.workspace }}
+        env:
+          IN_HOST: ${{ inputs.cpanel_host }}
+          IN_USER: ${{ inputs.cpanel_user }}
+          IN_TOKEN: ${{ inputs.cpanel_token }}
+          SECRET_HOST: ${{ secrets.CPANEL_HOST }}
+          SECRET_USER: ${{ secrets.CPANEL_USER }}
+          SECRET_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          APP_ROOT: ${{ inputs.app_root || 'noxia-pump' }}
+          DOMAIN: ${{ inputs.domain || 'app.noxia.work' }}
+          APP_URL: ${{ inputs.app_url || 'https://app.noxia.work' }}
+          ADMIN_EMAILS: ${{ inputs.admin_emails || 'braiskeko@gmail.com' }}
+          CHAIN: ${{ inputs.chain || 'amoy' }}
+          INITIAL_CREDITS: ${{ inputs.initial_credits }}
+          # Optional secrets: a fixed SESSION_SECRET keeps users logged in across deploys
+          # (a random one is generated when unset); WALLETCONNECT_PROJECT_ID enables the
+          # WalletConnect button (browser wallets work without it).
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
+          WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
+          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
+          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
+          echo "::add-mask::$CPANEL_TOKEN"
+          if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
+            echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
+          fi
+          export ZIP_PATH="pump/${APP_ROOT}-cpanel.zip"
+          node pump/scripts/cpanel-remote-deploy.mjs

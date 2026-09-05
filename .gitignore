@@ -32,3 +32,7 @@ Thumbs.db
 !.vscode/extensions.json
 *.swp
 foresight-cpanel.zip
+
+# Noxia (pump) — paquete cPanel y estado local
+noxia-pump-cpanel.zip
+pump/data

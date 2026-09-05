@@ -9,7 +9,7 @@ const STORAGE_KEY = "theme";
 const listeners = new Set<() => void>();
 
 function readTheme(): Theme {
-  if (typeof document === "undefined") return "light";
+  if (typeof document === "undefined") return "dark";
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
@@ -40,14 +40,9 @@ let initialized = false;
 function init() {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
   // index.html applies the class before first paint; make sure we agree with it.
-  applyTheme(storedTheme() ?? (mq.matches ? "dark" : "light"), false);
-  // Follow the OS while the visitor has not made an explicit choice.
-  const onChange = (e: MediaQueryListEvent) => {
-    if (!storedTheme()) applyTheme(e.matches ? "dark" : "light", false);
-  };
-  if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
+  // Noxia is dark by default: only an explicit "light" preference switches themes.
+  applyTheme(storedTheme() ?? "dark", false);
 }
 init();
 
@@ -59,7 +54,7 @@ function subscribe(cb: () => void) {
 }
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, readTheme, () => "light" as Theme);
+  const theme = useSyncExternalStore(subscribe, readTheme, () => "dark" as Theme);
   const setTheme = useCallback((t: Theme) => applyTheme(t, true), []);
   const toggle = useCallback(() => applyTheme(readTheme() === "dark" ? "light" : "dark", true), []);
   return { theme, isDark: theme === "dark", setTheme, toggle };
