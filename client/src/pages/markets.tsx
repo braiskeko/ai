@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Clock, Flame, Search, Sparkles, Users, X } from "lucide-react";
@@ -274,7 +274,7 @@ function FeaturedCard({ market }: { market: MarketSummary }) {
   );
 }
 
-function EmptyState({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
+function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded-xl border border-dashed border-border px-6 py-16 text-center">
       <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
