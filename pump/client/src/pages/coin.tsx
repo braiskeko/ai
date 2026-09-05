@@ -503,7 +503,6 @@ export default function CoinPage() {
     staleTime: 15_000,
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
-  const king = useQuery<CoinSummary | null>({ queryKey: ["/api/coins/king"], staleTime: 30_000, enabled: valid });
 
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "price"));
   const [interval, setInterval_] = useState<ChartInterval>(() => loadPref(CHART_INTERVAL_KEY, INTERVALS, "1m"));
@@ -533,7 +532,7 @@ export default function CoinPage() {
     return <NotFound title={t("coin.notFound")} hint={t("coin.notFoundHint", { app: t("app.name") })} />;
   }
 
-  const isKing = !!data && king.data?.id === data.id;
+  const isKing = false;
 
   return (
     <PageShell wide>

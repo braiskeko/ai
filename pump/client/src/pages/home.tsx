@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
   Activity,
   BarChart3,
   Coins,
-  Crown,
   Flame,
   GraduationCap,
   MessageCircle,
@@ -95,136 +93,6 @@ function StatsStrip() {
 }
 
 // ---------------------------------------------------------------------------
-// King of the Hill
-// ---------------------------------------------------------------------------
-
-function KingCard({ coin }: { coin: CoinSummary }) {
-  const t = useT();
-  const progress = Math.max(0, Math.min(1, coin.progress));
-  const up = coin.change24h >= 0;
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className="glow-gold relative overflow-hidden rounded-2xl border border-gold/40 bg-card"
-    >
-      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-gold/10 blur-3xl" aria-hidden />
-      <div className="flex items-center justify-between gap-2 border-b border-gold/20 bg-gold/5 px-4 py-2">
-        <span className="inline-flex items-center gap-1.5 text-sm font-bold text-gold">
-          <Crown className="h-4 w-4" />
-          {t("home.king")}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">{t("home.kingHint")}</span>
-      </div>
-
-      <Link
-        href={`/${coin.ca}`}
-        aria-label={t("coin.openCoin", { name: coin.name })}
-        className="flex flex-col gap-4 p-4 transition-colors hover:bg-accent/30 sm:flex-row sm:items-start sm:p-5"
-      >
-        <img
-          src={coin.imageUrl}
-          alt=""
-          decoding="async"
-          className="h-28 w-28 shrink-0 rounded-2xl bg-muted object-cover shadow-lg sm:h-36 sm:w-36"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{coin.name}</h2>
-            <span className="text-sm font-semibold text-muted-foreground">${coin.ticker}</span>
-            {coin.graduated && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet/15 px-2 py-0.5 text-[11px] font-bold text-violet">
-                <GraduationCap className="h-3 w-3" />
-                {t("coin.graduated")}
-              </span>
-            )}
-          </div>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{t("coin.createdBy")}</span>
-            <PublicAvatar user={coin.creator} size={16} />
-            <span className="truncate font-medium text-foreground/80">@{coin.creator.username}</span>
-            <span>· {t("coin.ago", { time: age(coin.createdAt) })}</span>
-          </div>
-          {coin.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground sm:line-clamp-3">{coin.description}</p>}
-
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
-              <div className="text-xl font-extrabold tabular text-gold">{compactUsd(coin.marketCap)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.change24h")}</div>
-              <div className={cn("text-lg font-bold tabular", up ? "text-up" : "text-down")}>{signedPct(coin.change24h)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.volume")}</div>
-              <div className="text-lg font-bold tabular">{compactUsd(coin.volume)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.holders")}</div>
-              <div className="inline-flex items-center gap-2 text-lg font-bold tabular">
-                {count(coin.holders)}
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                  <MessageCircle className="h-3 w-3" />
-                  {count(coin.comments)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-3">
-            <div
-              className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progress * 100)}
-              aria-label={t("coin.progress")}
-            >
-              <div
-                className={cn(
-                  "h-full rounded-full transition-[width] duration-500",
-                  coin.graduated ? "bg-violet" : "bg-gradient-to-r from-gold/70 to-gold",
-                )}
-                style={{ width: `${Math.max(2, progress * 100)}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-xs tabular text-muted-foreground">
-              {t("common.progressTo", { percent: `${Math.round(progress * 100)}%` })}
-            </span>
-          </div>
-        </div>
-      </Link>
-    </motion.section>
-  );
-}
-
-function KingSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border bg-card" aria-hidden>
-      <div className="border-b border-border px-4 py-2">
-        <Skeleton className="h-4 w-32" />
-      </div>
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-        <Skeleton className="h-28 w-28 shrink-0 rounded-2xl sm:h-36 sm:w-36" />
-        <div className="flex-1 space-y-3">
-          <Skeleton className="h-6 w-1/2" />
-          <Skeleton className="h-3 w-1/3" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-4/5" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-10" />
-            ))}
-          </div>
-          <Skeleton className="h-2 w-full rounded-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -266,7 +134,6 @@ export default function Home() {
   }, [sort, q]);
 
   const coins = useQuery<CoinSummary[]>({ queryKey: [listKey], staleTime: 30_000 });
-  const king = useQuery<CoinSummary | null>({ queryKey: ["/api/coins/king"], staleTime: 30_000 });
   const recent = useRecentlyCreatedIds();
 
   const [animations, setAnimations] = useState<boolean>(loadAnimations);
@@ -292,7 +159,6 @@ export default function Home() {
   useLiveEvent("coin:created", onCreated);
 
   const list = coins.data ?? [];
-  const kingId = king.data?.id;
 
   return (
     <PageShell wide>
@@ -300,8 +166,6 @@ export default function Home() {
         <LiveTicker />
 
         <StatsStrip />
-
-        {king.isLoading ? <KingSkeleton /> : king.data ? <KingCard coin={king.data} /> : null}
 
         <section>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -409,7 +273,6 @@ export default function Home() {
                     key={coin.id}
                     coin={coin}
                     highlight={animations && recent.has(coin.id)}
-                    isKing={coin.id === kingId}
                   />
                 ))}
               </div>
