@@ -1436,9 +1436,15 @@ export class Storage {
     const shift = Math.max(...market.q.map((q, j) => q - targetQ[j]));
     const deltas = targetQ.map((tq, j) => tq + shift - market.q[j]);
     const calibrationAt = iso(lastTradeMs - MINUTE_MS);
+    const hist = this.history(id);
+    const pointsBefore = hist.length;
     deltas.forEach((delta, j) => {
       if (delta > DUST) this.applySeedShares(market, pickBot(), j, delta, calibrationAt);
     });
+    // The calibration buys land one outcome at a time; keep only the final price point
+    // so the chart does not show an artificial spike right before "now".
+    const added = hist.length - pointsBefore;
+    if (added > 1) hist.splice(pointsBefore, added - 1);
 
     for (const body of s.comments ?? []) {
       const comment: Comment = {

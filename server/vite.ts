@@ -26,12 +26,11 @@ export function log(message: string, source = "express") {
  */
 export async function setupVite(app: Express, server: Server) {
   const { createServer: createViteServer, createLogger } = await import("vite");
-  const { default: viteConfig } = await import("../vite.config");
   const viteLogger = createLogger();
 
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
+    // Let Vite load vite.config.ts itself so the config (and Vite) never end up in the server bundle.
+    configFile: path.resolve(__dirname, "..", "vite.config.ts"),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
