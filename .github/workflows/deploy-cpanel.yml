@@ -5,7 +5,7 @@ name: Deploy to cPanel
 # (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
 on:
   # One-off: pushing this file to the deploy branch runs the deployment with the
-  # embedded credentials below (temporary — removed right after the deploy).
+  # embedded credentials below (temporary; removed right after the deploy).
   push:
     branches: [claude/polymarket-platform-w64s54]
     paths: [".github/workflows/deploy-cpanel.yml"]
