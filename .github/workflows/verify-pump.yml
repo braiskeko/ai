@@ -1,7 +1,8 @@
 name: Verify app.noxia.work
 
 # Checks that the deployed Noxia app answers on its public URL (DNS, TLS, API and
-# the built client). Run it from the Actions tab, or push a change to this file.
+# the built client, rendered in a real browser). Run it from the Actions tab, or push
+# a change to this file.
 on:
   push:
     branches: [claude/polymarket-platform-w64s54]
@@ -11,17 +12,44 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: DNS
+      - name: DNS + http/https
         run: |
           set -x
-          getent hosts app.noxia.work || true
-      - name: API over https
+          getent ahostsv4 app.noxia.work || true
+          curl -sS -m 30 -o /dev/null -w "http  %{http_code} -> %{redirect_url}\n" http://app.noxia.work/ || true
+          curl -sS -m 30 -o /dev/null -w "https %{http_code} %{time_total}s\n" https://app.noxia.work/
+          curl -sS -m 30 https://app.noxia.work/api/config | head -c 400; echo
+          # every asset referenced by the html must load
+          html=$(curl -sS -m 30 https://app.noxia.work/)
+          for a in $(echo "$html" | grep -oE '(src|href)="/[^"]+"' | cut -d'"' -f2 | sort -u); do
+            curl -sS -m 30 -o /dev/null -w "$a %{http_code} %{size_download}B %{content_type}\n" "https://app.noxia.work$a"
+          done
+      - name: Render in a browser
         run: |
-          set -x
-          curl -sS -m 30 -D - https://app.noxia.work/api/config | head -c 1500
-          echo
-          curl -sS -m 30 -o /dev/null -w "coins %{http_code} %{time_total}s\n" https://app.noxia.work/api/coins
-          curl -sS -m 30 -o /dev/null -w "home %{http_code} %{time_total}s\n" https://app.noxia.work/
-          curl -sS -m 30 https://app.noxia.work/ | head -c 600
+          npm i -s playwright@1.47.2 >/dev/null 2>&1 || npm i -s playwright
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          cat > check.mjs <<'EOF'
+          import { chromium } from "playwright";
+          const browser = await chromium.launch();
+          const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+          const errors = [];
+          page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+          page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+          page.on("requestfailed", (r) => errors.push("requestfailed: " + r.url() + " " + r.failure()?.errorText));
+          const res = await page.goto("https://app.noxia.work/", { waitUntil: "load", timeout: 60000 });
+          console.log("status", res.status());
+          await page.waitForTimeout(4000);
+          const text = (await page.textContent("body"))?.replace(/\s+/g, " ").trim() ?? "";
+          console.log("body text (600):", text.slice(0, 600));
+          console.log("coin cards:", await page.locator("a[href*='noxia']").count());
+          console.log("errors:", JSON.stringify(errors, null, 1));
+          await page.screenshot({ path: "home.png", fullPage: false });
+          await browser.close();
+          EOF
+          node check.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-screenshot
+          path: home.png
