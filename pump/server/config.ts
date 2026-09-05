@@ -92,6 +92,11 @@ export const config = {
    * require the magic link before going live.
    */
   instantEmailLogin: env("INSTANT_EMAIL_LOGIN", "1") !== "0",
+  /**
+   * Seed demo coins and bot traders on an empty database. Defaults to on for testnets
+   * and off for mainnets, so a real-money deployment starts clean.
+   */
+  seedDemo: env("SEED_DEMO", chainBase.testnet ? "1" : "0") !== "0",
 
   chain: {
     ...chainBase,

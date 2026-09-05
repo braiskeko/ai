@@ -1749,8 +1749,12 @@ export async function initStorage(opts: StorageOptions): Promise<Storage> {
     const s = instance.snapshot();
     log(`loaded state from ${backend.name}: ${s.users.length} users, ${s.coins.length} coins, ${s.trades.length} trades`, "storage");
   } else {
-    log(`no snapshot in ${backend.name}, seeding demo data`, "storage");
-    instance.seed();
+    if (config.seedDemo) {
+      log(`no snapshot in ${backend.name}, seeding demo data`, "storage");
+      instance.seed();
+    } else {
+      log(`no snapshot in ${backend.name}, starting empty (SEED_DEMO=0)`, "storage");
+    }
   }
 
   instance.bindPersister(new Persister(backend, () => instance.snapshot()));
