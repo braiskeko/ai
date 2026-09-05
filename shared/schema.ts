@@ -275,6 +275,8 @@ export interface AppConfig {
   appleClientId: string | null;
   /** magic links are shown in the UI instead of being emailed */
   magicLinkDevMode: boolean;
+  /** email sign-in creates the session immediately, without a verification link (pre-launch mode) */
+  instantEmailLogin: boolean;
   chain: ChainInfo;
   depositsEnabled: boolean;
   withdrawalsEnabled: boolean;

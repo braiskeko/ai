@@ -79,6 +79,12 @@ export const config = {
     resendApiKey: env("RESEND_API_KEY") || null,
     from: env("EMAIL_FROM", "Foresight <onboarding@resend.dev>"),
   },
+  /**
+   * Pre-launch mode: signing in with an email creates the account and the session
+   * immediately, with no verification link or code. Set INSTANT_EMAIL_LOGIN=0 to
+   * require the magic link before going live.
+   */
+  instantEmailLogin: env("INSTANT_EMAIL_LOGIN", "1") !== "0",
 
   chain: {
     ...chainBase,

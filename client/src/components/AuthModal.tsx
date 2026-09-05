@@ -255,12 +255,19 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     setSending(true);
     setError(null);
     try {
+      if (config?.instantEmailLogin) {
+        // Pre-launch mode: the email alone creates the account and signs in.
+        const res = await apiRequest("POST", "/api/auth/email", { email: address });
+        const user = (await res.json()) as SafeUser;
+        finishLogin(user);
+        return;
+      }
       const res = await apiRequest("POST", "/api/auth/magic", { email: address });
       const body = (await res.json()) as { ok: boolean; devLink?: string };
       setSentTo(address);
       setDevLink(body.devLink ?? null);
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not send the sign-in link."));
+      setError(apiErrorMessage(err, config?.instantEmailLogin ? "Could not sign in." : "Could not send the sign-in link."));
     } finally {
       setSending(false);
     }
@@ -291,7 +298,9 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
                     this device to finish signing in.
                   </>
                 ) : (
-                  "Sign in or create an account to trade."
+                  config?.instantEmailLogin
+                    ? "Enter your email to sign in or create an account instantly."
+                    : "Sign in or create an account to trade."
                 )}
               </DialogDescription>
             </DialogHeader>

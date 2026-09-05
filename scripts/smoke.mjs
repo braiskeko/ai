@@ -104,10 +104,15 @@ await step("activity + leaderboard render", async () => {
 });
 
 let me = null;
-await step("magic link sign in (dev mode)", async () => {
-  const r = await api("POST", "/api/auth/magic", { email: EMAIL });
-  if (!r.devLink) throw new Error("no devLink returned (email provider configured?) — skipping authenticated steps");
-  await page.goto(r.devLink, { waitUntil: "networkidle" });
+await step("email sign in (instant or magic link dev mode)", async () => {
+  const cfg = await api("GET", "/api/config");
+  if (cfg.instantEmailLogin) {
+    await api("POST", "/api/auth/email", { email: EMAIL });
+  } else {
+    const r = await api("POST", "/api/auth/magic", { email: EMAIL });
+    if (!r.devLink) throw new Error("no devLink returned (email provider configured?) — skipping authenticated steps");
+    await page.goto(r.devLink, { waitUntil: "networkidle" });
+  }
   me = await api("GET", "/api/me");
   if (me.email !== EMAIL) throw new Error(`unexpected user ${JSON.stringify(me)}`);
 });

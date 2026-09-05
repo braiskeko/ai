@@ -238,6 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       googleClientId: config.google.clientId,
       appleClientId: config.apple.clientId,
       magicLinkDevMode,
+      instantEmailLogin: config.instantEmailLogin,
       chain: config.chain,
       depositsEnabled: config.depositsEnabled,
       withdrawalsEnabled,
@@ -246,6 +247,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ---- Auth ---------------------------------------------------------------
+
+  // Pre-launch sign-in: email only, no verification. Disabled with INSTANT_EMAIL_LOGIN=0.
+  app.post(
+    "/api/auth/email",
+    wrap(async (req, res) => {
+      if (!config.instantEmailLogin) throw new HttpError(404, "Instant email sign-in is disabled");
+      const { email } = magicLinkRequestSchema.parse(req.body);
+      const ipKey = `ip:${req.ip ?? req.socket.remoteAddress ?? "unknown"}`;
+      if (magicLinkLimiter.isLimited(ipKey)) {
+        res.set("Retry-After", String(Math.ceil(MAGIC_LINK_WINDOW_MS / 1000)));
+        throw new HttpError(429, "Too many sign-in attempts. Please wait a few minutes and try again.");
+      }
+      magicLinkLimiter.record(ipKey);
+      const { user } = storage.findOrCreateUser(email, "email");
+      await setSessionCookie(res, user.id);
+      res.json(storage.toSafeUser(user));
+    }),
+  );
 
   app.post(
     "/api/auth/magic",

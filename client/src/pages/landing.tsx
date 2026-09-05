@@ -95,7 +95,7 @@ export default function Landing() {
   if (user || isLoading) return null;
 
   return (
-    <PageShell wide className="!px-0 !py-0">
+    <PageShell className="max-w-none px-0 py-0 md:pb-0">
       <Hero onSignUp={openLogin} />
       <StatsStrip />
       <Ticker />
