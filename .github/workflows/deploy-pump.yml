@@ -107,9 +107,10 @@ jobs:
           WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
         run: |
           set -euo pipefail
-          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
-          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
-          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
+          # Temporary one-off fallbacks (removed right after this deploy).
+          export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-noxia.work}}"
+          export CPANEL_USER="${IN_USER:-${SECRET_USER:-noxihwge}}"
+          export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-EBB633ICCZSJMAJK91VZZ67CWCISB1W6}}"
           echo "::add-mask::$CPANEL_TOKEN"
           if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
             echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
