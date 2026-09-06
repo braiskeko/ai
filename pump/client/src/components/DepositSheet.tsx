@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ChevronLeft, Copy, CreditCard, LayoutGrid, Loader2, QrCode } from "lucide-react";
+import { Check, ChevronLeft, Copy, CreditCard, LayoutGrid, Loader2, QrCode } from "lucide-react";
 import type { Chain as SchemaChain } from "@shared/schema";
 import { CHAIN_LABELS } from "@shared/schema";
 import { ChainBadge } from "@/components/ChainIcon";
@@ -42,6 +42,13 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   const { vault, provision, provisioning } = useEmbeddedWallet();
   const [step, setStep] = useState<Step>("how");
   const [network, setNetwork] = useState<Network>(NETWORKS[0]);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(id);
+  }, [copied]);
 
   // Every open starts at the first screen.
   useEffect(() => {
@@ -60,11 +67,12 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
     setStep("network");
   };
 
+  // The button says it copied; a toast repeating the address over the address is noise.
   const copy = async () => {
     if (!address) return;
     try {
       await navigator.clipboard.writeText(address);
-      toast({ title: t("deposit.copied"), description: address });
+      setCopied(true);
     } catch {
       toast({ variant: "destructive", title: t("common.error") });
     }
@@ -151,8 +159,8 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                     onClick={() => void copy()}
                     className="tap mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-secondary px-6 text-base font-bold"
                   >
-                    <Copy className="h-4 w-4" />
-                    {t("deposit.copyAddress")}
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied ? t("deposit.copied") : t("deposit.copyAddress")}
                   </button>
                 </>
               ) : (
