@@ -233,6 +233,10 @@
   .pb-nav {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
+  /* Same, plus room for a page-level action bar sitting above the navigation. */
+  .pb-nav-actions {
+    padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
+  }
 
   /* Opening logo: rises into place, then breathes while the splash holds. */
   .splash-mark {

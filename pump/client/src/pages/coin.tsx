@@ -7,6 +7,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Check,
+  ChevronLeft,
   Clock,
   Coins,
   Copy,
@@ -167,130 +168,106 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
   const up = coin.change24h >= 0;
   const progress = Math.max(0, Math.min(1, coin.progress));
   const graduated = coin.curve.completed;
+  const priceUsdNow = coin.priceSol * solUsd;
+  // The absolute move that produced change24h, in dollars.
+  const changeUsd = priceUsdNow - priceUsdNow / (1 + coin.change24h);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className={cn("surface relative overflow-hidden p-4 sm:p-6", graduated && "border-violet/40")}
-    >
-      <div className="flex items-center gap-4">
+    <section className="space-y-4">
+      {/* Identity row: back, image, ticker, name, and the per-coin actions. */}
+      <div className="flex items-center gap-3">
+        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground lg:hidden">
+          <ChevronLeft className="h-6 w-6" />
+        </Link>
         <img
           src={coin.imageUrl}
           alt=""
           decoding="async"
-          className="h-20 w-20 shrink-0 rounded-3xl bg-muted object-cover shadow-lg sm:h-24 sm:w-24"
+          className="h-11 w-11 shrink-0 rounded-full bg-muted object-cover"
         />
-
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{coin.name}</h1>
-            <span className="text-sm font-semibold text-muted-foreground">${coin.ticker}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-[22px] font-extrabold leading-tight tracking-tight">{coin.ticker}</h1>
             {graduated && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet/15 px-2 py-0.5 text-[11px] font-bold text-violet">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet/15 px-2 py-0.5 text-[11px] font-bold text-violet">
                 <GraduationCap className="h-3 w-3" />
                 {t("coin.graduated")}
               </span>
             )}
           </div>
-
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span>{t("coin.createdBy")}</span>
-            <Link
-              href={`/u/${encodeURIComponent(coin.creator.username)}`}
-              className="inline-flex min-w-0 items-center gap-1 font-medium text-foreground/80 hover:text-primary hover:underline"
-            >
-              <PublicAvatar user={coin.creator} size={16} />
-              <span className="truncate">@{coin.creator.username}</span>
-            </Link>
-            <span className="inline-flex items-center gap-1" title={new Date(coin.createdAt).toLocaleString()}>
-              <Clock className="h-3 w-3" />
-              {t("coin.ago", { time: age(coin.createdAt) })}
-            </span>
-            <CopyCa ca={coin.ca} className="hidden sm:inline-flex" />
+          <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="truncate">{coin.name}</span>
+            <CopyCa ca={coin.ca} className="shrink-0" />
           </div>
         </div>
-      </div>
-
-      <CopyCa ca={coin.ca} className="mt-3 sm:hidden" />
-
-      {/* Big USD price — the hero number */}
-      <div className="mt-5">
-        <div className="label">{t("coin.price")}</div>
-        <div className="mt-1 flex flex-wrap items-end gap-2">
-          <span className="stat text-4xl leading-none sm:text-5xl">{priceUsd(coin.priceSol * solUsd)}</span>
-          <span
-            className={cn(
-              "mb-1 inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-sm font-bold tabular",
-              up ? "bg-up/15 text-up" : "bg-down/15 text-down",
-            )}
-          >
-            {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-            {signedPct(coin.change24h)}
-          </span>
-        </div>
-        <div className="mt-0.5 text-xs tabular text-muted-foreground">{priceSol(coin.priceSol)}</div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/70 pt-4">
-        <div>
-          <div className="label">{t("coin.mcap")}</div>
-          <div className="text-base font-bold tabular leading-tight text-primary">{compactUsd(coin.marketCapSol * solUsd)}</div>
-        </div>
-        <div>
-          <div className="label">{t("coin.volume")}</div>
-          <div className="text-base font-bold tabular leading-tight">{compactUsd(coin.volumeSol * solUsd)}</div>
-        </div>
-        <div>
-          <div className="label">{t("coin.holders")}</div>
-          <div className="inline-flex items-center gap-1 text-base font-bold tabular leading-tight">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            {coin.holders}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="flex items-center justify-between gap-3 text-xs">
-          <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
-            {t("coin.progress")}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="inline-flex text-muted-foreground hover:text-foreground" aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}>
-                  <Info className="h-3 w-3" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
-              </TooltipContent>
-            </Tooltip>
-          </span>
-          <span className={cn("tabular font-semibold", graduated ? "text-violet" : "text-foreground")}>
-            {graduated ? t("coin.graduated") : t("coin.solToGraduate", { amount: sol(coin.curve.solToGraduate) })}
-          </span>
-        </div>
-        <div
-          className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
-          aria-label={t("coin.progress")}
+        <Link
+          href={`/u/${encodeURIComponent(coin.creator.username)}`}
+          aria-label={`@${coin.creator.username}`}
+          className="tap shrink-0"
         >
-          <motion.div
-            className={cn("h-full rounded-full", graduated ? "bg-violet" : "bg-primary")}
-            initial={false}
-            animate={{ width: `${Math.max(2, progress * 100)}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          />
+          <PublicAvatar user={coin.creator} size={28} />
+        </Link>
+      </div>
+
+      {/* The two numbers that matter: price on the left, market cap on the right. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[40px] font-extrabold leading-none tracking-tight tabular">{priceUsd(priceUsdNow)}</div>
+          <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-1.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
+            <span>{up ? "▲" : "▼"}</span>
+            <span>{priceUsd(Math.abs(changeUsd))}</span>
+            <span>({signedPct(coin.change24h)})</span>
+            <span className="font-medium text-muted-foreground">24h</span>
+          </div>
+          <div className="mt-0.5 text-xs tabular text-muted-foreground">{priceSol(coin.priceSol)}</div>
         </div>
-        <div className="mt-1 flex justify-between text-[11px] tabular text-muted-foreground">
-          <span>{compactUsd(coin.marketCapSol * solUsd)}</span>
-          <span>{compactUsd(GRADUATION_MCAP_USD)}</span>
+        <div className="shrink-0 text-right">
+          <div className="text-[26px] font-bold leading-tight tabular">{compactUsd(coin.marketCapSol * solUsd)}</div>
+          <div className="text-sm text-muted-foreground">{t("coin.mcap")}</div>
         </div>
       </div>
-    </motion.section>
+
+      {/* Progress towards graduation, kept because it is what makes this a launchpad. */}
+      {!graduated && (
+        <div>
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+              {t("coin.progress")}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex text-muted-foreground hover:text-foreground"
+                    aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
+                  >
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
+                </TooltipContent>
+              </Tooltip>
+            </span>
+            <span className="tabular font-semibold">{t("coin.solToGraduate", { amount: sol(coin.curve.solToGraduate) })}</span>
+          </div>
+          <div
+            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+            aria-label={t("coin.progress")}
+          >
+            <motion.div
+              className="h-full rounded-full bg-primary"
+              initial={false}
+              animate={{ width: `${Math.max(2, progress * 100)}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -690,7 +667,7 @@ export default function CoinPage() {
   }
 
   return (
-    <PageShell wide>
+    <PageShell wide className="pb-nav-actions md:pb-10">
       {coin.isLoading || !data ? (
         coin.isError ? (
           <ErrorState message={apiErrorMessage(coin.error, t("common.error"))} onRetry={() => void coin.refetch()} retrying={coin.isFetching} />
@@ -717,7 +694,7 @@ export default function CoinPage() {
                 onModeChange={onModeChange}
                 interval={interval}
                 onIntervalChange={onIntervalChange}
-                className="rounded-3xl border border-border bg-card"
+                className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
             </section>
 
@@ -744,7 +721,7 @@ export default function CoinPage() {
 
       {/* Mobile: Buy/Sell push the full-screen keypad (pages/tradeSheet.tsx) instead of a form. */}
       {data && !data.curve.migrated && (
-        <div className="fixed inset-x-0 bottom-[4.5rem] z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
