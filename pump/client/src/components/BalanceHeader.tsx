@@ -47,7 +47,11 @@ export function BalanceHeader({ className }: { className?: string }) {
                 {formatUsd(Math.abs(pnlSol) * solUsd)} <span className="font-medium text-muted-foreground">{t("home.pnlLabel")}</span>
               </div>
             ) : (
-              <div className="mt-1 text-sm text-muted-foreground">{t("home.balanceHint")}</div>
+              // Signed in without a wallet yet means it is still being set up —
+              // saying "sign in" to someone who just did is nonsense.
+              <div className="mt-1 text-sm text-muted-foreground">
+                {signedIn ? t("wallet.preparing") : t("home.balanceHint")}
+              </div>
             )}
           </>
         )}

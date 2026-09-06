@@ -79,19 +79,38 @@ export function useEmbeddedWallet(): EmbeddedWallet {
     return restored;
   }, []);
 
-  // Signing in is all it takes to have a wallet: create and link one silently.
+  /**
+   * Signing in is all it takes to have a wallet: create and link one silently.
+   *
+   * The link can fail for reasons that pass — a rate limit, a dropped request —
+   * and an account without a linked wallet cannot see a balance or trade, so this
+   * keeps trying for a while rather than giving up after one go.
+   */
   useEffect(() => {
     if (!user || user.walletAddress) return;
     if (attempted.current === String(user.id)) return;
     attempted.current = String(user.id);
+
+    let cancelled = false;
     setProvisioning(true);
-    void provision()
-      .catch(() => {
-        // A failed link is not fatal: the wallet exists locally and the next
-        // action (or a reload) retries it.
-        attempted.current = null;
-      })
-      .finally(() => setProvisioning(false));
+    void (async () => {
+      for (let attempt = 0; attempt < 4 && !cancelled; attempt += 1) {
+        try {
+          await provision();
+          return;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 1500 * 2 ** attempt));
+        }
+      }
+      // Out of tries for now; the next sign-in or reload starts over.
+      attempted.current = null;
+    })().finally(() => {
+      if (!cancelled) setProvisioning(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, provision]);
 
   const keypair = useCallback(() => {

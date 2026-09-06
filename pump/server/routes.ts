@@ -208,7 +208,9 @@ function currentUser(req: Request): User {
 /** The signed-in user together with their linked wallet (402-style guard for trading). */
 function currentWallet(req: Request): { user: User; wallet: string } {
   const user = currentUser(req);
-  if (!user.walletAddress) throw new HttpError(400, "Connect a Solana wallet first");
+  // Every account gets its own wallet the moment it signs in, so a missing one
+  // means that link has not landed yet — not that the user must go and find one.
+  if (!user.walletAddress) throw new HttpError(400, "Your wallet is still being set up. Try again in a moment.");
   return { user, wallet: user.walletAddress };
 }
 
@@ -937,12 +939,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/me/wallet",
     requireAuth,
     wrap((req, res) => {
-      const ipKey = `ip:${clientIp(req)}`;
-      walletLoginLimiter.check(ipKey, res, "Too many attempts. Please wait a few minutes and try again.");
-      walletLoginLimiter.record(ipKey);
+      // Keyed by account, not by address: signing in is already behind the login
+      // limiter, and an IP key here means a shared network (or a few reloads)
+      // stops people's own wallets from being set up.
+      const me = currentUser(req);
+      const key = `user:${me.id}`;
+      walletLoginLimiter.check(key, res, "Too many attempts. Please wait a few minutes and try again.");
+      walletLoginLimiter.record(key);
       const input = walletLoginSchema.parse(req.body);
       const address = verifyWalletLogin(input);
-      const user = storage.linkWallet(currentUser(req).id, address);
+      const user = storage.linkWallet(me.id, address);
       res.json(storage.toSafeUser(user));
     }),
   );
