@@ -98,6 +98,12 @@ const ANCHOR_OFFSET = 12;
 
 /** Gaps between candles are filled with flat candles up to this many bars. */
 const MAX_FILLED_BARS = 3000;
+/**
+ * Flat bars added after the last real one. Enough to anchor the series near
+ * "now", not so many that a coin last traded hours ago fills the whole window
+ * with a flat line and looks like a broken chart.
+ */
+const MAX_TRAILING_FILL = 2;
 /** Grid cell (px) used to detect overlapping avatars; overlapping ones stack with STACK_OFFSET. */
 const CLUSTER_CELL = 24;
 const STACK_OFFSET = 4;
@@ -188,8 +194,12 @@ function aggregateCandles(candles: Candle[], intervalMs: number, nowMs: number):
     }
   }
 
-  // Trailing flat bar at the current bucket so the chart is anchored at "now".
-  const nowBucket = bucketStart(Math.max(nowMs, out[out.length - 1].t), intervalMs);
+  // Anchor near "now" without burying the real candles under hours of filler.
+  const lastReal = out[out.length - 1].t;
+  const nowBucket = Math.min(
+    bucketStart(Math.max(nowMs, lastReal), intervalMs),
+    lastReal + MAX_TRAILING_FILL * intervalMs,
+  );
   const span = (nowBucket - out[0].t) / intervalMs + 1;
   if (span <= MAX_FILLED_BARS) {
     const filled: Candle[] = [];
