@@ -396,6 +396,9 @@ async function buildCoinDetail(ca: string, viewerWallet: string | null): Promise
     detail.myHolding = tokens > 0 || indexed.costBasisSol > 0 || indexed.realizedPnlSol !== 0 ? { ...indexed, tokens } : null;
   }
   detail.creatorClaimableSol = claimable;
+  // A migrated coin trades in a real pool, so it gets the same TradingView chart
+  // every other token has; before that the curve's own candles are all there is.
+  detail.chartEmbedUrl = markets.chartEmbedUrl("solana", coin.curve.dammPool);
   return detail;
 }
 
@@ -433,9 +436,14 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   // the sampled ring buffer when neither knows one.
   const poolId = found.extras.pool?.id ?? null;
   let charted = poolId ? await markets.getCandles("solana", poolId) : [];
+  let chartPool = charted.length > 0 ? poolId : null;
   if (charted.length === 0) {
     const viaMarkets = await markets.getToken("solana", mint);
-    if (viaMarkets) charted = await markets.firstCandles("solana", viaMarkets.pools);
+    if (viaMarkets) {
+      const best = await markets.firstCandles("solana", viaMarkets.pools);
+      charted = best.candles;
+      chartPool = best.pool ?? viaMarkets.pool?.address ?? null;
+    }
   }
   const balances = viewerWallet
     ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
@@ -445,6 +453,7 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   return {
     ...found.token,
     chartSource: charted.length > 0 ? "market" : sampled.length > 0 ? "samples" : "none",
+    chartEmbedUrl: markets.chartEmbedUrl("solana", chartPool),
     candles: charted.length > 0 ? charted : sampled,
     supply: extras.supply,
     organicScore: extras.organicScore,
@@ -467,11 +476,13 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
 async function buildEvmDetail(chain: Chain, address: string): Promise<ExternalTokenDetail> {
   const found = await markets.getToken(chain, address);
   if (!found) throw new HttpError(...externalMiss());
-  const candles = await markets.firstCandles(chain, found.pools);
+  const best = await markets.firstCandles(chain, found.pools);
+  const candles = best.candles;
   const supply = found.token.priceUsd > 0 ? found.token.marketCapUsd / found.token.priceUsd : 0;
   return {
     ...found.token,
     chartSource: candles.length > 0 ? "market" : "none",
+    chartEmbedUrl: markets.chartEmbedUrl(chain, best.pool),
     candles,
     supply,
     organicScore: 0,

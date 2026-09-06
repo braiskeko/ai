@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -268,6 +269,15 @@ const NOT_TRENDING = new Set([
  * float is changing hands, and the 24h move adds momentum, bounded, because
  * +900% on no volume is noise rather than a trend.
  */
+/**
+ * Above this, an asset is infrastructure rather than a memecoin: majors, wrapped
+ * assets and the chains' own tokens live up there, and they are not what this
+ * board is for.
+ */
+const TRENDING_MCAP_CEILING = 5_000_000_000;
+/** Below this a "trend" is one wash trade. */
+const TRENDING_MIN_VOLUME = 5_000;
+
 function trendingScore(row: Row): number {
   const volume = Math.log10(1 + Math.max(0, row.volumeUsd));
   const turnover = row.marketCapUsd > 0 ? row.volumeUsd / row.marketCapUsd : 0;
@@ -288,7 +298,12 @@ function rankRows(rows: Row[], sort: Sort): Row[] {
       return rows.slice().sort((a, b) => b.volumeUsd - a.volumeUsd);
     case "trending":
       return rows
-        .filter((r) => !NOT_TRENDING.has(r.fallback.toUpperCase()))
+        .filter(
+          (r) =>
+            !NOT_TRENDING.has(r.fallback.toUpperCase()) &&
+            r.volumeUsd >= TRENDING_MIN_VOLUME &&
+            (r.marketCapUsd === 0 || r.marketCapUsd <= TRENDING_MCAP_CEILING),
+        )
         .sort((a, b) => trendingScore(b) - trendingScore(a));
     case "graduated":
       return rows.slice().sort((a, b) => b.marketCapUsd - a.marketCapUsd);
@@ -361,14 +376,14 @@ export default function Home() {
   // arrive over the socket the moment a trade lands.
   const coins = useQuery<CoinSummary[]>({
     queryKey: [coinsKey],
-    staleTime: 5_000,
+    staleTime: 8_000,
     refetchInterval: 10_000,
     enabled: chain === "all" || chain === "solana",
   });
   // Graduated is a launchpad-only notion, so the aggregator is not asked for it.
   const tokens = useQuery<ExternalToken[]>({
     queryKey: [tokensKey],
-    staleTime: 5_000,
+    staleTime: 8_000,
     refetchInterval: 10_000,
     enabled: sort !== "graduated",
   });
@@ -477,8 +492,8 @@ export default function Home() {
               )
             ) : (
               rows.map((row) => (
+                <motion.div key={row.key} layout transition={{ type: "spring", stiffness: 420, damping: 38 }}>
                 <TokenRow
-                  key={row.key}
                   href={row.href}
                   image={row.image}
                   title={row.title}
@@ -490,6 +505,7 @@ export default function Home() {
                   fallback={row.fallback}
                   chain={row.chain}
                 />
+                </motion.div>
               ))
             )}
             {board === "watchlist" && starredPerps.length > 0 && <PerpsList onlySymbols={starredPerps} />}

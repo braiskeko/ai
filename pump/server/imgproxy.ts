@@ -18,10 +18,14 @@ import type { Request, Response } from "express";
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
-/** Bytes kept in memory across all cached icons. */
-const CACHE_BUDGET = 48 * 1024 * 1024;
+/**
+ * Bytes kept in memory across all cached icons. Small on purpose: the host runs
+ * several worker processes under one memory limit, and browsers cache these for a
+ * week anyway, so the server only needs to absorb the first burst.
+ */
+const CACHE_BUDGET = 6 * 1024 * 1024;
 /** Largest single response worth caching. */
-const CACHE_ITEM_MAX = 512 * 1024;
+const CACHE_ITEM_MAX = 192 * 1024;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 /** How long a failure is remembered, so dead links are not re-fetched on every render. */
 const NEGATIVE_TTL_MS = 5 * 60 * 1000;

@@ -38,6 +38,32 @@ export function apiErrorMessage(err: unknown, fallback = "Something went wrong")
   return stripped || fallback;
 }
 
+const CACHED_USER_KEY = "nx_me";
+
+function isUnauthorized(err: unknown): boolean {
+  return err instanceof Error && /^401:/.test(err.message);
+}
+
+function readCachedUser(): SafeUser | null | undefined {
+  try {
+    const raw = localStorage.getItem(CACHED_USER_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as SafeUser | null;
+    return parsed && typeof parsed.id === "number" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCachedUser(user: SafeUser | null): void {
+  try {
+    if (user) localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(CACHED_USER_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 const AUTH_ERROR_KEYS: Record<string, string> = {
   invalid_link: "auth.invalidLink",
   expired_link: "auth.expiredLink",
@@ -50,12 +76,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const search = useSearch();
   const [loginOpen, setLoginOpen] = useState(false);
 
+  /**
+   * Staying signed in through a bad answer.
+   *
+   * A single failed `/api/me` — the host's resource-limit page, a restart, a
+   * dropped connection — used to render the whole app as signed out. So the last
+   * known account is kept in this browser and used as the starting value: the
+   * query still refetches immediately, a real 401 clears it, and everything else
+   * is treated as "we could not ask", not as "you are logged out".
+   */
   const { data, isLoading } = useQuery<SafeUser | null>({
     queryKey: ["/api/me"],
     queryFn: getQueryFn<SafeUser | null>({ on401: "returnNull" }),
     staleTime: 60_000,
+    initialData: readCachedUser,
+    initialDataUpdatedAt: 0,
+    retry: (count, err) => !isUnauthorized(err) && count < 3,
+    retryDelay: (count) => Math.min(4_000, 500 * 2 ** count),
   });
   const user = data ?? null;
+
+  // Mirror whatever the server last said, so the next cold load starts from it.
+  useEffect(() => {
+    if (data === undefined) return;
+    writeCachedUser(data);
+  }, [data]);
 
   // ?auth_error=… and ?welcome=1 arrive via the magic-link redirect.
   const handledSearch = useRef<string | null>(null);
@@ -91,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiRequest("POST", "/api/auth/logout");
     } finally {
+      writeCachedUser(null);
       queryClient.setQueryData(["/api/me"], null);
       await queryClient.invalidateQueries();
       toast({ title: t("auth.loggedOut"), description: t("auth.signedOut") });

@@ -24,6 +24,7 @@ import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@s
 import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
+import { PoolChart } from "@/components/TradingViewChart";
 import { TokenImage } from "@/components/TokenImage";
 import { WatchButton } from "@/components/WatchButton";
 import { Button } from "@/components/ui/button";
@@ -925,6 +926,13 @@ export default function TokenPage() {
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
             <section className="min-w-0 lg:col-start-1 lg:row-start-1">
+              {data.chartEmbedUrl ? (
+                <PoolChart
+                  src={data.chartEmbedUrl}
+                  height={420}
+                  className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full sm:rounded-3xl"
+                />
+              ) : (
               <CandleChart
                 candles={data.candles}
                 trades={[]}
@@ -938,6 +946,7 @@ export default function TokenPage() {
                 emptyMessage={data.chartSource === "none" ? t("chart.waitingCandles") : undefined}
                 className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
+              )}
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
@@ -956,7 +965,7 @@ export default function TokenPage() {
 
       {/* Mobile: Buy/Sell push the full-screen keypad; Sell only when there is a position. */}
       {data && data.tradable && (
-        <div className="fixed inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(5.6rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"

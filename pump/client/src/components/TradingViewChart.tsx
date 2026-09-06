@@ -104,4 +104,24 @@ export function tradingViewSymbol(perp: string): string | null {
   return `CRYPTO:${bare}USD`;
 }
 
+/**
+ * A pool's chart, drawn by GeckoTerminal with the TradingView charting library.
+ *
+ * This is how a token with no exchange listing still gets a TradingView chart:
+ * the widget above only knows symbols TradingView carries, while this reads the
+ * pool itself. It is an iframe, so it costs our server nothing.
+ */
+export function PoolChart({ src, height = 380, className }: { src: string; height?: number; className?: string }) {
+  return (
+    <iframe
+      src={src}
+      title="Chart"
+      loading="lazy"
+      allow="clipboard-write"
+      className={cn("w-full border-0", className)}
+      style={{ height }}
+    />
+  );
+}
+
 export default TradingViewChart;

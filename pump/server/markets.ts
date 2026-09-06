@@ -27,7 +27,12 @@ import {
 import { log } from "./vite";
 
 const API_BASE = "https://api.geckoterminal.com/api/v2";
-const TIMEOUT_MS = 10_000;
+/**
+ * Short on purpose: a slow upstream must not pin a worker. The host runs the app
+ * under a process limit, and a handful of requests each waiting ten seconds is
+ * what makes it start refusing connections.
+ */
+const TIMEOUT_MS = 4_000;
 const LIST_TTL_MS = 60_000;
 const TOKEN_TTL_MS = 30_000;
 const CANDLES_TTL_MS = 120_000;
@@ -108,10 +113,31 @@ export function clearMarketsCache(): void {
   cache.clear();
 }
 
+/** One in-flight request per URL, however many callers ask at once. */
+const inFlight = new Map<string, Promise<unknown | null>>();
+
+/**
+ * Cached GET with stale-while-revalidate: a stale entry is served immediately and
+ * refreshed in the background, so a page never waits on the upstream once it has
+ * been read at least once.
+ */
 async function getJson(path: string, ttlMs: number, label: string): Promise<unknown | null> {
   const target = `${API_BASE}${path}`;
-  const cached = cacheGet(target, ttlMs);
-  if (cached !== undefined) return cached;
+  const fresh = cacheGet(target, ttlMs);
+  if (fresh !== undefined) return fresh;
+
+  const stale = cache.get(target)?.value;
+  const pending = inFlight.get(target) ?? fetchJson(target, ttlMs, label);
+  inFlight.set(target, pending);
+  void pending.finally(() => {
+    if (inFlight.get(target) === pending) inFlight.delete(target);
+  });
+  // Something to show now beats the freshest possible answer.
+  if (stale !== undefined) return stale;
+  return pending;
+}
+
+async function fetchJson(target: string, ttlMs: number, label: string): Promise<unknown | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -383,10 +409,25 @@ export async function getCandles(chain: Chain, poolAddress: string, minutes = 1,
 }
 
 /** Candles from the first of `pools` that has any — a token's top pool is sometimes dry. */
-export async function firstCandles(chain: Chain, pools: string[], max = 3): Promise<Candle[]> {
+export async function firstCandles(
+  chain: Chain,
+  pools: string[],
+  max = 3,
+): Promise<{ candles: Candle[]; pool: string | null }> {
   for (const pool of pools.slice(0, max)) {
     const candles = await getCandles(chain, pool);
-    if (candles.length > 0) return candles;
+    if (candles.length > 0) return { candles, pool };
   }
-  return [];
+  return { candles: [], pool: pools[0] ?? null };
+}
+
+/**
+ * The embeddable chart for a pool. GeckoTerminal draws it with the TradingView
+ * charting library, which is how a memecoin with no exchange listing still gets a
+ * TradingView chart — the widget's own catalogue has no symbol for it.
+ */
+export function chartEmbedUrl(chain: Chain, pool: string | null): string | null {
+  const net = NETWORK_IDS[chain];
+  if (!net || !pool) return null;
+  return `https://www.geckoterminal.com/${net}/pools/${encodeURIComponent(pool)}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0`;
 }

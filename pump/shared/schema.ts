@@ -421,6 +421,8 @@ export interface HolderRow {
 }
 
 export interface CoinDetail extends CoinSummary {
+  /** After migration the coin trades in a real pool, which has a TradingView chart. */
+  chartEmbedUrl?: string | null;
   candles: Candle[];
   recentTrades: (Trade & { user: PublicUser | null })[];
   commentsList: CommentView[];
@@ -663,6 +665,8 @@ export type ChartSource = "market" | "samples" | "none";
 
 export interface ExternalTokenDetail extends ExternalToken {
   chartSource: ChartSource;
+  /** TradingView-rendered chart for the pool (GeckoTerminal embed), when there is one. */
+  chartEmbedUrl: string | null;
   /**
    * OHLC in USD per token (not SOL), derived from the price samples the server
    * records while the token is being viewed — the free aggregator tier has no
