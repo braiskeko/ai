@@ -27,14 +27,20 @@ import { cn } from "@/lib/utils";
 
 export type ChartInterval = "1m" | "5m" | "15m" | "1h";
 export type ChartMode = "price" | "mcap";
+/** Denomination of the candles: our own coins are priced in SOL, external tokens in USD. */
+export type ChartUnit = "SOL" | "USD";
 export type LiveTrade = Trade & { user: PublicUser | null };
 
 export interface CandleChartProps {
-  /** 1-minute OHLC candles (SOL per token). Any order; aggregated client-side. */
+  /** 1-minute OHLC candles (`unit` per token). Any order; aggregated client-side. */
   candles: Candle[];
   /** Trades to draw as avatar markers (any order; only the last MAX_MARKERS are drawn). */
   trades: LiveTrade[];
   ticker: string;
+  /** Currency the candle values are expressed in (default "SOL"). */
+  unit?: ChartUnit;
+  /** Supply the "mcap" mode multiplies the price by (default: our own TOTAL_SUPPLY). */
+  supply?: number;
   height?: number;
   /** Controlled mode; when omitted the chart keeps its own state (default "price"). */
   mode?: ChartMode;
@@ -93,23 +99,26 @@ function fromChartTime(t: number): Date {
 // canvas-safe digits rather than subscript notation).
 // ---------------------------------------------------------------------------
 
-function fmtAxisPrice(p: number): string {
-  if (!Number.isFinite(p) || p <= 0) return "0 SOL";
-  if (p >= 1000) return fmtCompactUsd(p);
-  if (p >= 1) return `${p.toFixed(4)} SOL`;
-  if (p >= 0.01) return `${p.toFixed(6)} SOL`;
-  const decimals = Math.min(12, -Math.floor(Math.log10(p)) + 2);
-  return `${p.toFixed(decimals)} SOL`;
+/** "0.0421 SOL" / "$0.0421" — plain digits, no subscripts (this goes on a canvas). */
+function fmtAxisPrice(p: number, unit: ChartUnit = "SOL"): string {
+  if (!Number.isFinite(p) || p <= 0) return withUnit("0", unit);
+  if (p >= 1000) return fmtCompactAmount(p, unit);
+  const decimals = p >= 1 ? 4 : p >= 0.01 ? 6 : Math.min(12, -Math.floor(Math.log10(p)) + 2);
+  return withUnit(p.toFixed(decimals), unit);
 }
 
-function fmtCompactUsd(n: number): string {
-  if (!Number.isFinite(n)) return "0 SOL";
+function fmtCompactAmount(n: number, unit: ChartUnit = "SOL"): string {
+  if (!Number.isFinite(n)) return withUnit("0", unit);
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}${trimZeros((abs / 1e9).toFixed(2))}B SOL`;
-  if (abs >= 1e6) return `${sign}${trimZeros((abs / 1e6).toFixed(2))}M SOL`;
-  if (abs >= 1e3) return `${sign}${trimZeros((abs / 1e3).toFixed(1))}K SOL`;
-  return `${sign}${abs.toFixed(4)} SOL`;
+  if (abs >= 1e9) return withUnit(`${sign}${trimZeros((abs / 1e9).toFixed(2))}B`, unit);
+  if (abs >= 1e6) return withUnit(`${sign}${trimZeros((abs / 1e6).toFixed(2))}M`, unit);
+  if (abs >= 1e3) return withUnit(`${sign}${trimZeros((abs / 1e3).toFixed(1))}K`, unit);
+  return withUnit(`${sign}${abs.toFixed(4)}`, unit);
+}
+
+function withUnit(value: string, unit: ChartUnit): string {
+  return unit === "USD" ? `$${value}` : `${value} SOL`;
 }
 
 function trimZeros(s: string): string {
@@ -288,6 +297,8 @@ export function CandleChart({
   candles,
   trades,
   ticker,
+  unit = "SOL",
+  supply = TOTAL_SUPPLY,
   height = 380,
   mode: modeProp,
   onModeChange,
@@ -319,7 +330,7 @@ export function CandleChart({
     onIntervalChange?.(i);
   };
 
-  const scale = mode === "mcap" ? TOTAL_SUPPLY : 1;
+  const scale = mode === "mcap" ? (supply > 0 ? supply : TOTAL_SUPPLY) : 1;
   const intervalMs = INTERVAL_MS[interval];
 
   // ---- Series data ----------------------------------------------------------
@@ -373,6 +384,8 @@ export function CandleChart({
   const rafRef = useRef(0);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const unitRef = useRef(unit);
+  unitRef.current = unit;
   markersRef.current = markers;
   bucketTimesRef.current = bucketTimes;
 
@@ -521,7 +534,8 @@ export function CandleChart({
       priceLineWidth: 1,
       priceFormat: {
         type: "custom",
-        formatter: (p: number) => (modeRef.current === "mcap" ? fmtCompactUsd(p) : fmtAxisPrice(p)),
+        formatter: (p: number) =>
+          modeRef.current === "mcap" ? fmtCompactAmount(p, unitRef.current) : fmtAxisPrice(p, unitRef.current),
         minMove: modeRef.current === "mcap" ? 1 : 1e-9,
       },
     });

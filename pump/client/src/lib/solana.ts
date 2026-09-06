@@ -1,10 +1,40 @@
 import { useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Transaction } from "@solana/web3.js";
+import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import type { SendTxInput, SentTx, UnsignedTx } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 export type TxKind = SendTxInput["kind"];
+
+/**
+ * Decodes a server-built transaction of either shape.
+ *
+ * Our own Meteora instructions come back as legacy `Transaction`s (sometimes
+ * already partially signed by a mint keypair); Jupiter routes come back as
+ * v0 `VersionedTransaction`s with address lookup tables. `VersionedTransaction.
+ * deserialize` also accepts a legacy message, so the version is checked
+ * explicitly and legacy transactions keep taking exactly the path they always
+ * did.
+ */
+export function decodeTx(bytes: Uint8Array): Transaction | VersionedTransaction {
+  try {
+    const versioned = VersionedTransaction.deserialize(bytes);
+    if (versioned.version !== "legacy") return versioned;
+  } catch {
+    // Not a versioned transaction — fall through to the legacy decoder.
+  }
+  return Transaction.from(bytes);
+}
+
+/** Re-serializes a signed transaction of either shape to base64. */
+function serializeSigned(tx: Transaction | VersionedTransaction): string {
+  const bytes =
+    tx instanceof VersionedTransaction
+      ? tx.serialize()
+      : // Partial signatures applied server-side (the mint on a launch) stay intact.
+        tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+  return Buffer.from(bytes).toString("base64");
+}
 
 export interface WalletTx {
   /** base58 address of the connected browser wallet, or null when disconnected. */
@@ -39,12 +69,11 @@ export function useWalletTx(): WalletTx {
       if (!signTransaction) {
         throw new Error("Connect a Solana wallet that supports transaction signing.");
       }
-      const tx = Transaction.from(Buffer.from(unsigned.tx, "base64"));
+      const tx = decodeTx(Buffer.from(unsigned.tx, "base64"));
       const signed = await signTransaction(tx);
       onSigned?.();
-      const serialized = signed.serialize({ requireAllSignatures: false, verifySignatures: false });
       const body: SendTxInput = {
-        tx: Buffer.from(serialized).toString("base64"),
+        tx: serializeSigned(signed),
         kind,
         ...(ca ? { ca } : {}),
       };

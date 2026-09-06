@@ -229,8 +229,9 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Clears the floating bottom bar (pill height + its margin). */
   .pb-nav {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* Horizontal marquee used by the LiveTicker (content is rendered twice for a seamless loop) */

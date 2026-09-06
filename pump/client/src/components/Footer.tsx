@@ -46,7 +46,7 @@ export function Footer() {
   const appName = config?.appName ?? t("app.name");
 
   return (
-    <footer className="mt-auto border-t border-border bg-background">
+    <footer className="mt-auto hidden border-t border-border bg-background md:block">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <Link href="/" className="flex items-center gap-2 text-foreground">

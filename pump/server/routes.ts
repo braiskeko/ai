@@ -17,6 +17,8 @@ import {
   TOTAL_SUPPLY,
   commentSchema,
   createTxSchema,
+  externalQuoteSchema,
+  externalSwapTxSchema,
   idTokenSchema,
   magicLinkRequestSchema,
   prepareCoinSchema,
@@ -34,6 +36,8 @@ import {
   type CoinDetail,
   type CoinSummary,
   type CommentView,
+  type ExternalToken,
+  type ExternalTokenDetail,
   type Holding,
   type HolderRow,
   type Portfolio,
@@ -59,6 +63,7 @@ import {
 import { config } from "./config";
 import { magicLinkDevMode, sendMagicLink } from "./email";
 import * as indexer from "./indexer";
+import * as jupiter from "./jupiter";
 import { buildTokenMetadata, metadataUri, readTokenMetadata, saveTokenMetadata } from "./meta";
 import {
   buildClaimCreatorFeeTx,
@@ -226,6 +231,9 @@ const coinListQuerySchema = z.object({
   search: z.string().trim().min(1).max(100).optional().catch(undefined),
 });
 
+/** `?list=` on /api/tokens; anything unknown falls back to the trending feed. */
+const tokenListQuerySchema = z.enum(["trending", "top", "new"]).catch("trending");
+
 const avatarSchema = z.object({
   image: z.string().regex(/^data:image\/(png|jpe?g|webp|gif);base64,/, "Upload an image").max(2_000_000),
 });
@@ -283,6 +291,8 @@ const coinCreateLimiter = new RateLimiter(5, 60 * 60 * 1000);
 const commentLimiter = new RateLimiter(20, 60 * 1000);
 /** Transaction building hits the RPC; keep it civil. */
 const txLimiter = new RateLimiter(60, 60 * 1000);
+/** External quotes are proxied to Jupiter uncached, so they get their own budget. */
+const externalQuoteLimiter = new RateLimiter(120, 60 * 1000);
 
 // ---------------------------------------------------------------------------
 // Pending coin creations
@@ -375,6 +385,78 @@ async function buildCoinDetail(ca: string, viewerWallet: string | null): Promise
   }
   detail.creatorClaimableSol = claimable;
   return detail;
+}
+
+// ---------------------------------------------------------------------------
+// External tokens (Jupiter)
+// ---------------------------------------------------------------------------
+
+/**
+ * The detail payload for any Solana mint. Every fetch also samples the price
+ * into the in-memory ring buffer, which is where the chart's candles come from
+ * (the free Jupiter tier has no OHLC endpoint).
+ */
+async function buildExternalDetail(mint: string): Promise<ExternalTokenDetail> {
+  if (!isMint(mint)) throw new HttpError(404, "Token not found");
+  const found = await jupiter.getToken(mint);
+  if (!found) throw new HttpError(404, "Token not found");
+
+  jupiter.recordPrice(mint, found.token.priceUsd);
+  const { extras } = found;
+  return {
+    ...found.token,
+    candles: jupiter.candlesFor(mint),
+    supply: extras.supply,
+    organicScore: extras.organicScore,
+    buys24h: extras.buys24h,
+    sells24h: extras.sells24h,
+    audit: extras.audit,
+    links: extras.links,
+    pool: extras.pool,
+    explorerUrl: explorerUrl("token", mint),
+    jupiterUrl: jupiter.jupiterSwapUrl(mint),
+  };
+}
+
+/**
+ * Prices one side of an external trade. SOL is always the quote side: buying is
+ * SOL → mint, selling is mint → SOL. Returns both the API-shaped quote and the
+ * raw route, because Jupiter's swap endpoint wants its own quote object back
+ * verbatim.
+ */
+async function routeExternalTrade(input: {
+  mint: string;
+  side: "buy" | "sell";
+  amount: number;
+  slippageBps: number;
+}): Promise<{ quote: ReturnType<typeof jupiter.toExternalTradeQuote>; route: jupiter.JupQuote; token: ExternalToken }> {
+  const found = await jupiter.getToken(input.mint);
+  if (!found) throw new HttpError(404, "Token not found");
+
+  const buy = input.side === "buy";
+  const amount = jupiter.toBaseUnits(input.amount, buy ? jupiter.SOL_DECIMALS : found.token.decimals);
+  if (amount === "0") throw new HttpError(400, "Amount is too small");
+
+  const route = await jupiter.getQuote({
+    inputMint: buy ? jupiter.SOL_MINT : input.mint,
+    outputMint: buy ? input.mint : jupiter.SOL_MINT,
+    amount,
+    slippageBps: input.slippageBps,
+  });
+  if (!route) throw new HttpError(502, "No route available for this trade right now");
+
+  return {
+    route,
+    token: found.token,
+    quote: jupiter.toExternalTradeQuote({
+      side: input.side,
+      quote: route,
+      decimals: found.token.decimals,
+      priceUsd: found.token.priceUsd,
+      supply: found.extras.supply,
+      solUsd: getSolUsd(),
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -863,8 +945,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const trade = await indexer.indexSignature(signature).catch(() => null);
         if (trade) response.trade = trade;
       }
+      // "jupswap" (an external token routed through Jupiter) and "claim" are
+      // relayed and confirmed above but never indexed: neither is a trade
+      // against one of our bonding curves.
 
       res.status(201).json(response);
+    }),
+  );
+
+  // ---- External tokens (any Solana memecoin, routed through Jupiter) -------
+
+  /**
+   * Discovery feed. `q` searches by mint, symbol or name; otherwise one of the
+   * curated lists is returned. Always answers with an array: when Jupiter is
+   * unreachable that array is empty and the UI shows its "unavailable" state
+   * rather than an error page.
+   */
+  app.get(
+    "/api/tokens",
+    wrap(async (req, res) => {
+      const limit = parseLimit(req.query.limit, 50, 100);
+      const q = (queryString(req.query.q) ?? queryString(req.query.search) ?? "").trim();
+      const tokens: ExternalToken[] = q
+        ? await jupiter.searchTokens(q, limit)
+        : await jupiter.listTokens(tokenListQuerySchema.parse(queryString(req.query.list)), limit);
+      res.json(tokens);
+    }),
+  );
+
+  app.get(
+    "/api/tokens/:mint",
+    wrap(async (req, res) => {
+      res.json(await buildExternalDetail(req.params.mint));
+    }),
+  );
+
+  app.post(
+    "/api/tokens/:mint/quote",
+    wrap(async (req, res) => {
+      const ipKey = `ip:${clientIp(req)}`;
+      externalQuoteLimiter.check(ipKey, res, "Too many quotes. Please slow down.");
+      externalQuoteLimiter.record(ipKey);
+      const input = externalQuoteSchema.parse({ ...req.body, mint: req.params.mint });
+      res.json((await routeExternalTrade(input)).quote);
+    }),
+  );
+
+  /** The unsigned Jupiter swap (a base64 VersionedTransaction) for the connected wallet. */
+  app.post(
+    "/api/tokens/:mint/swap-tx",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { user, wallet } = currentWallet(req);
+      txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
+      txLimiter.record(`user:${user.id}`);
+      const input = externalSwapTxSchema.parse({ ...req.body, mint: req.params.mint });
+      if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
+
+      const { quote, route } = await routeExternalTrade(input);
+      const built = await jupiter.buildSwapTx({ quote: route, userPublicKey: wallet });
+      if (!built) throw new HttpError(502, "Jupiter could not build this swap right now. Please try again.");
+      const response: UnsignedTx = {
+        tx: built.swapTransaction,
+        lastValidBlockHeight: built.lastValidBlockHeight,
+        quote,
+      };
+      res.json(response);
     }),
   );
 

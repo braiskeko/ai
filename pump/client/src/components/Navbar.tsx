@@ -12,6 +12,7 @@ import {
   Shield,
   Sparkles,
   User as UserIcon,
+  Users,
   Wallet,
 } from "lucide-react";
 import type { WalletView } from "@shared/schema";
@@ -34,12 +35,16 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 
+/**
+ * Mobile navigation: five icon-only slots in a floating pill, the way the reference
+ * trading apps do it. The last slot shows the signed-in user's avatar rather than an icon.
+ */
 const MOBILE_TABS = [
   { href: "/", key: "nav.home", icon: Home },
-  { href: "/create", key: "nav.create", icon: PlusCircle },
-  { href: "/activity", key: "nav.activity", icon: Activity },
-  { href: "/portfolio", key: "nav.portfolio", icon: Briefcase },
-  { href: "/wallet", key: "nav.wallet", icon: Wallet },
+  { href: "/activity", key: "nav.activity", icon: Search },
+  { href: "/create", key: "nav.create", icon: PlusCircle, brand: true },
+  { href: "/portfolio", key: "nav.portfolio", icon: Users },
+  { href: "/wallet", key: "nav.wallet", icon: UserIcon, avatar: true },
 ] as const;
 
 /** A search term that looks like a mint address (shared/schema.ts SOLANA_ADDRESS_RE). */
@@ -280,29 +285,42 @@ export function Navbar() {
       {/* Mobile bottom tab bar */}
       <nav
         aria-label={t("nav.mobile")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
       >
-        {MOBILE_TABS.map(({ href, key, icon: Icon }) => {
-          const active = isActive(location, href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className="tap flex flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-semibold text-muted-foreground transition-colors"
-            >
-              <span
+        <div className="pointer-events-auto flex w-full max-w-md items-center justify-around rounded-full border border-white/5 bg-secondary/80 px-1.5 py-1.5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          {MOBILE_TABS.map((tab) => {
+            const active = isActive(location, tab.href);
+            const Icon = tab.icon;
+            const showAvatar = "avatar" in tab && tab.avatar && user;
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-label={t(tab.key)}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "grid h-8 w-11 place-items-center rounded-full transition-colors",
-                  active ? "bg-primary/15 text-primary" : "text-muted-foreground",
+                  "tap grid h-11 w-14 place-items-center rounded-full transition-colors",
+                  active ? "bg-white/10 text-foreground" : "text-muted-foreground",
                 )}
               >
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className={cn("truncate", active && "text-primary")}>{t(key)}</span>
-            </Link>
-          );
-        })}
+                {showAvatar ? (
+                  <span className={cn("rounded-full", active && "ring-2 ring-foreground/70")}>
+                    <UserAvatar seed={user.avatarSeed} name={user.username} size={26} />
+                  </span>
+                ) : (
+                  <Icon
+                    className={cn(
+                      "h-[22px] w-[22px]",
+                      "brand" in tab && tab.brand && "h-7 w-7",
+                      active && "text-foreground",
+                    )}
+                    strokeWidth={active ? 2.4 : 2}
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
