@@ -5,7 +5,6 @@ import {
   BarChart3,
   Flame,
   GraduationCap,
-  Lightbulb,
   PlusCircle,
   RefreshCw,
   SlidersHorizontal,
@@ -16,7 +15,7 @@ import {
   BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
-import type { Chain, CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
+import type { Chain, CoinSummary, ExternalToken } from "@shared/schema";
 import { CHAINS } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
@@ -24,13 +23,12 @@ import { CoinCardSkeleton } from "@/components/CoinCard";
 import { ChainBadge } from "@/components/ChainIcon";
 import { PerpsList } from "@/components/PerpsList";
 import { TokenImage } from "@/components/TokenImage";
-import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveEvent, useRecentlyCreatedIds } from "@/lib/useLive";
-import { compactUsd, priceUsd, shortCa, signedPct, useSolUsd } from "@/lib/format";
+import { compactUsd, priceUsd, signedPct, useSolUsd } from "@/lib/format";
 import { useWatchlist } from "@/lib/watchlist";
 import { cn } from "@/lib/utils";
 
@@ -135,51 +133,6 @@ function SortPills({
 // Weekly top trades — the horizontal strip of the best performing traders
 // ---------------------------------------------------------------------------
 
-function TopTraders() {
-  const t = useT();
-  const solUsd = useSolUsd();
-  const { data } = useQuery<TraderRank[]>({ queryKey: ["/api/traders?range=7d"], staleTime: 60_000 });
-  const traders = (data ?? []).filter((x) => x.pnlSol > 0).slice(0, 10);
-  if (traders.length === 0) return null;
-
-  return (
-    <section>
-      <h2 className="mb-2.5 flex items-center gap-2 text-lg font-bold tracking-tight">
-        <Lightbulb className="h-4 w-4 text-muted-foreground" />
-        {t("home.topTrades")}
-      </h2>
-      <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        {traders.map((trader) => {
-          const name = trader.user?.username ?? shortCa(trader.wallet);
-          const token = trader.topTokens[0];
-          return (
-            <Link
-              key={trader.wallet}
-              href={trader.user ? `/u/${trader.user.username}` : "/people"}
-              className="tap w-[19rem] shrink-0 overflow-hidden rounded-2xl border border-border"
-            >
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5">
-                <UserAvatar seed={trader.user?.avatarSeed ?? trader.wallet} name={name} size={28} />
-                <span className="truncate text-[15px] font-semibold">{name}</span>
-              </div>
-              <div className="flex items-center gap-2.5 border-t border-border px-3.5 py-2.5">
-                {token ? (
-                  <TokenImage src={token.imageUrl} name={token.ticker} size={28} />
-                ) : (
-                  <span className="h-7 w-7 shrink-0 rounded-full bg-muted" />
-                )}
-                <span className="truncate text-[15px] font-bold tabular text-up">
-                  +{compactUsd(trader.pnlSol * solUsd)}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Scope switch: coins launched here vs. every other Solana token
 // ---------------------------------------------------------------------------
@@ -266,7 +219,8 @@ function TokenRow({
         <span className="block text-[17px] font-bold leading-tight tabular">{priceUsd(price)}</span>
         {Number.isFinite(change24h) && change24h !== 0 && (
           <span className={cn("mt-0.5 block text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-            {up ? "▲" : "▼"} {signedPct(Math.abs(change24h))}
+            <span className="mr-0.5 align-[0.15em] text-[8px]">{up ? "▲" : "▼"}</span>
+            {signedPct(Math.abs(change24h))}
           </span>
         )}
       </span>
@@ -406,13 +360,21 @@ export default function Home() {
     return `/api/tokens?${p.toString()}`;
   }, [sort, q, chain]);
 
+  // Live prices: the lists re-read every few seconds, and our own coins also
+  // arrive over the socket the moment a trade lands.
   const coins = useQuery<CoinSummary[]>({
     queryKey: [coinsKey],
-    staleTime: 30_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
     enabled: chain === "all" || chain === "solana",
   });
   // Graduated is a launchpad-only notion, so the aggregator is not asked for it.
-  const tokens = useQuery<ExternalToken[]>({ queryKey: [tokensKey], staleTime: 30_000, enabled: sort !== "graduated" });
+  const tokens = useQuery<ExternalToken[]>({
+    queryKey: [tokensKey],
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    enabled: sort !== "graduated",
+  });
   const recent = useRecentlyCreatedIds();
 
   // "New coin!" toast for coins launched by other people while we are browsing.
@@ -443,8 +405,6 @@ export default function Home() {
     <PageShell wide>
       <div className="space-y-5">
         <BalanceHeader />
-
-        <TopTraders />
 
         <BoardTabs board={board} onChange={setBoard} />
 

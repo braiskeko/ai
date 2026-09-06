@@ -428,10 +428,16 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   if (!found) throw new HttpError(...externalMiss());
 
   jupiter.recordPrice(mint, found.token.priceUsd);
-  // Real OHLCV for the token's deepest pool; the sampled ring buffer is the
-  // fallback for a pool GeckoTerminal does not know.
-  const poolId = found.extras.pool?.id ?? null;
-  const charted = poolId ? await markets.getCandles("solana", poolId) : [];
+  // Real OHLCV for the token's deepest pool. The aggregator does not always name
+  // a pool, so fall back to asking the chart source which pool it charts, and to
+  // the sampled ring buffer when neither knows one.
+  let poolId = found.extras.pool?.id ?? null;
+  let charted = poolId ? await markets.getCandles("solana", poolId) : [];
+  if (charted.length === 0) {
+    const viaMarkets = await markets.getToken("solana", mint);
+    poolId = viaMarkets?.pool?.address ?? poolId;
+    if (viaMarkets?.pool?.address) charted = await markets.getCandles("solana", viaMarkets.pool.address);
+  }
   const balances = viewerWallet
     ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
     : null;
@@ -1144,6 +1150,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(response);
     }),
   );
+
+  /**
+   * What each upstream is doing right now. Handy when a list is empty and the
+   * question is "unreachable, or genuinely nothing?".
+   */
+  app.get("/api/markets/status", (_req, res) => {
+    res.json({
+      jupiter: jupiter.jupiterStatus(),
+      geckoterminal: markets.marketsStatus(),
+      hyperliquid: hyperliquid.hyperliquidStatus(),
+    });
+  });
 
   // ---- Perps (Hyperliquid) -------------------------------------------------
 

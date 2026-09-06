@@ -210,7 +210,7 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
         <div className="min-w-0">
           <div className="text-[40px] font-extrabold leading-none tracking-tight tabular">{priceUsd(priceUsdNow)}</div>
           <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-1.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-            <span>{up ? "▲" : "▼"}</span>
+            <span className="align-[0.15em] text-[9px]">{up ? "▲" : "▼"}</span>
             <span>{priceUsd(Math.abs(changeUsd))}</span>
             <span>({signedPct(coin.change24h)})</span>
             <span className="font-medium text-muted-foreground">24h</span>
@@ -630,7 +630,10 @@ export default function CoinPage() {
   const coin = useQuery<CoinDetail>({
     queryKey: [`/api/coins/${ca}`],
     enabled: valid,
-    staleTime: 15_000,
+    // Live: the socket pushes each trade, and this keeps price, holders and the
+    // curve honest even when nothing is trading.
+    staleTime: 5_000,
+    refetchInterval: 10_000,
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
 

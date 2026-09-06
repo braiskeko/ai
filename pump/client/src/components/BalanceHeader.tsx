@@ -78,7 +78,7 @@ function BigMoney({ usd, muted }: { usd: number; muted?: boolean }) {
     .toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
     .split(".");
   return (
-    <div className={cn("text-[2.65rem] font-extrabold leading-none tracking-tight tabular", muted && "text-muted-foreground")}>
+    <div className={cn("font-display text-[2.65rem] font-bold leading-none tracking-tight tabular", muted && "text-muted-foreground")}>
       {whole}
       <span className={cn("text-muted-foreground", muted && "opacity-70")}>.{cents}</span>
     </div>

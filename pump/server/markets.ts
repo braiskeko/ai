@@ -198,13 +198,12 @@ const tokenResponseSchema = z.object({
   included: z.array(poolSchema).optional(),
 });
 
-const ohlcvSchema = z.object({
-  data: z
-    .object({
-      attributes: z.object({ ohlcv_list: z.array(z.array(z.union([z.number(), z.string(), z.null()]))) }).partial(),
-    })
-    .partial(),
-});
+const ohlcvRow = z.array(z.union([z.number(), z.string(), z.null()]));
+/** Tolerates both the documented envelope and a bare list, so a shape change degrades rather than breaks. */
+const ohlcvSchema = z.union([
+  z.object({ data: z.object({ attributes: z.object({ ohlcv_list: z.array(ohlcvRow) }).partial() }).partial() }),
+  z.object({ ohlcv_list: z.array(ohlcvRow) }),
+]);
 
 function finite(value: unknown, fallback = 0): number {
   const n = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
@@ -366,7 +365,7 @@ export async function getCandles(chain: Chain, poolAddress: string, minutes = 1,
   if (!json) return [];
   const parsed = ohlcvSchema.safeParse(json);
   if (!parsed.success) return [];
-  const rows = parsed.data.data?.attributes?.ohlcv_list ?? [];
+  const rows = "ohlcv_list" in parsed.data ? parsed.data.ohlcv_list : (parsed.data.data?.attributes?.ohlcv_list ?? []);
   const candles: Candle[] = [];
   for (const row of rows) {
     const [ts, o, h, l, c, v] = row;

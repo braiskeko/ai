@@ -97,7 +97,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
         <div className="mx-auto flex h-12 w-full max-w-screen-2xl items-center gap-2 px-4 sm:h-14 sm:gap-3">
           <Link href="/" className="flex shrink-0 items-center" aria-label={t("nav.homeAria", { app: appName })}>
             <span className="wordmark text-2xl leading-none">{appName.toLowerCase()}</span>

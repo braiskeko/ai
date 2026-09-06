@@ -21,7 +21,7 @@ const CATEGORIES: (PerpCategory | "all")[] = ["all", "crypto", "stocks", "commod
 export function PerpsList() {
   const t = useT();
   const [category, setCategory] = useState<PerpCategory | "all">("all");
-  const perps = useQuery<PerpMarket[]>({ queryKey: ["/api/perps?limit=120"], staleTime: 20_000, refetchInterval: 30_000 });
+  const perps = useQuery<PerpMarket[]>({ queryKey: ["/api/perps?limit=120"], staleTime: 5_000, refetchInterval: 8_000 });
 
   const all = perps.data ?? [];
   const shown = useMemo(
@@ -97,7 +97,10 @@ export function PerpsList() {
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-[17px] font-bold leading-tight">{market.symbol}</span>
-                    <span className="shrink-0 rounded-md bg-primary/15 px-1.5 py-0.5 text-[11px] font-bold text-primary">
+                    <span
+                      className="shrink-0 rounded-md bg-primary/15 px-1.5 py-0.5 text-[11px] font-bold text-primary"
+                      title={t("perps.maxLeverage", { max: String(market.maxLeverage) })}
+                    >
                       {market.maxLeverage}x
                     </span>
                   </div>
@@ -108,7 +111,8 @@ export function PerpsList() {
                 <div className="shrink-0 text-right">
                   <div className="text-[17px] font-bold leading-tight tabular">{priceUsd(market.priceUsd)}</div>
                   <div className={cn("mt-0.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-                    {up ? "▲" : "▼"} {signedPct(Math.abs(market.change24h))}
+                    <span className="mr-0.5 align-[0.15em] text-[8px]">{up ? "▲" : "▼"}</span>
+                    {signedPct(Math.abs(market.change24h))}
                   </div>
                 </div>
               </li>

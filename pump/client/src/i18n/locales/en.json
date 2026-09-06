@@ -655,5 +655,6 @@
   "home.watchlistEmpty": "Nothing on your watchlist yet",
   "home.watchlistHint": "Tap the star on any token to keep it here.",
   "common.watchlistAdd": "Add to watchlist",
-  "common.watchlistRemove": "Remove from watchlist"
+  "common.watchlistRemove": "Remove from watchlist",
+  "perps.maxLeverage": "Up to {max}x long or short"
 }

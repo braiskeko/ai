@@ -590,5 +590,6 @@
   "home.watchlistEmpty": "Aún no tienes favoritos",
   "home.watchlistHint": "Toca la estrella de cualquier token para guardarlo aquí.",
   "common.watchlistAdd": "Añadir a favoritos",
-  "common.watchlistRemove": "Quitar de favoritos"
+  "common.watchlistRemove": "Quitar de favoritos",
+  "perps.maxLeverage": "Hasta {max}x en largo o corto"
 }

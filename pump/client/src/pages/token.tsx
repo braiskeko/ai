@@ -69,8 +69,8 @@ const SLIPPAGE_KEY = "nx_slippage_bps";
 const QUOTE_DEBOUNCE_MS = 300;
 const CHART_RANGE_KEY = "nx_chart_range";
 const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
-/** Each fetch also records a price sample server-side, which is what draws the chart. */
-const REFRESH_MS = 60_000;
+/** Live prices; each fetch also records a price sample server-side. */
+const REFRESH_MS = 10_000;
 
 type Side = "buy" | "sell";
 type Phase = "idle" | "signing" | "confirming";
@@ -219,7 +219,7 @@ function TokenHeader({ token }: { token: ExternalTokenDetail }) {
         <div className="min-w-0">
           <div className="text-[40px] font-extrabold leading-none tracking-tight tabular">{priceUsd(token.priceUsd)}</div>
           <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-1.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-            <span>{up ? "\u25b2" : "\u25bc"}</span>
+            <span className="align-[0.15em] text-[9px]">{up ? "\u25b2" : "\u25bc"}</span>
             <span>{priceUsd(Math.abs(changeUsd))}</span>
             <span>({signedPct(token.change24h)})</span>
             <span className="font-medium text-muted-foreground">24h</span>
@@ -855,7 +855,7 @@ export default function TokenPage() {
   const token = useQuery<ExternalTokenDetail>({
     queryKey: [apiPath],
     enabled: valid,
-    staleTime: 20_000,
+    staleTime: 5_000,
     // Each refetch also samples the price server-side, which is what feeds the chart.
     refetchInterval: REFRESH_MS,
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
