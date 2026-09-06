@@ -74,7 +74,7 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[90vh] overflow-y-auto rounded-t-[28px] border-t-0 bg-secondary/95 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl"
+        className="max-h-[90vh] overflow-y-auto rounded-t-[28px] border-t-0 bg-card/95 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" aria-hidden />
 
@@ -117,10 +117,10 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                     setNetwork(n);
                     setStep("address");
                   }}
-                  className="tap flex w-full items-center justify-between gap-3 rounded-2xl bg-card px-5 py-4 text-left"
+                  className="tap flex w-full items-center justify-between gap-3 rounded-2xl bg-secondary px-5 py-4 text-left"
                 >
                   <span className="text-[19px] font-bold">{n.label}</span>
-                  <ChainBadge chain={n.icon} size={34} />
+                  <ChainBadge chain={n.icon} size={34} className="bg-card" />
                 </button>
               ))}
             </div>
@@ -142,14 +142,14 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
             <div className="mt-6 flex flex-col items-center">
               {address ? (
                 <>
-                  <div className="rounded-3xl bg-card p-5">
+                  <div className="rounded-3xl bg-secondary p-5">
                     <QRCodeSVG value={address} size={196} bgColor="transparent" fgColor="#ffffff" level="M" />
                   </div>
                   <p className="mt-5 break-all px-4 text-center text-[17px] font-medium text-muted-foreground">{address}</p>
                   <button
                     type="button"
                     onClick={() => void copy()}
-                    className="tap mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-card px-6 text-base font-bold"
+                    className="tap mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-secondary px-6 text-base font-bold"
                   >
                     <Copy className="h-4 w-4" />
                     {t("deposit.copyAddress")}
@@ -196,7 +196,7 @@ function OptionRow({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "tap flex w-full items-center justify-between gap-4 rounded-2xl bg-card px-5 py-4 text-left transition-opacity",
+        "tap flex w-full items-center justify-between gap-4 rounded-2xl bg-secondary px-5 py-4 text-left transition-opacity",
         disabled && "opacity-50",
       )}
     >
