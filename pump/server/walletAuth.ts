@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { SOLANA_ADDRESS_RE } from "@shared/schema";
@@ -15,9 +15,13 @@ import { HttpError } from "./storage";
  *     from our stored copy of the nonce (never from client input) and verify the
  *     detached ed25519 signature against the address, which *is* the public key.
  *
- * Nonces live in memory for 10 minutes and are single-use, so a captured
- * signature cannot be replayed. A restart simply invalidates outstanding
- * challenges; the client just asks for a new one.
+ * The nonce carries its own proof: it is `<issuedAt>.<random>.<hmac>`, signed
+ * with the server secret, so any process can verify a challenge another one
+ * issued. This matters because the app runs several workers — a nonce kept only
+ * in the memory of the worker that issued it is unknown to whichever worker
+ * receives the signature, which made linking fail at random. Challenges last ten
+ * minutes, and each one is remembered until it expires so it cannot be used
+ * twice on the worker that saw it.
  *
  * The same challenge is used by POST /api/me/wallet to link a wallet to an
  * existing email / Google / Apple account.
@@ -27,24 +31,39 @@ const NONCE_TTL_MS = 10 * 60 * 1000;
 /** Hard ceiling on outstanding challenges so a flood of nonce requests cannot exhaust memory. */
 const MAX_PENDING_NONCES = 50_000;
 
-interface NonceRecord {
-  address: string;
-  issuedAt: number;
-}
-
-const nonces = new Map<string, NonceRecord>();
+/** Nonces already used on this worker, so a challenge is not replayed here. */
+const spent = new Map<string, number>();
 
 function purgeExpired(now: number): void {
-  nonces.forEach((record, nonce) => {
-    if (now - record.issuedAt >= NONCE_TTL_MS) nonces.delete(nonce);
+  spent.forEach((issuedAt, nonce) => {
+    if (now - issuedAt >= NONCE_TTL_MS) spent.delete(nonce);
   });
   // Map iterates in insertion order, so the first entries are the oldest.
-  if (nonces.size > MAX_PENDING_NONCES) {
-    const excess = nonces.size - MAX_PENDING_NONCES;
-    Array.from(nonces.keys())
+  if (spent.size > MAX_PENDING_NONCES) {
+    const excess = spent.size - MAX_PENDING_NONCES;
+    Array.from(spent.keys())
       .slice(0, excess)
-      .forEach((nonce) => nonces.delete(nonce));
+      .forEach((nonce) => spent.delete(nonce));
   }
+}
+
+/** The proof carried inside a nonce: this server issued it, for this address. */
+function sealNonce(address: string, issuedAt: number, random: string): string {
+  return createHmac("sha256", config.sessionSecret)
+    .update(`${address}|${issuedAt}|${random}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function openNonce(nonce: string, address: string, now: number): number | null {
+  const [issuedRaw, random, mac] = nonce.split(".");
+  if (!issuedRaw || !random || !mac) return null;
+  const issuedAt = Number.parseInt(issuedRaw, 36);
+  if (!Number.isFinite(issuedAt) || now - issuedAt >= NONCE_TTL_MS || issuedAt - now > 60_000) return null;
+  const expected = sealNonce(address, issuedAt, random);
+  if (expected.length !== mac.length) return null;
+  if (!timingSafeEqual(Buffer.from(expected), Buffer.from(mac))) return null;
+  return issuedAt;
 }
 
 const sweep = setInterval(() => purgeExpired(Date.now()), NONCE_TTL_MS);
@@ -78,8 +97,8 @@ export function issueWalletNonce(rawAddress: unknown): { nonce: string; message:
   const address = normalizeAddress(rawAddress);
   const now = Date.now();
   purgeExpired(now);
-  const nonce = randomBytes(16).toString("hex");
-  nonces.set(nonce, { address, issuedAt: now });
+  const random = randomBytes(12).toString("hex");
+  const nonce = `${now.toString(36)}.${random}.${sealNonce(address, now, random)}`;
   return { nonce, message: buildWalletMessage(address, nonce, now) };
 }
 
@@ -92,23 +111,20 @@ export function verifyWalletLogin(input: { address: string; signature: string; n
   const now = Date.now();
   purgeExpired(now);
 
-  const record = nonces.get(input.nonce);
-  if (record) nonces.delete(input.nonce);
-  if (!record || now - record.issuedAt >= NONCE_TTL_MS) {
-    throw new HttpError(401, "Your sign-in request expired. Please try again.");
-  }
-
   let address: string;
   try {
     address = normalizeAddress(input.address);
   } catch {
     throw new HttpError(401, "Invalid wallet address");
   }
-  if (address !== record.address) {
-    throw new HttpError(401, "This sign-in request was issued for a different wallet.");
-  }
 
-  const message = buildWalletMessage(record.address, input.nonce, record.issuedAt);
+  if (spent.has(input.nonce)) throw new HttpError(401, "That sign-in request was already used. Please try again.");
+  // A nonce is bound to its address, so a challenge cannot be replayed for another.
+  const issuedAt = openNonce(input.nonce, address, now);
+  if (issuedAt === null) throw new HttpError(401, "Your sign-in request expired. Please try again.");
+  spent.set(input.nonce, issuedAt);
+
+  const message = buildWalletMessage(address, input.nonce, issuedAt);
   let valid = false;
   try {
     const signature = bs58.decode(input.signature);
@@ -121,8 +137,8 @@ export function verifyWalletLogin(input: { address: string; signature: string; n
   return address;
 }
 
-/** Number of unexpired challenges (for tests / diagnostics). */
+/** Number of challenges spent recently (for tests / diagnostics). */
 export function pendingWalletNonces(): number {
   purgeExpired(Date.now());
-  return nonces.size;
+  return spent.size;
 }
