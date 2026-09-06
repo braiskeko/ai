@@ -20,13 +20,23 @@ import { cn } from "@/lib/utils";
 const CATEGORIES: (PerpCategory | "all")[] = ["all", "crypto", "stocks", "commodities", "indices"];
 
 /**
- * Hyperliquid publishes no logos, so the marks come from the long-standing
- * cryptocurrency-icons set, fetched through our own cached image proxy. A symbol
- * it does not carry falls back to the ticker's initials.
+ * Hyperliquid publishes no logos, so every mark is borrowed.
+ *
+ * No single set covers this list: the crypto icon set stops at the coins of a
+ * few years ago and knows nothing of listed companies, so each symbol is tried
+ * against a coin set, a second coin set, and a company-logo service, in that
+ * order — TokenImage walks the list and falls back to the ticker's initials.
+ * The leading "k" Hyperliquid puts on its 1000× markets (kPEPE, kBONK) is not
+ * part of the ticker anywhere else, so it comes off first.
  */
-export function perpLogo(symbol: string): string {
-  const bare = symbol.replace(/^[a-z]+:/i, "").toLowerCase();
-  return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${bare}.png`;
+export function perpLogo(symbol: string): string[] {
+  const bare = symbol.replace(/^[a-z0-9]+:/i, "").toUpperCase();
+  const coin = (/^K[A-Z]{3,}$/.test(bare) ? bare.slice(1) : bare).toLowerCase();
+  return [
+    `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${coin}.png`,
+    `https://assets.coincap.io/assets/icons/${coin}@2x.png`,
+    `https://financialmodelingprep.com/image-stock/${bare}.png`,
+  ];
 }
 
 export function PerpsList({ onlySymbols }: { onlySymbols?: string[] } = {}) {

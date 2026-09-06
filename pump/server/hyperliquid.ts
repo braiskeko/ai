@@ -96,15 +96,29 @@ function finite(value: unknown, fallback = 0): number {
  * equities, commodities and indices. Their symbols carry a builder prefix, so
  * the category is read from the symbol rather than guessed from the name.
  */
-const STOCK_SYMBOLS = new Set(["AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "GOOGL", "COIN", "HOOD", "MSTR", "SPX", "QQQ"]);
-const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "GOLD", "SILVER", "OIL", "WTI", "BRENT", "NGAS"]);
-const INDEX_SYMBOLS = new Set(["SPX", "NDX", "DJI", "VIX", "US500", "NAS100"]);
+const STOCK_SYMBOLS = new Set([
+  "AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "GOOG", "GOOGL", "NFLX", "AMD", "INTC", "MU", "QCOM", "AVGO", "ARM",
+  "TSM", "ASML", "ORCL", "CRM", "ADBE", "PLTR", "SMCI", "IBM", "CSCO", "UBER", "ABNB", "SHOP", "SQ", "XYZ", "PYPL",
+  "COIN", "HOOD", "MSTR", "MARA", "RIOT", "CLSK", "CRCL", "BMNR", "SBET", "GME", "AMC", "RBLX", "SNAP", "PINS", "SPOT",
+  "DIS", "BA", "F", "GM", "RIVN", "LCID", "NIO", "SOFI", "DKNG", "WMT", "COST", "TGT", "KO", "PEP", "MCD", "SBUX",
+  "NKE", "JPM", "BAC", "GS", "V", "MA", "XOM", "CVX", "LLY", "UNH", "PFE", "MRNA", "JNJ", "T", "VZ", "OPEN", "HIMS",
+]);
+const COMMODITY_SYMBOLS = new Set([
+  "XAU", "XAG", "XPT", "XPD", "GOLD", "SILVER", "PLATINUM", "OIL", "WTI", "BRENT", "NGAS", "NATGAS", "COPPER", "CORN", "WHEAT",
+]);
+const INDEX_SYMBOLS = new Set([
+  "SPX", "SPX500", "US500", "SPY", "NDX", "NAS100", "NASDAQ", "QQQ", "DJI", "US30", "DIA", "RUT", "RTY", "IWM",
+  "VIX", "DXY", "FTSE", "DAX", "NIKKEI", "N225", "HSI", "EU50", "STOXX",
+]);
 
 function categoryOf(symbol: string): PerpMarket["category"] {
-  const bare = symbol.replace(/^[a-z]+:/i, "").toUpperCase();
+  const bare = symbol.replace(/^[a-z0-9]+:/i, "").toUpperCase();
   if (COMMODITY_SYMBOLS.has(bare)) return "commodities";
   if (INDEX_SYMBOLS.has(bare)) return "indices";
   if (STOCK_SYMBOLS.has(bare)) return "stocks";
+  // A HIP-3 market ("builder:TICKER") that is none of the above is the equity
+  // side of Hyperliquid — a company we have not listed by name.
+  if (/^[a-z0-9]+:/i.test(symbol)) return "stocks";
   return "crypto";
 }
 

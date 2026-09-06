@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
 import { useDepositSheet } from "@/components/DepositSheet";
+import { SwipeConfirm } from "@/components/SwipeConfirm";
 import { useWalletTx } from "@/lib/solana";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { compactUsd, looksLikeCa, priceUsd, signedPct, tokens as fmtTokens, useSolUsd } from "@/lib/format";
@@ -268,8 +269,7 @@ export default function TradeSheetPage() {
     }
   };
 
-  const ctaLabel = (): ReactNode => {
-    if (submitting) return <Loader2 className="h-5 w-5 animate-spin" />;
+  const ctaLabel = (): string => {
     if (!target) return t("common.loading");
     if (!user) return t("trade.loginToTrade");
     // The account has its own wallet; the only wait is while it is being set up.
@@ -283,6 +283,8 @@ export default function TradeSheetPage() {
   };
   const ctaDisabled = submitting || !target || (canTrade && ((invalid && !exceedsBalance) || target.disabled));
   const showAsIdle = !target || amountUsd <= 0 || (canTrade && target.disabled);
+  /** The order is ready to send: everything else is a plain button. */
+  const readyToTrade = !!target && canTrade && !target.disabled && !invalid;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
@@ -410,23 +412,37 @@ export default function TradeSheetPage() {
         </div>
       )}
 
-      {/* CTA */}
+      {/*
+        CTA. Once the order is real it is a swipe, not a tap: the amount is set,
+        the money is there, and the last thing between it and the market should
+        take a deliberate gesture. Everything before that — sign in, add cash — is
+        an ordinary button.
+      */}
       <div className="safe-bottom px-4 pb-4">
-        <button
-          type="button"
-          onClick={() => void onCta()}
-          disabled={ctaDisabled}
-          className={cn(
-            "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
-            showAsIdle
-              ? "bg-muted text-muted-foreground"
-              : isBuy
-                ? "bg-up hover:bg-up/90"
-                : "bg-down hover:bg-down/90",
-          )}
-        >
-          {ctaLabel()}
-        </button>
+        {readyToTrade ? (
+          <SwipeConfirm
+            label={ctaLabel()}
+            tone={isBuy ? "up" : "down"}
+            busy={submitting}
+            onConfirm={() => void onCta()}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => void onCta()}
+            disabled={ctaDisabled}
+            className={cn(
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              showAsIdle
+                ? "bg-muted text-muted-foreground"
+                : isBuy
+                  ? "bg-up hover:bg-up/90"
+                  : "bg-down hover:bg-down/90",
+            )}
+          >
+            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : ctaLabel()}
+          </button>
+        )}
       </div>
       {deposit.sheet}
     </div>

@@ -6,6 +6,7 @@ import type { PerpDetail, WalletView } from "@shared/schema";
 import { perpLogo } from "@/components/PerpsList";
 import { TokenImage } from "@/components/TokenImage";
 import { useDepositSheet } from "@/components/DepositSheet";
+import { SwipeConfirm } from "@/components/SwipeConfirm";
 import { Skeleton } from "@/components/ui/skeleton";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/useAuth";
@@ -203,7 +204,10 @@ export default function PerpTradePage() {
     toast({ title: t("perps.tradingSoon") });
   };
 
-  const ctaLabel = () => {
+  /** The order is ready to send: everything else is a plain button. */
+  const ready = !!user && !exceedsBalance && amountUsd > 0;
+
+  const ctaLabel = (): string => {
     if (!user) return t("trade.loginToTrade");
     if (exceedsBalance) return t("home.deposit");
     if (amountUsd <= 0) return t("tradeSheet.enterAmount");
@@ -312,22 +316,27 @@ export default function PerpTradePage() {
         </button>
       </div>
 
+      {/* A real order is a swipe; signing in or adding cash stays a tap. */}
       <div className="safe-bottom px-4 pb-4">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!!user && !exceedsBalance && amountUsd <= 0}
-          className={cn(
-            "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
-            amountUsd <= 0 && !exceedsBalance
-              ? "bg-muted text-muted-foreground"
-              : side === "long"
-                ? "bg-up hover:bg-up/90"
-                : "bg-down hover:bg-down/90",
-          )}
-        >
-          {ctaLabel()}
-        </button>
+        {ready ? (
+          <SwipeConfirm label={ctaLabel()} tone={side === "long" ? "up" : "down"} onConfirm={submit} />
+        ) : (
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!!user && !exceedsBalance && amountUsd <= 0}
+            className={cn(
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              amountUsd <= 0 && !exceedsBalance
+                ? "bg-muted text-muted-foreground"
+                : side === "long"
+                  ? "bg-up hover:bg-up/90"
+                  : "bg-down hover:bg-down/90",
+            )}
+          >
+            {ctaLabel()}
+          </button>
+        )}
       </div>
       {deposit.sheet}
     </div>

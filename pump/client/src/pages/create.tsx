@@ -41,12 +41,6 @@ const FEE_RESERVE_SOL = 0.01;
 // Local formatting — lib/format.ts is owned by another agent.
 // ---------------------------------------------------------------------------
 
-function fmtSol(n: number, digits = 4): string {
-  if (!Number.isFinite(n)) return "0";
-  const s = Math.abs(n).toFixed(digits).replace(/\.?0+$/, "");
-  return (n < 0 ? "-" : "") + (s || "0");
-}
-
 function fmtCompactUsd(n: number): string {
   if (!Number.isFinite(n)) return "$0";
   const abs = Math.abs(n);
@@ -292,31 +286,6 @@ function EarnBanner() {
   );
 }
 
-/** Simple square preview built from the raw form fields — the shared CoinCard is owned by another agent. */
-function PreviewCard({ name, ticker, description, image }: { name: string; ticker: string; description: string; image: string }) {
-  const t = useT();
-  const displayName = name.trim() || t("create.namePlaceholder").replace(/^e\.g\.\s*/i, "");
-  const displayTicker = ticker.trim().toUpperCase() || t("create.tickerPlaceholder").replace(/^e\.g\.\s*/i, "");
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        {image ? (
-          <img src={image} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
-        ) : (
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-muted text-lg font-black text-muted-foreground">
-            {(displayName.trim().charAt(0) || "?").toUpperCase()}
-          </span>
-        )}
-        <div className="min-w-0">
-          <div className="truncate text-sm font-bold">{displayName}</div>
-          <div className="truncate text-xs font-semibold text-primary">${displayTicker}</div>
-        </div>
-      </div>
-      {description.trim() && <p className="mt-3 line-clamp-3 text-xs text-muted-foreground">{description}</p>}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -444,9 +413,7 @@ export default function CreatePage() {
 
   return (
     <PageShell>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-        {/* ------------------------------------------------------------ form */}
-        <div className="min-w-0 space-y-6">
+      <div className="mx-auto w-full max-w-2xl space-y-6">
           <header>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("create.title")}</h1>
             {(config?.vanityAvailable ?? 0) > 0 && (
@@ -619,18 +586,6 @@ export default function CreatePage() {
               )}
             </div>
           </form>
-        </div>
-
-        {/* --------------------------------------------------------- preview */}
-        <aside className="min-w-0 space-y-3 lg:sticky lg:top-20">
-          <div>
-            <h2 className="text-sm font-bold">{t("create.preview")}</h2>
-            <p className="text-xs text-muted-foreground">{t("create.previewHint")}</p>
-          </div>
-          <div className="pointer-events-none select-none" aria-hidden>
-            <PreviewCard name={name} ticker={ticker} description={description} image={image} />
-          </div>
-        </aside>
       </div>
 
       {/* The last step: the creator's own first buy is what puts the coin on-chain. */}

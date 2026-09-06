@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Delete, Loader2, Plus, X } from "lucide-react";
 import { LAUNCH_MCAP_USD, LAUNCH_MIN_BUY_USD } from "@shared/schema";
+import { SwipeConfirm } from "@/components/SwipeConfirm";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -83,8 +84,7 @@ export function LaunchKeypad({
   const belowMin = amountUsd < LAUNCH_MIN_BUY_USD;
   const exceedsBalance = amountUsd > availableUsd + 1e-9;
 
-  const label = (): ReactNode => {
-    if (busy) return <Loader2 className="h-5 w-5 animate-spin" />;
+  const labelText = (): string => {
     if (exceedsBalance) return t("home.deposit");
     if (belowMin) return t("launch.minimum", { amount: `$${LAUNCH_MIN_BUY_USD}` });
     return t("launch.confirm", { ticker: `$${ticker}`, amount: `$${raw}` });
@@ -178,18 +178,23 @@ export function LaunchKeypad({
         {busy && <span className="tabular">{busyLabel}</span>}
       </div>
 
+      {/* The buy that creates the coin is a swipe, like every other buy. */}
       <div className="safe-bottom px-4 pb-4">
-        <button
-          type="button"
-          onClick={() => (exceedsBalance ? onDeposit() : onConfirm(amountUsd))}
-          disabled={busy || (belowMin && !exceedsBalance)}
-          className={cn(
-            "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
-            belowMin && !exceedsBalance ? "bg-muted text-muted-foreground" : "bg-up hover:bg-up/90",
-          )}
-        >
-          {label()}
-        </button>
+        {!belowMin && !exceedsBalance ? (
+          <SwipeConfirm label={labelText()} busy={busy} onConfirm={() => onConfirm(amountUsd)} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => exceedsBalance && onDeposit()}
+            disabled={busy || (belowMin && !exceedsBalance)}
+            className={cn(
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              belowMin && !exceedsBalance ? "bg-muted text-muted-foreground" : "bg-up hover:bg-up/90",
+            )}
+          >
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : labelText()}
+          </button>
+        )}
       </div>
     </div>
   );

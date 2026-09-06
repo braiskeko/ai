@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
  * hot-linking, so a plain <img> leaves half a list blank. Remote URLs are routed
  * through our own cached proxy (`/api/img`, see server/imgproxy.ts); what still
  * fails falls back to an initials tile rather than a broken-image glyph.
+ *
+ * `src` may also be a list — several places that might carry the artwork, tried
+ * in order. Perp markets need that: no single icon set covers both a memecoin
+ * and a listed company.
  */
 
 /** The URL to try first: as published, unless it is a scheme no browser can load. */
@@ -27,7 +31,8 @@ export function proxiedSrc(url: string): string {
 }
 
 export interface TokenImageProps {
-  src: string | null | undefined;
+  /** One URL, or several to try in order. */
+  src: string | string[] | null | undefined;
   /** Ticker or name — its first two characters draw the fallback tile. */
   name: string;
   size: number;
@@ -37,18 +42,29 @@ export interface TokenImageProps {
 }
 
 export function TokenImage({ src, name, size, className, alt = "" }: TokenImageProps) {
-  const resolved = iconSrc(src);
-  // Three attempts, in order: the published URL, the same image through our proxy
-  // (which defeats hot-link blocking and dead IPFS gateways), then initials.
-  const [stage, setStage] = useState<"direct" | "proxy" | "failed">("direct");
-  useEffect(() => setStage("direct"), [resolved]);
+  // Every candidate, each as published and then through our proxy (which defeats
+  // hot-link blocking and dead IPFS gateways). Initials are the last step.
+  const attempts = useMemo(() => {
+    const list = (Array.isArray(src) ? src : [src]).filter((s): s is string => !!s && !!s.trim());
+    const out: string[] = [];
+    for (const raw of list) {
+      const direct = iconSrc(raw);
+      if (!direct) continue;
+      out.push(direct);
+      if (/^(https?:|ipfs:|ar:)/i.test(raw.trim())) {
+        const proxied = proxiedSrc(raw.trim());
+        if (proxied !== direct) out.push(proxied);
+      }
+    }
+    return out;
+  }, [src]);
 
-  const proxyable = !!src && /^(https?:|ipfs:|ar:)/i.test(src.trim());
-  const failed = stage === "failed";
-  const url = stage === "proxy" && src ? proxiedSrc(src.trim()) : resolved;
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => setAttempt(0), [attempts]);
 
   const shape = cn("shrink-0 rounded-full bg-muted object-cover", className);
-  if (!url || failed) {
+  const url = attempts[attempt];
+  if (!url) {
     return (
       <span
         className={cn(shape, "grid place-items-center font-black uppercase text-muted-foreground")}
@@ -61,7 +77,7 @@ export function TokenImage({ src, name, size, className, alt = "" }: TokenImageP
   }
   return (
     <img
-      key={stage}
+      key={url}
       src={url}
       alt={alt}
       width={size}
@@ -69,7 +85,7 @@ export function TokenImage({ src, name, size, className, alt = "" }: TokenImageP
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => setStage(stage === "direct" && proxyable ? "proxy" : "failed")}
+      onError={() => setAttempt((n) => n + 1)}
       className={shape}
       style={{ width: size, height: size }}
     />
