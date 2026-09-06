@@ -151,7 +151,7 @@ export default function WalletPage() {
   if (!address) {
     return (
       <PageShell className="flex items-center justify-center">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-border bg-card p-10 text-center">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center surface p-10 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
             <WalletIcon className="h-7 w-7" />
           </div>
@@ -169,7 +169,7 @@ export default function WalletPage() {
   if (wallet.isError || !data) {
     return (
       <PageShell className="flex items-center justify-center">
-        <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+        <div className="mx-auto w-full max-w-md surface p-8 text-center">
           <h1 className="text-lg font-bold">{t("wallet.loadError")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{apiErrorMessage(wallet.error, t("common.error"))}</p>
           <Button variant="outline" className="mt-5 rounded-lg" onClick={() => void wallet.refetch()}>
@@ -202,7 +202,7 @@ export default function WalletPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-extrabold tracking-tight">{t("wallet.title")}</h1>
 
-        <section className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center">
+        <section className="flex flex-col justify-between gap-4 surface p-5 sm:flex-row sm:items-center">
           <div>
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("wallet.solBalance")}</div>
             <div className="mt-1 text-4xl font-extrabold text-primary tabular">{usd(data.balanceSol, data.solUsd)}</div>
@@ -219,7 +219,7 @@ export default function WalletPage() {
         <Notice tone="info">{t("wallet.nonCustodialNotice")}</Notice>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <section className="surface p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
                 <WalletIcon className="h-4 w-4" />
@@ -250,7 +250,7 @@ export default function WalletPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <section className="surface p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
                 <CreditCard className="h-4 w-4" />

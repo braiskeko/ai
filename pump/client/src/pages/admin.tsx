@@ -63,7 +63,7 @@ function StatsStrip({ overview }: { overview: AdminOverview | undefined }) {
       <h2 className="mb-2 text-sm font-bold">{t("admin.stats")}</h2>
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-6">
         {tiles.map(({ key, icon: Icon, value }) => (
-          <div key={key} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 sm:px-4">
+          <div key={key} className="flex items-center gap-3 surface px-3 py-2.5 sm:px-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Icon className="h-4 w-4" />
             </span>
@@ -86,7 +86,7 @@ function IndexerCard({ overview }: { overview: AdminOverview | undefined }) {
   const t = useT();
   const indexer = overview?.indexer;
   return (
-    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+    <section className="surface p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
           <Gauge className="h-4 w-4" />
@@ -162,7 +162,7 @@ function ClaimableFeesCard({ overview }: { overview: AdminOverview | undefined }
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card">
+    <section className="surface">
       <div className="flex items-center justify-between gap-2 border-b border-border p-4">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-gold/15 text-gold">
@@ -238,7 +238,7 @@ function UsersTab() {
   const users = useQuery<User[]>({ queryKey: [usersKey], staleTime: 10_000 });
 
   return (
-    <section className="rounded-xl border border-border bg-card">
+    <section className="surface">
       <div className="flex items-center gap-2 border-b border-border p-3">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input

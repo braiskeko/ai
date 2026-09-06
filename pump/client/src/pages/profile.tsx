@@ -34,7 +34,7 @@ function isNotFound(err: unknown): boolean {
 
 function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+    <div className="flex items-center gap-3 surface px-4 py-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
       <div className="min-w-0">
         <div className="truncate label">{label}</div>
@@ -92,12 +92,12 @@ function RecentTrades({ userId }: { userId: number }) {
     return <EmptyBox icon={<ActivityIcon className="h-5 w-5" />}>{t("profile.noTrades")}</EmptyBox>;
   }
   return (
-    <ul className="overflow-hidden rounded-xl border border-border bg-card">
+    <ul className="surface feed-divide overflow-hidden">
       {trades.map((tr) => {
         const buy = tr.side === "buy";
         return (
-          <li key={tr.id} className="flex items-center gap-3 border-b border-border p-3 last:border-b-0 hover:bg-accent/40">
-            <span className={cn("inline-flex w-12 shrink-0 justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold", buy ? "bg-up/15 text-up" : "bg-down/15 text-down")}>
+          <li key={tr.id} className="flex items-center gap-3 p-3 transition-colors hover:bg-accent/40">
+            <span className={cn("inline-flex w-12 shrink-0 justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold", buy ? "bg-up/15 text-up" : "bg-down/15 text-down")}>
               {buy ? t("trade.buy") : t("trade.sell")}
             </span>
             <Link href={`/${tr.coin.ca}`} className="flex min-w-0 flex-1 items-center gap-2 hover:underline">
@@ -134,7 +134,7 @@ function RecentTrades({ userId }: { userId: number }) {
 function ProfileSkeleton() {
   return (
     <div className="space-y-6" aria-hidden>
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row">
+      <div className="flex flex-col items-center gap-4 surface p-6 sm:flex-row">
         <Skeleton className="h-24 w-24 rounded-full" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-7 w-48" />
@@ -184,7 +184,7 @@ export default function ProfilePage() {
   if (profile.isError || !data) {
     return (
       <PageShell className="flex items-center justify-center">
-        <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+        <div className="mx-auto w-full max-w-md surface p-8 text-center">
           <h1 className="text-lg font-bold">{t("profile.loadError")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{apiErrorMessage(profile.error, t("common.error"))}</p>
           <Button variant="outline" className="mt-5 rounded-lg" onClick={() => void profile.refetch()}>
@@ -203,7 +203,7 @@ export default function ProfilePage() {
   return (
     <PageShell>
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-2xl border border-border bg-card">
+        <section className="relative overflow-hidden surface">
           <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-violet/10 blur-3xl" aria-hidden />
           <div className="relative flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">

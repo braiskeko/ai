@@ -295,9 +295,9 @@ function HoldingRow({ h, solUsd }: { h: PortfolioHolding; solUsd: number }) {
   const pnlPct = h.costBasisSol > 0 ? h.unrealizedPnlSol / h.costBasisSol : 0;
   const share = h.tokens / TOTAL_SUPPLY;
   return (
-    <li className="card-hover rounded-xl border border-border bg-card">
+    <li className="surface card-hover tap overflow-hidden">
       <Link href={`/${h.coin.ca}`} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:p-4" aria-label={t("coin.openCoin", { name: h.coin.name })}>
-        <img src={h.coin.imageUrl} alt="" loading="lazy" decoding="async" className="h-12 w-12 shrink-0 rounded-xl bg-muted object-cover sm:h-14 sm:w-14" />
+        <img src={h.coin.imageUrl} alt="" loading="lazy" decoding="async" className="h-14 w-14 shrink-0 rounded-2xl bg-muted object-cover sm:h-16 sm:w-16" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
             <span className="truncate font-bold">{h.coin.name}</span>
@@ -373,8 +373,42 @@ function HistoryTable({ trades, solUsd }: { trades: Portfolio["trades"]; solUsd:
   }
   const rows = trades.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id);
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <Table className="min-w-[680px]">
+    <div className="surface overflow-hidden">
+      {/* Mobile: stacked rows */}
+      <ul className="feed-divide sm:hidden">
+        {rows.map((tr) => {
+          const buy = tr.side === "buy";
+          return (
+            <li key={tr.id} className="flex items-center gap-3 px-4 py-3">
+              <img src={tr.coin.imageUrl} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-xl bg-muted object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className={cn("inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide", buy ? "bg-up/15 text-up" : "bg-down/15 text-down")}>
+                    {buy ? t("trade.buy") : t("trade.sell")}
+                  </span>
+                  <span className="truncate font-semibold">
+                    {tr.coin.name} <span className="text-xs font-medium text-muted-foreground">${tr.coin.ticker}</span>
+                  </span>
+                </div>
+                <div className="mt-0.5 truncate text-xs tabular text-muted-foreground">
+                  {fmtTokens(tr.tokens)} {tr.coin.ticker} · {priceSol(tr.priceSol)}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className={cn("stat text-sm", buy ? "text-foreground" : "text-up")}>
+                  {buy ? "-" : "+"}
+                  {usd(tr.sol, solUsd)}
+                </div>
+                <div className="text-[11px] text-muted-foreground" title={new Date(tr.createdAt).toLocaleString()}>
+                  {format(new Date(tr.createdAt), "MMM d, HH:mm")}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <Table className="hidden min-w-[680px] sm:table">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>{t("trades.time")}</TableHead>
@@ -467,7 +501,7 @@ export default function PortfolioPage() {
   if (!user) {
     return (
       <PageShell className="flex items-center justify-center">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-border bg-card p-10 text-center">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center surface p-10 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
             <Briefcase className="h-7 w-7" />
           </div>
@@ -486,7 +520,7 @@ export default function PortfolioPage() {
   if (portfolio.isError || !data) {
     return (
       <PageShell className="flex items-center justify-center">
-        <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+        <div className="mx-auto w-full max-w-md surface p-8 text-center">
           <h1 className="text-lg font-bold">{t("portfolio.loadError")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{apiErrorMessage(portfolio.error, t("common.error"))}</p>
           <Button variant="outline" className="mt-5 rounded-lg" onClick={() => void portfolio.refetch()}>
