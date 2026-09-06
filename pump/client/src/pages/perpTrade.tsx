@@ -119,21 +119,26 @@ function LeverageRuler({ max, value, onChange }: { max: number; value: number; o
         {/* The bracket that marks the chosen step */}
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 h-14 w-[86px] -translate-x-1/2 -translate-y-1/2 rounded-lg border-y-2 border-primary/70"
+          style={{ width: STEP_W }}
+          className="pointer-events-none absolute left-1/2 top-1/2 h-12 -translate-x-1/2 -translate-y-1/2 rounded-xl border-y-2 border-primary/70"
         />
         <div
           className="absolute left-1/2 top-0 flex"
           style={{
-            transform: `translateX(${offset - STEP_W / 2}px)`,
+            // Whole pixels: a half-pixel strip reads as a bracket that misses its number.
+            transform: `translateX(${Math.round(offset - STEP_W / 2)}px)`,
             transition: dragging ? "none" : "transform 180ms ease-out",
           }}
         >
           {steps.map((s) => (
             <span
               key={s}
-              style={{ width: STEP_W }}
+              // Proportional digits, and a hair of padding: the app-wide tabular
+              // figures pad a "5" with the width of a "10", which leaves the label
+              // reading a couple of pixels left of the bracket around it.
+              style={{ width: STEP_W, fontFeatureSettings: '"cv11", "ss01"', paddingLeft: 3 }}
               className={cn(
-                "grid h-14 shrink-0 place-items-center text-2xl font-extrabold tabular",
+                "grid h-14 shrink-0 place-items-center text-2xl font-extrabold",
                 s === previewed ? "text-primary" : "text-muted-foreground/50",
               )}
             >

@@ -651,7 +651,5 @@
   "perps.liquidationPrice": "Precio de liquidación",
   "perps.slTp": "Stop Loss / Take Profit",
   "perps.addSlTp": "Añadir SL/TP",
-  "create.launchDisabled": "Crear monedas está en pausa en este servidor",
-  "create.launchDisabledHint": "Todavía no se ha creado la configuración de la curva para esta red, así que las monedas nuevas no pueden salir a la cadena. El resto funciona.",
   "trade.minimum": "Mínimo {amount}"
 }

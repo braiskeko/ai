@@ -302,8 +302,12 @@ export default function CreatePage() {
   const deposit = useDepositSheet();
   const [linksOpen, setLinksOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
-  /** Set once the (free) preparation succeeded: the keypad that finishes the launch. */
-  const [pending, setPending] = useState<{ prepared: PreparedCoin; ticker: string } | null>(null);
+  /**
+   * The keypad that finishes the launch. It opens as soon as the form is valid;
+   * whether the (free) preparation succeeded is settled behind it, and anything
+   * that went wrong is raised at the end, where the buy happens.
+   */
+  const [pending, setPending] = useState<{ prepared: PreparedCoin | null; ticker: string; error: string | null } | null>(null);
 
   const walletLinked = !!user?.walletAddress;
   // Signing in is enough: the account's own wallet can sign (see lib/embeddedWallet.ts).
@@ -353,17 +357,21 @@ export default function CreatePage() {
       toast({ variant: "destructive", title: t("common.error"), description: parsed.error.issues[0]?.message ?? t("common.error") });
       return;
     }
+    // The keypad opens straight away; the reservation catches up behind it.
+    setPending({ prepared: null, ticker: parsed.data.ticker, error: null });
+    setPhase("preparing");
     try {
-      setPhase("preparing");
       const prepRes = await apiRequest("POST", "/api/coins/prepare", {
         ...parsed.data,
         website: parsed.data.website || undefined,
         twitter: parsed.data.twitter || undefined,
         telegram: parsed.data.telegram || undefined,
       });
-      setPending({ prepared: (await prepRes.json()) as PreparedCoin, ticker: parsed.data.ticker });
+      const prepared = (await prepRes.json()) as PreparedCoin;
+      setPending((p) => (p ? { ...p, prepared } : p));
     } catch (err) {
-      toast({ variant: "destructive", title: t("create.failed"), description: apiErrorMessage(err, t("common.error")) });
+      const error = apiErrorMessage(err, t("common.error"));
+      setPending((p) => (p ? { ...p, error } : p));
     } finally {
       setPhase("idle");
     }
@@ -375,6 +383,11 @@ export default function CreatePage() {
    */
   const finishLaunch = async (amountUsd: number) => {
     if (!pending || !publicKey) return;
+    // Whatever went wrong earlier is said here, at the moment of paying.
+    if (!pending.prepared) {
+      toast({ variant: "destructive", title: t("create.failed"), description: pending.error ?? t("common.loading") });
+      return;
+    }
     const initialBuySol = amountUsd / Math.max(solUsd, 1e-9);
     try {
       setPhase("signing");
@@ -425,19 +438,6 @@ export default function CreatePage() {
           </header>
 
           <EarnBanner />
-
-          {/* Say it up front rather than at the end of a filled-in form. */}
-          {config && !config.launchEnabled && (
-            <div className="flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive/20 text-destructive">
-                <Lock className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 text-sm">
-                <div className="font-bold text-destructive">{t("create.launchDisabled")}</div>
-                <div className="text-xs text-muted-foreground">{t("create.launchDisabledHint")}</div>
-              </div>
-            </div>
-          )}
 
           {!authLoading && !canLaunch && (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">

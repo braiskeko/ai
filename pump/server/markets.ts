@@ -381,15 +381,28 @@ export async function getToken(
   };
 }
 
-/** Real OHLCV for a pool, newest last, in USD per token. */
-export async function getCandles(chain: Chain, poolAddress: string, minutes = 1, limit = 300): Promise<Candle[]> {
+/**
+ * Real OHLCV for a pool, newest last, in USD per token.
+ *
+ * `token` matters more than it looks: a pool has two sides, and by default the
+ * API prices the base one. Ask for a token that happens to sit on the quote side
+ * and you get its partner's chart — the right shape for the wrong coin, and a
+ * market cap hundreds of times off. Naming the address pins it to ours.
+ */
+export async function getCandles(
+  chain: Chain,
+  poolAddress: string,
+  minutes = 1,
+  limit = 300,
+  token?: string,
+): Promise<Candle[]> {
   if (!supportsChain(chain)) return [];
   const net = NETWORK_IDS[chain];
   // The API exposes minute/hour/day buckets with an aggregate multiplier.
   const timeframe = minutes >= 1440 ? "day" : minutes >= 60 ? "hour" : "minute";
   const aggregate = timeframe === "day" ? Math.round(minutes / 1440) : timeframe === "hour" ? Math.round(minutes / 60) : minutes;
   const json = await getJson(
-    `/networks/${net}/pools/${encodeURIComponent(poolAddress)}/ohlcv/${timeframe}?aggregate=${Math.max(1, aggregate)}&limit=${limit}&currency=usd`,
+    `/networks/${net}/pools/${encodeURIComponent(poolAddress)}/ohlcv/${timeframe}?aggregate=${Math.max(1, aggregate)}&limit=${limit}&currency=usd${token ? `&token=${encodeURIComponent(token)}` : ""}`,
     CANDLES_TTL_MS,
     `${CHAIN_LABELS[chain]} candles`,
   );
@@ -413,11 +426,12 @@ export async function firstCandles(
   chain: Chain,
   pools: string[],
   max = 3,
+  token?: string,
 ): Promise<{ candles: Candle[]; pool: string | null }> {
   // All the candidates at once, then the first that answered with something: a
   // dry pool used to cost a full timeout before the next one was even asked.
   const tried = pools.slice(0, max);
-  const results = await Promise.all(tried.map((pool) => getCandles(chain, pool)));
+  const results = await Promise.all(tried.map((pool) => getCandles(chain, pool, 1, 300, token)));
   for (let i = 0; i < results.length; i += 1) {
     if (results[i].length > 0) return { candles: results[i], pool: tried[i] };
   }

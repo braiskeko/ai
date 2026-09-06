@@ -716,7 +716,5 @@
   "perps.liquidationPrice": "Liquidation price",
   "perps.slTp": "Stop Loss / Take Profit",
   "perps.addSlTp": "Add SL/TP",
-  "create.launchDisabled": "Launching is paused on this server",
-  "create.launchDisabledHint": "The bonding-curve config for this network has not been created yet, so new coins cannot go on-chain. Everything else works.",
   "trade.minimum": "Minimum {amount}"
 }

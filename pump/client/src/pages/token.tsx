@@ -20,7 +20,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
+import type { ExternalToken, ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
 import { parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
@@ -868,6 +868,44 @@ function TokenSkeleton() {
   );
 }
 
+
+/**
+ * What the list we came from already knew about this token.
+ *
+ * Tapping a row should not stare at a skeleton while the server re-derives the
+ * name, the icon and the price we were just looking at: any cached list that
+ * carries this token seeds the page, and the real answer (candles, holders,
+ * audit) replaces it a moment later.
+ */
+function seedFromLists(qc: ReturnType<typeof useQueryClient>, id: string): ExternalTokenDetail | undefined {
+  for (const entry of qc.getQueryCache().getAll()) {
+    const key = entry.queryKey[0];
+    if (typeof key !== "string" || !key.startsWith("/api/tokens")) continue;
+    const data = entry.state.data;
+    if (!Array.isArray(data)) continue;
+    const hit = (data as ExternalToken[]).find((row) => row && row.id === id);
+    if (!hit) continue;
+    return {
+      ...hit,
+      chartSource: "none",
+      chartEmbedUrl: null,
+      appHolders: [],
+      candles: [],
+      supply: hit.priceUsd > 0 ? hit.marketCapUsd / hit.priceUsd : 0,
+      organicScore: 0,
+      buys24h: 0,
+      sells24h: 0,
+      audit: { mintAuthorityDisabled: null, freezeAuthorityDisabled: null, topHoldersPercent: null },
+      links: { website: null, twitter: null, telegram: null },
+      pool: null,
+      myTokens: 0,
+      explorerUrl: "",
+      jupiterUrl: "",
+    };
+  }
+  return undefined;
+}
+
 export default function TokenPage() {
   const t = useT();
   const [, navigate] = useLocation();
@@ -877,10 +915,13 @@ export default function TokenPage() {
   const valid = parsed !== null;
   const apiPath = parsed ? `/api/tokens/${parsed.chain}/${parsed.address}` : "";
 
+  const qc = useQueryClient();
   const token = useQuery<ExternalTokenDetail>({
     queryKey: [apiPath],
     enabled: valid,
     staleTime: 5_000,
+    // Show what the list knew while the full answer is on its way.
+    placeholderData: () => (parsed ? seedFromLists(qc, `${parsed.chain}:${parsed.address}`) : undefined),
     // Each refetch also samples the price server-side, which is what feeds the chart.
     refetchInterval: REFRESH_MS,
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,

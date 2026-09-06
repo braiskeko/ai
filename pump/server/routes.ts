@@ -469,21 +469,30 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   // the sampled ring buffer when neither knows one.
   const poolId = found.extras.pool?.id ?? null;
   // Neither the viewer's balance nor the holder list depends on the chart, so
-  // they run alongside it: opening a chart should be one wait, not three.
+  // they run alongside it: opening a chart should be one wait, not three. The
+  // chart source is asked for at the same time as the aggregator's own pool, so
+  // that a pool with no candles does not cost a second round trip either.
   const sidework = Promise.all([
     viewerWallet ? getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>()) : Promise.resolve(null),
     holdersWithAccounts(mint, found.token.priceUsd),
   ]);
+  const viaMarketsSoon = markets.getToken("solana", mint);
 
-  let charted = poolId ? await markets.getCandles("solana", poolId) : [];
+  let charted = poolId ? await markets.getCandles("solana", poolId, 1, 300, mint) : [];
   let chartPool = charted.length > 0 ? poolId : null;
   if (charted.length === 0) {
-    const viaMarkets = await markets.getToken("solana", mint);
+    const viaMarkets = await viaMarketsSoon;
     if (viaMarkets) {
-      const best = await markets.firstCandles("solana", viaMarkets.pools);
+      const best = await markets.firstCandles("solana", viaMarkets.pools, 3, mint);
       charted = best.candles;
       chartPool = best.pool ?? viaMarkets.pool?.address ?? null;
     }
+  } else {
+    void viaMarketsSoon.catch(() => null); // warmed for the next request
+  }
+  if (charted.length > 0 && !candlesMatchPrice(charted, found.token.priceUsd)) {
+    charted = [];
+    chartPool = null;
   }
   const [balances, appHolders] = await sidework;
   const { extras } = found;
@@ -515,8 +524,8 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
 async function buildEvmDetail(chain: Chain, address: string): Promise<ExternalTokenDetail> {
   const found = await markets.getToken(chain, address);
   if (!found) throw new HttpError(...externalMiss());
-  const best = await markets.firstCandles(chain, found.pools);
-  const candles = best.candles;
+  const best = await markets.firstCandles(chain, found.pools, 3, address);
+  const candles = candlesMatchPrice(best.candles, found.token.priceUsd) ? best.candles : [];
   const supply = found.token.priceUsd > 0 ? found.token.marketCapUsd / found.token.priceUsd : 0;
   return {
     ...found.token,
@@ -633,6 +642,21 @@ function interleave(lists: ExternalToken[][]): ExternalToken[] {
  * raw route, because Jupiter's swap endpoint wants its own quote object back
  * verbatim.
  */
+/**
+ * Do these candles belong to this token?
+ *
+ * A pool prices two tokens, and asking for the wrong side gives a series whose
+ * shape is real but whose level is somebody else's — which is how a $218M coin
+ * ended up drawing a $150B market cap. If the last close is nowhere near the
+ * price we are showing, the series is not ours and is better dropped.
+ */
+function candlesMatchPrice(candles: { c: number }[], priceUsd: number): boolean {
+  const last = candles[candles.length - 1]?.c ?? 0;
+  if (!(last > 0) || !(priceUsd > 0)) return candles.length > 0;
+  const ratio = last / priceUsd;
+  return ratio > 0.2 && ratio < 5;
+}
+
 /**
  * Orders below a dollar are not worth the fees they pay: the same floor the
  * keypad shows is enforced here, so nothing smaller reaches a pool.
