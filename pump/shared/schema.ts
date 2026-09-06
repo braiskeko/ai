@@ -176,6 +176,18 @@ export interface PreparedCoin {
 }
 
 /** Step 2: build the create-pool transaction for the connected wallet to sign. */
+/** One asset in a wallet: SOL itself, or an SPL token it holds. */
+export interface WalletAsset {
+  mint: string;
+  symbol: string;
+  name: string;
+  icon: string | null;
+  /** whole tokens (SOL for the native row) */
+  amount: number;
+  priceUsd: number;
+  valueUsd: number;
+}
+
 /** A withdrawal: move SOL out of the account's own wallet. */
 export const withdrawTxSchema = z.object({
   to: z.string().regex(SOLANA_ADDRESS_RE),

@@ -532,6 +532,23 @@ export async function getTokenBalances(wallet: PublicKey | string, mints: string
   return balances;
 }
 
+/** Every SPL token the wallet holds, with its whole-token balance. */
+export async function listTokenBalances(wallet: PublicKey | string): Promise<{ mint: string; amount: number }[]> {
+  const owner = typeof wallet === "string" ? new PublicKey(wallet) : wallet;
+  const accounts = await connection.getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID }, "confirmed");
+  const totals = new Map<string, number>();
+  for (const { account } of accounts.value) {
+    const parsed = (account.data as ParsedAccountData).parsed as {
+      info?: { mint?: string; tokenAmount?: { uiAmount?: number | null } };
+    };
+    const mint = parsed?.info?.mint;
+    const amount = parsed?.info?.tokenAmount?.uiAmount ?? 0;
+    if (!mint || amount <= 0) continue;
+    totals.set(mint, (totals.get(mint) ?? 0) + amount);
+  }
+  return Array.from(totals, ([mint, amount]) => ({ mint, amount }));
+}
+
 export interface ChainHolder {
   /** token account address (not the owner — getTokenLargestAccounts does not expose it) */
   address: string;

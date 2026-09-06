@@ -661,5 +661,6 @@
   "swipe.sell": "Desliza para vender {amount}",
   "swipe.long": "Desliza para hacer long {amount}",
   "swipe.short": "Desliza para hacer short {amount}",
-  "swipe.create": "Desliza para crear {ticker}"
+  "swipe.create": "Desliza para crear {ticker}",
+  "wallet.assets": "Tus activos"
 }

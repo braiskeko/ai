@@ -36,12 +36,8 @@ function applyDemoFigures(): void {
   if (!config.demoFigures.trim()) return;
   try {
     const parsed = JSON.parse(config.demoFigures) as Record<string, { pnlUsd?: number; cashUsd?: number }>;
-    const solUsd = Math.max(getSolUsd(), 1e-9);
     for (const [handle, figures] of Object.entries(parsed)) {
-      storage.setDemo(handle, {
-        pnlSol: figures.pnlUsd === undefined ? undefined : figures.pnlUsd / solUsd,
-        balanceSol: figures.cashUsd === undefined ? undefined : figures.cashUsd / solUsd,
-      });
+      storage.setDemo(handle, { pnlUsd: figures.pnlUsd, cashUsd: figures.cashUsd });
       log(`showcase figures applied to @${handle}`, "config");
     }
   } catch (err) {

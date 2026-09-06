@@ -52,6 +52,7 @@ import {
   PublicProfile,
 } from "@shared/schema";
 import { config } from "./config";
+import { getSolUsd } from "./solana";
 import { createBackend, Persister } from "./persistence";
 import { log } from "./vite";
 
@@ -146,10 +147,15 @@ export interface State {
   demo?: Record<string, DemoFigures>;
 }
 
-/** An admin-set overlay for one wallet. Amounts are SOL, like everything stored. */
+/**
+ * An admin-set overlay for one account.
+ *
+ * Stored in dollars, unlike everything else here, because that is what was asked
+ * for: a figure set as $0.62 should still read $0.62 after the SOL price moves.
+ */
 export interface DemoFigures {
-  pnlSol?: number;
-  balanceSol?: number;
+  pnlUsd?: number;
+  cashUsd?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1376,13 +1382,14 @@ export class Storage {
       const wallet = this.getUserByUsername(handle)?.walletAddress;
       if (!wallet) continue;
       demoByWallet.set(wallet, figures);
-      if (figures.pnlSol) wallets.add(wallet);
+      if (figures.pnlUsd) wallets.add(wallet);
     }
 
     const rows: TraderRank[] = [];
     wallets.forEach((wallet) => {
       if (onlyWallets && !onlyWallets.has(wallet)) return;
-      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0) + (demoByWallet.get(wallet)?.pnlSol ?? 0));
+      const demoPnlSol = (demoByWallet.get(wallet)?.pnlUsd ?? 0) / Math.max(getSolUsd(), 1e-9);
+      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0) + demoPnlSol);
       const topTokens = (positions.get(wallet) ?? [])
         .sort((a, b) => b.valueSol - a.valueSol)
         .slice(0, 3)
@@ -1470,8 +1477,8 @@ export class Storage {
     if (!key) return null;
     if (!this.state.demo) this.state.demo = {};
     const next: DemoFigures = {};
-    if (Number.isFinite(figures.pnlSol) && figures.pnlSol !== 0) next.pnlSol = figures.pnlSol;
-    if (Number.isFinite(figures.balanceSol) && figures.balanceSol !== 0) next.balanceSol = figures.balanceSol;
+    if (Number.isFinite(figures.pnlUsd) && figures.pnlUsd !== 0) next.pnlUsd = figures.pnlUsd;
+    if (Number.isFinite(figures.cashUsd) && figures.cashUsd !== 0) next.cashUsd = figures.cashUsd;
     if (Object.keys(next).length === 0) delete this.state.demo[key];
     else this.state.demo[key] = next;
     this.persist();
@@ -1731,7 +1738,9 @@ export class Storage {
       volumeSol: round9(volumeSol),
       tradeCount,
       avgHoldMinutes: wallet ? this.avgHoldMinutes(wallet) : 0,
-      pnlSol: round9((wallet ? this.allTimePnlSol(wallet) : 0) + (this.demoFor(user.username)?.pnlSol ?? 0)),
+      pnlSol: round9(
+        (wallet ? this.allTimePnlSol(wallet) : 0) + (this.demoFor(user.username)?.pnlUsd ?? 0) / Math.max(getSolUsd(), 1e-9),
+      ),
       // Filled in by the route, which can read the chain.
       cashSol: 0,
     };

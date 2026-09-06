@@ -19,6 +19,9 @@ export function FollowButton({
 }) {
   const t = useT();
   const { toggle, pending } = useFollowMutation();
+  // Follows are keyed by wallet: an account whose wallet has not been set up yet
+  // cannot be followed, and offering the button would only fail on the tap.
+  if (!wallet) return null;
   return (
     <button
       type="button"

@@ -21,12 +21,13 @@ import {
   ShieldCheck,
   Wallet as WalletIcon,
 } from "lucide-react";
-import type { UnsignedTx, WalletView } from "@shared/schema";
+import type { UnsignedTx, WalletAsset, WalletView } from "@shared/schema";
 import { SOLANA_ADDRESS_RE } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { useDepositSheet } from "@/components/DepositSheet";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { TokenImage } from "@/components/TokenImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useEmbeddedWallet } from "@/hooks/useEmbeddedWallet";
@@ -36,6 +37,61 @@ import { apiRequest } from "@/lib/queryClient";
 import { useWalletTx } from "@/lib/solana";
 import { shortAddress, sol, usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+
+/**
+ * Everything in the wallet, not just SOL: the native balance first, then each
+ * token it holds with what that is worth today.
+ */
+function Assets() {
+  const t = useT();
+  const assets = useQuery<WalletAsset[]>({
+    queryKey: ["/api/wallet/assets"],
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+  });
+  const rows = assets.data ?? [];
+  if (assets.isLoading) return <ListSkeletonRows />;
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="surface p-4 sm:p-5">
+      <h2 className="text-sm font-bold">{t("wallet.assets")}</h2>
+      <ul className="mt-2 divide-y divide-border">
+        {rows.map((asset) => (
+          <li key={asset.mint} className="flex items-center gap-3 py-3">
+            <TokenImage src={asset.icon} name={asset.symbol} size={36} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[15px] font-bold leading-tight">{asset.symbol}</div>
+              <div className="truncate text-[13px] text-muted-foreground tabular">
+                {asset.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset.symbol}
+              </div>
+            </div>
+            <div className="shrink-0 text-right text-[15px] font-bold tabular">
+              {asset.priceUsd > 0 ? usd(asset.amount, asset.priceUsd) : "—"}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ListSkeletonRows() {
+  return (
+    <section className="surface space-y-3 p-4 sm:p-5" aria-hidden>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-1/4" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
 
 /** Left behind so the wallet can still pay for its next transaction. */
 const WITHDRAW_RESERVE_SOL = 0.003;
@@ -482,6 +538,8 @@ export default function WalletPage() {
         </section>
         {deposit.sheet}
         <WithdrawSheet open={withdrawOpen} onOpenChange={setWithdrawOpen} balanceSol={data.balanceSol} solUsd={data.solUsd} />
+
+        <Assets />
 
         <Notice tone="info">{t("wallet.nonCustodialNotice")}</Notice>
 

@@ -60,6 +60,7 @@ import {
   type TraderRank,
   type UnsignedTx,
   type User,
+  type WalletAsset,
   type WalletView,
 } from "@shared/schema";
 import { HttpError, storage } from "./storage";
@@ -95,6 +96,7 @@ import {
   getSolUsd,
   getTokenAccountOwners,
   getTokenBalances,
+  listTokenBalances,
   getTopHolders,
   launchEnabled,
   poolStateOf,
@@ -234,6 +236,11 @@ function errorMessage(err: unknown): string {
 
 function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
+}
+
+/** "Ab12…9f3c" for a token the aggregator has never heard of. */
+function shortMint(mint: string): string {
+  return mint.length > 10 ? `${mint.slice(0, 4)}…${mint.slice(-4)}` : mint;
 }
 
 function isMint(value: string): boolean {
@@ -1515,14 +1522,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wallet = req.user?.walletAddress ?? null;
       const onChain = wallet ? await getSolBalance(wallet).catch(() => 0) : 0;
       // A showcase balance an admin set for this wallet stands in for the real one.
-      const demo = storage.demoForWallet(wallet);
+      const demo = storage.demoFor(req.user?.username ?? null);
       const view: WalletView = {
         wallet,
-        balanceSol: demo?.balanceSol ?? onChain,
+        balanceSol: demo?.cashUsd !== undefined ? demo.cashUsd / Math.max(getSolUsd(), 1e-9) : onChain,
         solUsd: getSolUsd(),
         chain: clusterInfo(),
       };
       res.json(view);
+    }),
+  );
+
+  /**
+   * Everything the wallet holds: SOL first, then each token with what it is
+   * worth. Prices come from the aggregator, so a coin it does not know shows a
+   * balance with no value rather than disappearing.
+   */
+  app.get(
+    "/api/wallet/assets",
+    wrap(async (req, res) => {
+      const wallet = req.user?.walletAddress ?? null;
+      if (!wallet) {
+        res.json([]);
+        return;
+      }
+      const solUsd = getSolUsd();
+      const [balanceSol, held] = await Promise.all([
+        getSolBalance(wallet).catch(() => 0),
+        listTokenBalances(wallet).catch(() => [] as { mint: string; amount: number }[]),
+      ]);
+
+      const assets: WalletAsset[] = [
+        {
+          mint: jupiter.SOL_MINT,
+          symbol: "SOL",
+          name: "Solana",
+          icon: null,
+          amount: balanceSol,
+          priceUsd: solUsd,
+          valueUsd: balanceSol * solUsd,
+        },
+      ];
+
+      // Priced one by one through the cached token lookup; a wallet with a long
+      // tail of dust is capped so this stays a quick read.
+      const priced = await Promise.all(
+        held.slice(0, 30).map(async (row) => {
+          const found = await jupiter.getToken(row.mint).catch(() => null);
+          const priceUsd = found?.token.priceUsd ?? 0;
+          return {
+            mint: row.mint,
+            symbol: found?.token.symbol ?? shortMint(row.mint),
+            name: found?.token.name ?? shortMint(row.mint),
+            icon: found?.token.icon ?? null,
+            amount: row.amount,
+            priceUsd,
+            valueUsd: row.amount * priceUsd,
+          } satisfies WalletAsset;
+        }),
+      );
+      assets.push(...priced.sort((a, b) => b.valueUsd - a.valueUsd || b.amount - a.amount));
+      res.json(assets);
     }),
   );
 
@@ -1536,7 +1596,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Total cash is public: it is the balance of a wallet anyone can look up.
       const wallet = profile.user.walletAddress;
       const demo = storage.demoFor(profile.user.username);
-      profile.cashSol = demo?.balanceSol ?? (wallet ? await getSolBalance(wallet).catch(() => 0) : 0);
+      profile.cashSol =
+        demo?.cashUsd !== undefined
+          ? demo.cashUsd / Math.max(getSolUsd(), 1e-9)
+          : wallet
+            ? await getSolBalance(wallet).catch(() => 0)
+            : 0;
       res.json(profile);
     }),
   );
@@ -1554,6 +1619,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth,
     wrap((req, res) => {
       const { wallet } = currentWallet(req);
+      const body = req.body as { wallet?: unknown };
+      if (typeof body.wallet !== "string" || !body.wallet.trim()) {
+        throw new HttpError(400, "That account is still setting up its wallet — try again in a moment.");
+      }
       const { wallet: target } = followSchema.parse(req.body);
       storage.follow(wallet, target);
       res.status(201).json({ isFollowing: true });
@@ -1679,17 +1748,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const handle = (input.username ?? "").replace(/^@/, "").trim();
       if (!handle) throw new HttpError(400, "Which account?");
 
-      const solUsd = Math.max(getSolUsd(), 1e-9);
       const current = storage.demoFor(handle);
       const figures = storage.setDemo(handle, {
-        pnlSol: input.pnlUsd === undefined ? current?.pnlSol : input.pnlUsd / solUsd,
-        balanceSol: input.cashUsd === undefined ? current?.balanceSol : input.cashUsd / solUsd,
+        pnlUsd: input.pnlUsd ?? current?.pnlUsd,
+        cashUsd: input.cashUsd ?? current?.cashUsd,
       });
-      res.json({
-        username: handle,
-        pnlUsd: (figures?.pnlSol ?? 0) * solUsd,
-        cashUsd: (figures?.balanceSol ?? 0) * solUsd,
-      });
+      res.json({ username: handle, pnlUsd: figures?.pnlUsd ?? 0, cashUsd: figures?.cashUsd ?? 0 });
     }),
   );
 

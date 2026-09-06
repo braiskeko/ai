@@ -139,9 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeCachedUser(null);
       queryClient.setQueryData(["/api/me"], null);
       await queryClient.invalidateQueries();
-      toast({ title: t("auth.loggedOut"), description: t("auth.signedOut") });
+      // Signing out speaks for itself: the home screen, signed out, is the notice.
+      window.location.assign("/");
     }
-  }, [toast, t]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

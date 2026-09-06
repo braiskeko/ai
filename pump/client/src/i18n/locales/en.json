@@ -726,5 +726,6 @@
   "swipe.sell": "Swipe to sell {amount}",
   "swipe.long": "Swipe to long {amount}",
   "swipe.short": "Swipe to short {amount}",
-  "swipe.create": "Swipe to create {ticker}"
+  "swipe.create": "Swipe to create {ticker}",
+  "wallet.assets": "Your assets"
 }
