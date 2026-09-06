@@ -17,8 +17,9 @@
  *
  * Env: CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN (required); APP_ROOT (noxia-pump),
  * ZIP_PATH (noxia-pump-cpanel.zip), DOMAIN (app.noxia.work), APP_URL (https://DOMAIN),
- * ADMIN_EMAILS, CHAIN (amoy), WIPE_PUBLIC_HTML (0), SESSION_SECRET (random),
- * INITIAL_CREDITS, WALLETCONNECT_PROJECT_ID, CPANEL_PORT (2083), DEPLOY_TIMEOUT_MIN (20).
+ * ADMIN_EMAILS, SOLANA_CLUSTER (devnet), RPC_URL, DBC_CONFIG, TREASURY_WALLET,
+ * ADMIN_API_TOKEN, WIPE_PUBLIC_HTML (0), WIPE_DATA (0), SESSION_SECRET (random),
+ * ORIGIN_IP, CPANEL_PORT (2083), DEPLOY_TIMEOUT_MIN (20).
  */
 import fs from "node:fs";
 import https from "node:https";
@@ -42,15 +43,17 @@ const APP_ROOT = env("APP_ROOT", "noxia-pump");
 const DOMAIN = env("DOMAIN", "app.noxia.work");
 const APP_URL = env("APP_URL", `https://${DOMAIN}`).replace(/\/+$/, "");
 const ADMIN_EMAILS = env("ADMIN_EMAILS", "");
-const CHAIN = env("CHAIN", "amoy");
+const SOLANA_CLUSTER = env("SOLANA_CLUSTER", "devnet");
+const RPC_URL = env("RPC_URL", "");
+const DBC_CONFIG = env("DBC_CONFIG", "");
+const TREASURY_WALLET = env("TREASURY_WALLET", "");
+const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN", "");
 const WIPE = env("WIPE_PUBLIC_HTML", "0");
 /** 1 = start from an empty database (the old snapshot is backed up on the host first). */
 const WIPE_DATA = env("WIPE_DATA", "0");
 const SESSION_SECRET = env("SESSION_SECRET", randomBytes(32).toString("hex"));
 const ZIP = env("ZIP_PATH", `${APP_ROOT}-cpanel.zip`);
 const ZIP_NAME = path.basename(ZIP);
-const INITIAL_CREDITS = env("INITIAL_CREDITS", "");
-const WALLETCONNECT_PROJECT_ID = env("WALLETCONNECT_PROJECT_ID", "");
 const PORT = env("CPANEL_PORT", "2083");
 const TIMEOUT_MIN = Number(env("DEPLOY_TIMEOUT_MIN", "20"));
 // Public IP of the cPanel server. Used to reach the app directly (Host header) while the
@@ -408,11 +411,13 @@ async function main() {
     APP_URL,
     SESSION_SECRET,
     ADMIN_EMAILS,
-    CHAIN,
+    SOLANA_CLUSTER,
     INSTANT_EMAIL_LOGIN: "1",
-    DEPOSITS_ENABLED: "1",
-    ...(INITIAL_CREDITS ? { INITIAL_CREDITS } : {}),
-    ...(WALLETCONNECT_PROJECT_ID ? { WALLETCONNECT_PROJECT_ID } : {}),
+    SEED_DEMO: "0",
+    ...(RPC_URL ? { RPC_URL } : {}),
+    ...(DBC_CONFIG ? { DBC_CONFIG } : {}),
+    ...(TREASURY_WALLET ? { TREASURY_WALLET } : {}),
+    ...(ADMIN_API_TOKEN ? { ADMIN_API_TOKEN } : {}),
   };
   const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
   const conf = [

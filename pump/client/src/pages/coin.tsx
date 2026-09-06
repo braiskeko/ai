@@ -32,6 +32,7 @@ import { PublicAvatar } from "@/components/TradesTable";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import NotFound from "@/pages/not-found";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -173,23 +174,20 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-5",
-        graduated ? "border-violet/40" : "border-border",
-      )}
+      className={cn("surface relative overflow-hidden p-4 sm:p-6", graduated && "border-violet/40")}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <div className="flex items-center gap-4">
         <img
           src={coin.imageUrl}
           alt=""
           decoding="async"
-          className="h-20 w-20 shrink-0 rounded-2xl bg-muted object-cover shadow-lg sm:h-24 sm:w-24"
+          className="h-20 w-20 shrink-0 rounded-3xl bg-muted object-cover shadow-lg sm:h-24 sm:w-24"
         />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{coin.name}</h1>
-            <span className="text-base font-semibold text-muted-foreground">${coin.ticker}</span>
+            <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{coin.name}</h1>
+            <span className="text-sm font-semibold text-muted-foreground">${coin.ticker}</span>
             {graduated && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet/15 px-2 py-0.5 text-[11px] font-bold text-violet">
                 <GraduationCap className="h-3 w-3" />
@@ -211,75 +209,86 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
               <Clock className="h-3 w-3" />
               {t("coin.ago", { time: age(coin.createdAt) })}
             </span>
-            <CopyCa ca={coin.ca} />
+            <CopyCa ca={coin.ca} className="hidden sm:inline-flex" />
           </div>
+        </div>
+      </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
-              <div className="text-2xl font-extrabold tabular leading-tight text-primary">
-                {compactUsd(coin.marketCapSol * solUsd)}
-              </div>
-              <div className="text-[11px] tabular text-muted-foreground">{sol(coin.marketCapSol)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.price")}</div>
-              <div className="text-lg font-bold tabular leading-tight">{priceUsd(coin.priceSol * solUsd)}</div>
-              <div className="text-[11px] tabular text-muted-foreground">{priceSol(coin.priceSol)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.change24h")}</div>
-              <div className={cn("inline-flex items-center gap-0.5 text-lg font-bold tabular leading-tight", up ? "text-up" : "text-down")}>
-                {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                {signedPct(coin.change24h)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.volume")}</div>
-              <div className="text-lg font-bold tabular leading-tight">{compactUsd(coin.volumeSol * solUsd)}</div>
-              <div className="text-[11px] tabular text-muted-foreground">{sol(coin.volumeSol)}</div>
-            </div>
-          </div>
+      <CopyCa ca={coin.ca} className="mt-3 sm:hidden" />
 
-          <div className="mt-4">
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
-                {t("coin.progress")}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex text-muted-foreground hover:text-foreground" aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}>
-                      <Info className="h-3 w-3" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs">
-                    {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-              <span className={cn("tabular font-semibold", graduated ? "text-violet" : "text-foreground")}>
-                {graduated ? t("coin.graduated") : t("coin.solToGraduate", { amount: sol(coin.curve.solToGraduate) })}
-              </span>
-            </div>
-            <div
-              className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progress * 100)}
-              aria-label={t("coin.progress")}
-            >
-              <motion.div
-                className={cn("h-full rounded-full", graduated ? "bg-violet" : "bg-gradient-to-r from-primary/70 to-primary")}
-                initial={false}
-                animate={{ width: `${Math.max(2, progress * 100)}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-              />
-            </div>
-            <div className="mt-1 flex justify-between text-[11px] tabular text-muted-foreground">
-              <span>{compactUsd(coin.marketCapSol * solUsd)}</span>
-              <span>{compactUsd(GRADUATION_MCAP_USD)}</span>
-            </div>
+      {/* Big USD price — the hero number */}
+      <div className="mt-5">
+        <div className="label">{t("coin.price")}</div>
+        <div className="mt-1 flex flex-wrap items-end gap-2">
+          <span className="stat text-4xl leading-none sm:text-5xl">{priceUsd(coin.priceSol * solUsd)}</span>
+          <span
+            className={cn(
+              "mb-1 inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-sm font-bold tabular",
+              up ? "bg-up/15 text-up" : "bg-down/15 text-down",
+            )}
+          >
+            {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            {signedPct(coin.change24h)}
+          </span>
+        </div>
+        <div className="mt-0.5 text-xs tabular text-muted-foreground">{priceSol(coin.priceSol)}</div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/70 pt-4">
+        <div>
+          <div className="label">{t("coin.mcap")}</div>
+          <div className="text-base font-bold tabular leading-tight text-primary">{compactUsd(coin.marketCapSol * solUsd)}</div>
+        </div>
+        <div>
+          <div className="label">{t("coin.volume")}</div>
+          <div className="text-base font-bold tabular leading-tight">{compactUsd(coin.volumeSol * solUsd)}</div>
+        </div>
+        <div>
+          <div className="label">{t("coin.holders")}</div>
+          <div className="inline-flex items-center gap-1 text-base font-bold tabular leading-tight">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            {coin.holders}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+            {t("coin.progress")}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="inline-flex text-muted-foreground hover:text-foreground" aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}>
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
+              </TooltipContent>
+            </Tooltip>
+          </span>
+          <span className={cn("tabular font-semibold", graduated ? "text-violet" : "text-foreground")}>
+            {graduated ? t("coin.graduated") : t("coin.solToGraduate", { amount: sol(coin.curve.solToGraduate) })}
+          </span>
+        </div>
+        <div
+          className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          aria-label={t("coin.progress")}
+        >
+          <motion.div
+            className={cn("h-full rounded-full", graduated ? "bg-violet" : "bg-primary")}
+            initial={false}
+            animate={{ width: `${Math.max(2, progress * 100)}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          />
+        </div>
+        <div className="mt-1 flex justify-between text-[11px] tabular text-muted-foreground">
+          <span>{compactUsd(coin.marketCapSol * solUsd)}</span>
+          <span>{compactUsd(GRADUATION_MCAP_USD)}</span>
         </div>
       </div>
     </motion.section>
@@ -310,7 +319,7 @@ function StatsCard({ coin }: { coin: CoinDetail }) {
   const buyShare = total > 0 ? coin.buys / total : 0.5;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
+    <section className="surface p-4">
       <h2 className="text-sm font-bold">{t("coin.stats")}</h2>
       <div className="mt-1 divide-y divide-border">
         <StatRow icon={Users} label={t("coin.holders")} value={count(coin.holders)} />
@@ -362,7 +371,7 @@ function MyPositionCard({ coin }: { coin: CoinDetail }) {
   const share = h.tokens / TOTAL_SUPPLY;
 
   return (
-    <section className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+    <section className="rounded-3xl border border-primary/30 bg-primary/5 p-4">
       <h2 className="inline-flex items-center gap-1.5 text-sm font-bold">
         <Wallet className="h-4 w-4 text-primary" />
         {t("coin.myPosition")}
@@ -438,7 +447,7 @@ function CreatorClaimCard({ coin }: { coin: CoinDetail }) {
   };
 
   return (
-    <section className="rounded-2xl border border-gold/40 bg-gold/5 p-4">
+    <section className="rounded-3xl border border-gold/40 bg-gold/5 p-4">
       <h2 className="inline-flex items-center gap-1.5 text-sm font-bold text-gold">
         <Coins className="h-4 w-4" />
         {t("coin.creatorFees")}
@@ -466,7 +475,7 @@ function MigratedCard({ coin }: { coin: CoinDetail }) {
   const t = useT();
   if (!coin.curve.dammPool) return null;
   return (
-    <section className="rounded-2xl border border-violet/40 bg-violet/5 p-5 text-center">
+    <section className="rounded-3xl border border-violet/40 bg-violet/5 p-5 text-center">
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-violet/15 text-violet">
         <GraduationCap className="h-6 w-6" />
       </div>
@@ -495,7 +504,7 @@ function AboutCard({ coin }: { coin: CoinDetail }) {
   if (!coin.description && links.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
+    <section className="surface p-4">
       <h2 className="text-sm font-bold">{t("coin.about")}</h2>
       {coin.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">{coin.description}</p>}
       {links.length > 0 && (
@@ -525,7 +534,7 @@ function AboutCard({ coin }: { coin: CoinDetail }) {
 function CoinSkeleton() {
   return (
     <div className="space-y-6" aria-busy aria-live="polite">
-      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div className="surface p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row">
           <Skeleton className="h-20 w-20 shrink-0 rounded-2xl sm:h-24 sm:w-24" />
           <div className="flex-1 space-y-3">
@@ -593,6 +602,7 @@ export default function CoinPage() {
 
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "price"));
   const [interval, setInterval_] = useState<ChartInterval>(() => loadPref(CHART_INTERVAL_KEY, INTERVALS, "1m"));
+  const [tradeOpen, setTradeOpen] = useState(false);
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
     savePref(CHART_MODE_KEY, m);
@@ -628,12 +638,13 @@ export default function CoinPage() {
           <CoinSkeleton />
         )
       ) : (
-        <div className="space-y-6">
+        <div className={cn("space-y-6", !data.curve.migrated && "pb-16 lg:pb-0")}>
           <CoinHeader coin={data} />
 
           {/*
             Grid: on lg the aside spans both rows of the left column (chart, tabs) and sticks.
-            On mobile the DOM order gives: chart → trade panel → tabs.
+            On mobile the trade panel moves into a fixed bottom bar + sheet; DOM order gives:
+            chart → creator/position/stats cards → tabs.
           */}
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
             <section className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -646,12 +657,18 @@ export default function CoinPage() {
                 onModeChange={onModeChange}
                 interval={interval}
                 onIntervalChange={onIntervalChange}
-                className="rounded-2xl border border-border bg-card"
+                className="rounded-3xl border border-border bg-card"
               />
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
-              {data.curve.migrated ? <MigratedCard coin={data} /> : <TradePanel coin={data} />}
+              {data.curve.migrated ? (
+                <MigratedCard coin={data} />
+              ) : (
+                <div className="hidden lg:block">
+                  <TradePanel coin={data} />
+                </div>
+              )}
               <CreatorClaimCard coin={data} />
               <MyPositionCard coin={data} />
               <StatsCard coin={data} />
@@ -663,6 +680,42 @@ export default function CoinPage() {
             </section>
           </div>
         </div>
+      )}
+
+      {/* Mobile: trading collapses into a fixed bottom bar that opens the trade panel as a sheet */}
+      {data && !data.curve.migrated && (
+        <>
+          <div className="safe-bottom fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
+            <div className="mx-auto flex max-w-7xl gap-2.5">
+              <Button
+                type="button"
+                onClick={() => setTradeOpen(true)}
+                className="tap h-12 flex-1 rounded-full bg-up text-base font-bold text-white hover:bg-up/90"
+              >
+                {t("trade.buy")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTradeOpen(true)}
+                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+              >
+                {t("trade.sell")}
+              </Button>
+            </div>
+          </div>
+
+          <Drawer open={tradeOpen} onOpenChange={setTradeOpen}>
+            <DrawerContent className="max-h-[88vh] rounded-t-3xl lg:hidden">
+              <DrawerTitle className="sr-only">
+                {t("trade.placeBuy", { ticker: data.ticker })} / {t("trade.placeSell", { ticker: data.ticker })}
+              </DrawerTitle>
+              <div className="safe-bottom overflow-y-auto px-4 pb-4">
+                <TradePanel coin={data} className="border-0 bg-transparent p-0 shadow-none" />
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
       )}
     </PageShell>
   );

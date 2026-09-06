@@ -21,7 +21,6 @@ import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { LiveTicker } from "@/components/LiveTicker";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -54,7 +53,7 @@ function loadAnimations(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Stats strip
+// Stats strip — a compact horizontal scroller of pill-shaped tiles
 // ---------------------------------------------------------------------------
 
 function StatsStrip() {
@@ -70,22 +69,62 @@ function StatsStrip() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-3 sm:px-0">
       {tiles.map(({ key, icon: Icon, value }) => (
-        <div key={key} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 sm:px-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <div
+          key={key}
+          className="surface flex shrink-0 items-center gap-2.5 px-3.5 py-2.5 sm:shrink"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t(key)}</div>
+            <div className="label whitespace-nowrap">{t(key)}</div>
             {isLoading || value === null ? (
-              <Skeleton className="mt-1 h-5 w-16" />
+              <div className="mt-1 h-4 w-14 animate-pulse rounded bg-muted" />
             ) : (
-              <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>
+              <div className="truncate text-sm font-bold leading-tight tabular">{value}</div>
             )}
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sticky filter pills
+// ---------------------------------------------------------------------------
+
+function SortPills({ sort, onChange, ariaLabel }: { sort: Sort; onChange: (s: Sort) => void; ariaLabel: string }) {
+  const t = useT();
+  return (
+    <div
+      className="no-scrollbar sticky top-14 z-20 -mx-4 flex gap-2 overflow-x-auto bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:px-0"
+      role="tablist"
+      aria-label={ariaLabel}
+    >
+      {SORTS.map(({ key, labelKey, icon: Icon }) => {
+        const active = key === sort;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(key)}
+            className={cn(
+              "tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
+              active
+                ? "border-primary bg-primary/15 text-primary"
+                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {t(labelKey)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -158,7 +197,7 @@ export default function Home() {
 
   return (
     <PageShell wide>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <LiveTicker />
 
         <StatsStrip />
@@ -179,7 +218,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-3">
               {q && (
-                <Button variant="outline" size="sm" className="rounded-lg" onClick={clearSearch}>
+                <Button variant="outline" size="sm" className="rounded-full" onClick={clearSearch}>
                   <X className="h-3.5 w-3.5" />
                   {t("home.clearSearch")}
                 </Button>
@@ -191,44 +230,18 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="no-scrollbar mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label={t("home.sortBy")}>
-            {SORTS.map(({ key, labelKey, icon: Icon }) => {
-              const active = key === sort;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSort(key)}
-                  className={cn(
-                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-                    active
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t(labelKey)}
-                </button>
-              );
-            })}
-          </div>
+          <SortPills sort={sort} onChange={setSort} ariaLabel={t("home.sortBy")} />
 
-          <div className="mt-4">
+          <div className="surface feed-divide mt-3 overflow-hidden">
             {coins.isLoading ? (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <CoinCardSkeleton key={i} />
-                ))}
-              </div>
+              Array.from({ length: 8 }).map((_, i) => <CoinCardSkeleton key={i} variant="row" />)
             ) : coins.isError ? (
               <EmptyState
                 emoji="😵"
                 title={t("home.loadError")}
                 hint={apiErrorMessage(coins.error, t("common.error"))}
                 action={
-                  <Button variant="outline" className="rounded-lg" onClick={() => void coins.refetch()}>
+                  <Button variant="outline" className="rounded-full" onClick={() => void coins.refetch()}>
                     <RefreshCw className={cn("h-4 w-4", coins.isFetching && "animate-spin")} />
                     {t("common.retry")}
                   </Button>
@@ -241,7 +254,7 @@ export default function Home() {
                   title={t("home.noResults", { q })}
                   hint={t("home.noResultsHint")}
                   action={
-                    <Button variant="outline" className="rounded-lg" onClick={clearSearch}>
+                    <Button variant="outline" className="rounded-full" onClick={clearSearch}>
                       <Search className="h-4 w-4" />
                       {t("home.clearSearch")}
                     </Button>
@@ -253,7 +266,7 @@ export default function Home() {
                   title={t("home.empty")}
                   hint={t("app.tagline")}
                   action={
-                    <Button asChild className="rounded-lg font-semibold">
+                    <Button asChild className="rounded-full font-semibold">
                       <Link href="/create">
                         <PlusCircle className="h-4 w-4" />
                         {t("nav.create")}
@@ -263,15 +276,14 @@ export default function Home() {
                 />
               )
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {list.map((coin) => (
-                  <CoinCard
-                    key={coin.id}
-                    coin={coin}
-                    highlight={animations && recent.has(coin.id)}
-                  />
-                ))}
-              </div>
+              list.map((coin) => (
+                <CoinCard
+                  key={coin.id}
+                  coin={coin}
+                  variant="row"
+                  highlight={animations && recent.has(coin.id)}
+                />
+              ))
             )}
           </div>
         </section>
@@ -292,7 +304,7 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
+    <div className="flex flex-col items-center px-6 py-14 text-center">
       <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-3xl leading-none">{emoji}</div>
       <h2 className="mt-4 text-lg font-bold">{title}</h2>
       {hint && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{hint}</p>}

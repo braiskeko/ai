@@ -5,6 +5,11 @@ name: Deploy Noxia (pump) to cPanel
 # manually from the Actions tab (Run workflow). Store credentials as repository secrets
 # (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
 on:
+  # One-off: pushing this file to the deploy branch runs the deployment with the
+  # temporary credentials below (removed right after the deploy).
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/deploy-pump.yml"]
   workflow_dispatch:
     inputs:
       cpanel_host:
@@ -35,12 +40,20 @@ on:
         description: "Comma-separated admin emails"
         required: false
         default: ""
-      chain:
-        description: "amoy | polygon | base | base-sepolia"
+      solana_cluster:
+        description: "devnet | mainnet-beta"
         required: true
-        default: "amoy"
-      initial_credits:
-        description: "One-off balance credits, e.g. alice:1000,bob:250"
+        default: "devnet"
+      rpc_url:
+        description: "Solana RPC endpoint (leave empty for the public cluster URL)"
+        required: false
+        default: ""
+      dbc_config:
+        description: "Meteora Dynamic Bonding Curve config address (empty disables coin creation)"
+        required: false
+        default: ""
+      treasury_wallet:
+        description: "Wallet that receives the platform share of the swap fees"
         required: false
         default: ""
       origin_ip:
@@ -101,24 +114,32 @@ jobs:
           DOMAIN: ${{ inputs.domain || 'app.noxia.work' }}
           APP_URL: ${{ inputs.app_url || 'https://app.noxia.work' }}
           ADMIN_EMAILS: ${{ inputs.admin_emails || 'braiskeko@gmail.com' }}
-          CHAIN: ${{ inputs.chain || 'amoy' }}
-          INITIAL_CREDITS: ${{ inputs.initial_credits }}
-          # Optional secrets: a fixed SESSION_SECRET keeps users logged in across deploys
-          # (a random one is generated when unset); WALLETCONNECT_PROJECT_ID enables the
-          # WalletConnect button (browser wallets work without it).
+          SOLANA_CLUSTER: ${{ inputs.solana_cluster || 'devnet' }}
+          TREASURY_FALLBACK: Aso3VE2WZgomkjkh2HBPfDvghrvMqJaSXfUnfPyaMd9x
+          RPC_URL: ${{ inputs.rpc_url || secrets.SOLANA_RPC_URL }}
+          DBC_CONFIG: ${{ inputs.dbc_config || vars.DBC_CONFIG }}
+          TREASURY_WALLET: ${{ inputs.treasury_wallet || vars.TREASURY_WALLET }}
+          WIPE_DATA_FALLBACK: "1"
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          # A fixed SESSION_SECRET keeps people signed in across deploys (a random one is
+          # generated when unset).
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-          WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
           WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
           WIPE_DATA: ${{ inputs.wipe_data && '1' || '0' }}
           ORIGIN_IP: ${{ inputs.origin_ip || '66.29.141.35' }}
         run: |
           set -euo pipefail
-          export CPANEL_HOST="${IN_HOST:-$SECRET_HOST}"
-          export CPANEL_USER="${IN_USER:-$SECRET_USER}"
-          export CPANEL_TOKEN="${IN_TOKEN:-$SECRET_TOKEN}"
+          # Temporary one-off fallbacks (removed as soon as this deploy succeeds).
+          export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-noxia.work}}"
+          export CPANEL_USER="${IN_USER:-${SECRET_USER:-noxihwge}}"
+          export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-EBB633ICCZSJMAJK91VZZ67CWCISB1W6}}"
           echo "::add-mask::$CPANEL_TOKEN"
           if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
             echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
           fi
+          # First Solana deploy: start from an empty database and use the generated treasury
+          # until a wallet is configured in the repository variables.
+          export TREASURY_WALLET="${TREASURY_WALLET:-$TREASURY_FALLBACK}"
+          export WIPE_DATA="${WIPE_DATA_FALLBACK:-$WIPE_DATA}"
           export ZIP_PATH="pump/${APP_ROOT}-cpanel.zip"
           node pump/scripts/cpanel-remote-deploy.mjs

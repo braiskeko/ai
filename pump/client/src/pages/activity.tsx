@@ -88,15 +88,15 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedItem; isNew: boolean; solU
       animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      className="flex items-center gap-3 border-b border-border p-3 transition-colors last:border-b-0 hover:bg-accent/40 sm:p-4"
+      className="feed-row"
     >
       {profileHref ? (
         <Link href={profileHref} className="shrink-0">
-          <PublicAvatar user={avatarUser} wallet={item.kind === "trade" ? item.wallet : undefined} size={36} />
+          <PublicAvatar user={avatarUser} wallet={item.kind === "trade" ? item.wallet : undefined} size={40} />
         </Link>
       ) : (
         <span className="shrink-0">
-          <PublicAvatar user={null} wallet={item.kind === "trade" ? item.wallet : undefined} size={36} />
+          <PublicAvatar user={null} wallet={item.kind === "trade" ? item.wallet : undefined} size={40} />
         </span>
       )}
 
@@ -121,8 +121,8 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedItem; isNew: boolean; solU
               <span className="tabular font-semibold">{compactUsd(item.sol * solUsd)}</span> <span className="text-muted-foreground">{t("activity.of")}</span>
             </>
           )}{" "}
-          <Link href={`/${item.coin.ca}`} className="inline-flex max-w-full items-center gap-1 align-middle font-bold hover:underline">
-            <img src={item.coin.imageUrl} alt="" loading="lazy" className="h-4 w-4 rounded-sm bg-muted object-cover" />
+          <Link href={`/${item.coin.ca}`} className="inline-flex max-w-full items-center gap-1.5 align-middle font-bold hover:underline">
+            <img src={item.coin.imageUrl} alt="" loading="lazy" className="h-5 w-5 rounded-md bg-muted object-cover" />
             <span className="truncate">{item.coin.name}</span>
             <span className="text-xs font-semibold text-muted-foreground">${item.coin.ticker}</span>
           </Link>
@@ -162,10 +162,10 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedItem; isNew: boolean; solU
 
 function FeedSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card" aria-hidden>
+    <div className="surface feed-divide overflow-hidden" aria-hidden>
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 border-b border-border p-4 last:border-b-0">
-          <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+        <div key={i} className="flex items-center gap-3 p-4">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-3 w-1/3" />
@@ -179,7 +179,7 @@ function FeedSkeleton() {
 
 function Empty({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+    <div className="surface flex flex-col items-center px-6 py-16 text-center">
       <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
         <ActivityIcon className="h-5 w-5" />
       </div>
