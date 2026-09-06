@@ -18,7 +18,8 @@
  * Env: CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN (required); APP_ROOT (noxia-pump),
  * ZIP_PATH (noxia-pump-cpanel.zip), DOMAIN (app.noxia.work), APP_URL (https://DOMAIN),
  * ADMIN_EMAILS, SOLANA_CLUSTER (mainnet-beta), RPC_URL, DBC_CONFIG, TREASURY_WALLET,
- * ADMIN_API_TOKEN, WIPE_PUBLIC_HTML (0), WIPE_DATA (0), SESSION_SECRET (random),
+ * ADMIN_API_TOKEN, WIPE_PUBLIC_HTML (0), WIPE_DATA (0), SESSION_SECRET (optional:
+ * unset keeps the one the server persisted, so a deploy does not sign anyone out),
  * ORIGIN_IP, CPANEL_PORT (2083), DEPLOY_TIMEOUT_MIN (20).
  */
 import fs from "node:fs";
@@ -26,7 +27,6 @@ import https from "node:https";
 import http from "node:http";
 import dns from "node:dns/promises";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
 
 const env = (k, fallback) => {
   const v = process.env[k]?.trim();
@@ -51,7 +51,12 @@ const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN", "");
 const WIPE = env("WIPE_PUBLIC_HTML", "0");
 /** 1 = start from an empty database (the old snapshot is backed up on the host first). */
 const WIPE_DATA = env("WIPE_DATA", "0");
-const SESSION_SECRET = env("SESSION_SECRET", randomBytes(32).toString("hex"));
+/**
+ * Only sent when explicitly configured. A fresh random secret on every deploy
+ * signs every session out, which is exactly what it used to do; with no value the
+ * server generates one once and keeps it beside its data (server/config.ts).
+ */
+const SESSION_SECRET = env("SESSION_SECRET", "");
 const ZIP = env("ZIP_PATH", `${APP_ROOT}-cpanel.zip`);
 const ZIP_NAME = path.basename(ZIP);
 const PORT = env("CPANEL_PORT", "2083");
@@ -409,7 +414,7 @@ async function main() {
   const envVars = {
     NODE_ENV: "production",
     APP_URL,
-    SESSION_SECRET,
+    ...(SESSION_SECRET ? { SESSION_SECRET } : {}),
     ADMIN_EMAILS,
     SOLANA_CLUSTER,
     INSTANT_EMAIL_LOGIN: "1",

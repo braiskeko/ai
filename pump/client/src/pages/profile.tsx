@@ -30,7 +30,7 @@ import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveTrades } from "@/lib/useLive";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, usd, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import NotFound from "@/pages/not-found";
@@ -426,7 +426,15 @@ export default function ProfilePage({ username: explicit }: { username?: string 
     staleTime: 30_000,
   });
 
-  if (!username || (profile.isError && isNotFound(profile.error))) {
+  // Your own profile is never "not found": if the lookup fails while the session
+  // still knows who you are, the session is what went stale — re-read it and show
+  // the page from what we already have rather than a dead end.
+  const looksMissing = profile.isError && isNotFound(profile.error);
+  const isSelfLookup = !!me && me.username.toLowerCase() === username.toLowerCase();
+  if (looksMissing && isSelfLookup) {
+    void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+  }
+  if (!username || (looksMissing && !isSelfLookup)) {
     return <NotFound title={t("profile.notFound")} hint={t("profile.notFoundHint", { app: t("app.name"), username })} />;
   }
 
@@ -438,8 +446,26 @@ export default function ProfilePage({ username: explicit }: { username?: string 
     );
   }
 
-  const data = profile.data;
-  if (profile.isError || !data) {
+  // Fall back to the session's own view of the account when the public lookup fails.
+  const data: PublicProfile | undefined =
+    profile.data ??
+    (isSelfLookup && me
+      ? {
+          user: { id: me.id, username: me.username, avatarSeed: me.avatarSeed, avatarUrl: me.avatarUrl, walletAddress: me.walletAddress },
+          createdCoins: [],
+          trades: [],
+          joinedAt: me.createdAt,
+          holdingsCount: 0,
+          followers: 0,
+          following: 0,
+          isFollowing: false,
+          volumeSol: 0,
+          tradeCount: 0,
+          avgHoldMinutes: 0,
+          pnlSol: 0,
+        }
+      : undefined);
+  if (!data) {
     return (
       <PageShell className="flex items-center justify-center">
         <div className="mx-auto w-full max-w-md surface p-8 text-center">

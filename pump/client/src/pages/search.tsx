@@ -3,8 +3,9 @@ import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardPaste, Search as SearchIcon, X } from "lucide-react";
 import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
-import { CHAIN_LABELS } from "@shared/schema";
+import type { Chain } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
+import { ChainBadge } from "@/components/ChainIcon";
 import { TokenImage } from "@/components/TokenImage";
 import { TraderRow, TraderStripCard } from "@/components/TraderCard";
 import { useT } from "@/i18n";
@@ -69,8 +70,8 @@ interface Row {
   change24h: number;
   marketCapUsd: number;
   source: "next" | "solana";
-  /** label shown on the badge — the chain for external tokens */
-  chainLabel?: string;
+  /** which chain the token lives on (ours are Solana) */
+  chain: Chain;
 }
 
 function fromCoin(c: CoinSummary, solUsd: number): Row {
@@ -84,6 +85,7 @@ function fromCoin(c: CoinSummary, solUsd: number): Row {
     change24h: c.change24h,
     marketCapUsd: c.marketCapSol * solUsd,
     source: "next",
+    chain: "solana",
   };
 }
 function fromToken(t: ExternalToken): Row {
@@ -97,7 +99,7 @@ function fromToken(t: ExternalToken): Row {
     change24h: t.change24h,
     marketCapUsd: t.marketCapUsd,
     source: "solana",
-    chainLabel: CHAIN_LABELS[t.chain],
+    chain: t.chain,
   };
 }
 
@@ -112,14 +114,13 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate font-bold uppercase leading-tight">{row.ticker}</span>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                row.source === "next" ? "bg-primary/15 text-primary" : "bg-violet/15 text-violet",
-              )}
-            >
-              {row.source === "next" ? t("search.badgeNext") : (row.chainLabel ?? t("search.badgeSolana"))}
-            </span>
+            {row.source === "next" ? (
+              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+                {t("search.badgeNext")}
+              </span>
+            ) : (
+              <ChainBadge chain={row.chain} />
+            )}
           </span>
           <span className="block truncate text-xs uppercase text-muted-foreground">
             {compactUsd(row.marketCapUsd)} {t("coin.mcap")}

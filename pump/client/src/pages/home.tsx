@@ -16,10 +16,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Chain, CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
-import { CHAINS, CHAIN_LABELS } from "@shared/schema";
+import { CHAINS } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCardSkeleton } from "@/components/CoinCard";
+import { ChainBadge } from "@/components/ChainIcon";
 import { TokenImage } from "@/components/TokenImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -117,34 +118,6 @@ function SortPills({
             )}
           >
             {t(labelKey)}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Chain filter: every chain at once, or one of them. */
-function ChainPills({ chain, onChange }: { chain: Chain | "all"; onChange: (c: Chain | "all") => void }) {
-  const t = useT();
-  const options: (Chain | "all")[] = ["all", ...CHAINS];
-  return (
-    <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pt-1 sm:mx-0 sm:px-0" role="tablist">
-      {options.map((key) => {
-        const active = key === chain;
-        return (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(key)}
-            className={cn(
-              "tap h-8 shrink-0 rounded-full px-3.5 text-[13px] transition-colors",
-              active ? "bg-foreground font-bold text-background" : "bg-secondary/60 font-semibold text-muted-foreground",
-            )}
-          >
-            {key === "all" ? t("home.allChains") : CHAIN_LABELS[key]}
           </button>
         );
       })}
@@ -255,11 +228,7 @@ function TokenRow({
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[17px] font-bold leading-tight">{title}</span>
-          {chain && chain !== "solana" && (
-            <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {CHAIN_LABELS[chain]}
-            </span>
-          )}
+          {chain && <ChainBadge chain={chain} />}
         </span>
         <span className="mt-0.5 block truncate text-[15px] text-muted-foreground tabular">
           {compactUsd(marketCapUsd)} {t("home.mc")}
@@ -367,13 +336,6 @@ export default function Home() {
   const rawChain = params.get("chain") ?? "";
   const chain: Chain | "all" = (CHAINS as string[]).includes(rawChain) ? (rawChain as Chain) : "all";
 
-  const setChain = (next: Chain | "all") => {
-    const p = new URLSearchParams(search);
-    if (next === "all") p.delete("chain");
-    else p.set("chain", next);
-    const qs = p.toString();
-    navigate(qs ? `/?${qs}` : "/", { replace: true });
-  };
 
   const setSort = (next: Sort) => {
     const p = new URLSearchParams(search);
@@ -456,7 +418,6 @@ export default function Home() {
             </div>
           )}
 
-          <ChainPills chain={chain} onChange={setChain} />
           <SortPills sort={sort} onChange={setSort} ariaLabel={t("home.sortBy")} />
 
           <div>
