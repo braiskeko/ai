@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "几秒钟发射一个 memecoin",
   "nav.home": "首页",
   "nav.create": "创建代币",
@@ -181,9 +181,9 @@
   "trades.empty": "还没有交易。",
 
   "create.title": "创建代币",
-  "create.subtitle": "几秒钟发射你的 memecoin。它会立即上线，拥有一个以 \"noxia\" 结尾的专属地址。",
+  "create.subtitle": "几秒钟发射你的 memecoin。它会立即上线，拥有一个以 \"next\" 结尾的专属地址。",
   "create.name": "名称",
-  "create.namePlaceholder": "例如 Noxia Cat",
+  "create.namePlaceholder": "例如 Next Cat",
   "create.ticker": "代码",
   "create.tickerPlaceholder": "例如 NCAT",
   "create.description": "简介",

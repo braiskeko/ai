@@ -61,7 +61,7 @@ export function Footer() {
             {chain && (
               <>
                 {" "}
-                {t("footer.settledOn", { chain: "Solana" })}
+                {t("footer.settledOn", { chain: chain.testnet ? "Solana devnet" : "Solana" })}
                 {chain.testnet ? ` (${chain.cluster})` : ""}.
               </>
             )}

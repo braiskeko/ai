@@ -1,5 +1,5 @@
 /**
- * Pool of pre-mined "…noxia" mint keypairs.
+ * Pool of pre-mined "…next" mint keypairs.
  *
  * A grinder (running anywhere) uploads keypairs to `POST /api/admin/vanity`;
  * they are stored one per file in `VANITY_DIR` as `{publicKey, secretKey}` with

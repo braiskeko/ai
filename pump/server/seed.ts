@@ -1,7 +1,7 @@
 /**
  * Offline demo data.
  *
- * Noxia's coins are real Meteora pools, so there is nothing to seed on a live
+ * Next's coins are real Meteora pools, so there is nothing to seed on a live
  * deployment: the indexer fills the database from the chain. This module only
  * exists so the UI can be worked on without an RPC connection, and it refuses to
  * run unless SEED_DEMO=1 on a non-mainnet cluster with no DBC config set.

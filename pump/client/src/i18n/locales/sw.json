@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Zindua memecoin kwa sekunde chache",
   "nav.home": "Nyumbani",
   "nav.create": "Unda Tokeni",
@@ -181,9 +181,9 @@
   "trades.empty": "Hakuna biashara bado.",
 
   "create.title": "Unda tokeni",
-  "create.subtitle": "Zindua memecoin yako kwa sekunde chache. Inaanza kufanya kazi mara moja kwenye anwani yake inayoishia na \"noxia\".",
+  "create.subtitle": "Zindua memecoin yako kwa sekunde chache. Inaanza kufanya kazi mara moja kwenye anwani yake inayoishia na \"next\".",
   "create.name": "Jina",
-  "create.namePlaceholder": "mf. Noxia Cat",
+  "create.namePlaceholder": "mf. Next Cat",
   "create.ticker": "Tiketi",
   "create.tickerPlaceholder": "mf. NCAT",
   "create.description": "Maelezo",

@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "सेकंडों में मीमकॉइन लॉन्च करें",
   "nav.home": "होम",
   "nav.create": "टोकन बनाएँ",
@@ -181,9 +181,9 @@
   "trades.empty": "अभी कोई ट्रेड नहीं।",
 
   "create.title": "टोकन बनाएँ",
-  "create.subtitle": "अपना मीमकॉइन सेकंडों में लॉन्च करें। यह \"noxia\" पर खत्म होने वाले अपने एड्रेस पर तुरंत लाइव हो जाता है।",
+  "create.subtitle": "अपना मीमकॉइन सेकंडों में लॉन्च करें। यह \"next\" पर खत्म होने वाले अपने एड्रेस पर तुरंत लाइव हो जाता है।",
   "create.name": "नाम",
-  "create.namePlaceholder": "जैसे Noxia Cat",
+  "create.namePlaceholder": "जैसे Next Cat",
   "create.ticker": "टिकर",
   "create.tickerPlaceholder": "जैसे NCAT",
   "create.description": "विवरण",

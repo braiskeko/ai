@@ -41,7 +41,7 @@ function init() {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
   // index.html applies the class before first paint; make sure we agree with it.
-  // Noxia is dark by default: only an explicit "light" preference switches themes.
+  // Next is dark by default: only an explicit "light" preference switches themes.
   applyTheme(storedTheme() ?? "dark", false);
 }
 init();

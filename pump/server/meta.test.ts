@@ -6,7 +6,7 @@ import path from "path";
 
 // meta.ts resolves META_DIR and APP_URL at import time, so the environment has
 // to be in place before the module is pulled in.
-const DIR = mkdtempSync(path.join(os.tmpdir(), "noxia-meta-"));
+const DIR = mkdtempSync(path.join(os.tmpdir(), "next-meta-"));
 process.env.META_DIR = DIR;
 process.env.APP_URL = "https://app.noxia.work";
 const meta = import("./meta");
@@ -31,7 +31,7 @@ test("the metadata uri points back at our own /api/meta endpoint", async () => {
 test("buildTokenMetadata produces the Metaplex off-chain document", async () => {
   const { buildTokenMetadata } = await meta;
   const doc = buildTokenMetadata({
-    name: "Noxia Cat",
+    name: "Next Cat",
     ticker: "NCAT",
     description: "the best cat",
     imageUrl: "/uploads/coins/ncat.webp",
@@ -40,7 +40,7 @@ test("buildTokenMetadata produces the Metaplex off-chain document", async () => 
     telegram: null,
   });
 
-  assert.equal(doc.name, "Noxia Cat");
+  assert.equal(doc.name, "Next Cat");
   assert.equal(doc.symbol, "NCAT");
   assert.equal(doc.image, "https://app.noxia.work/uploads/coins/ncat.webp");
   assert.equal(doc.external_url, "https://cat.test");
@@ -51,7 +51,7 @@ test("buildTokenMetadata produces the Metaplex off-chain document", async () => 
 test("the coin fields we store round-trip through the document", async () => {
   const { buildTokenMetadata, coinFieldsFromMetadata, readTokenMetadata, saveTokenMetadata } = await meta;
   const doc = buildTokenMetadata({
-    name: "Noxia Cat",
+    name: "Next Cat",
     ticker: "NCAT",
     description: "the best cat",
     imageUrl: "/uploads/coins/ncat.webp",

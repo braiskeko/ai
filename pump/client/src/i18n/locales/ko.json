@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "몇 초 만에 밈코인 출시",
   "nav.home": "홈",
   "nav.create": "토큰 만들기",
@@ -181,9 +181,9 @@
   "trades.empty": "아직 거래가 없습니다.",
 
   "create.title": "토큰 만들기",
-  "create.subtitle": "몇 초 만에 밈코인을 출시하세요. \"noxia\"로 끝나는 고유 주소로 즉시 공개됩니다.",
+  "create.subtitle": "몇 초 만에 밈코인을 출시하세요. \"next\"로 끝나는 고유 주소로 즉시 공개됩니다.",
   "create.name": "이름",
-  "create.namePlaceholder": "예: Noxia Cat",
+  "create.namePlaceholder": "예: Next Cat",
   "create.ticker": "티커",
   "create.tickerPlaceholder": "예: NCAT",
   "create.description": "설명",

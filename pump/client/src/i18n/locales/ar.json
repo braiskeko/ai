@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "أطلق ميم كوين في ثوانٍ",
   "nav.home": "الرئيسية",
   "nav.create": "إنشاء توكن",
@@ -181,9 +181,9 @@
   "trades.empty": "لا صفقات بعد.",
 
   "create.title": "إنشاء توكن",
-  "create.subtitle": "أطلق ميم كوين خاصتك في ثوانٍ. تصبح متاحة فوراً على عنوانها الخاص المنتهي بـ \"noxia\".",
+  "create.subtitle": "أطلق ميم كوين خاصتك في ثوانٍ. تصبح متاحة فوراً على عنوانها الخاص المنتهي بـ \"next\".",
   "create.name": "الاسم",
-  "create.namePlaceholder": "مثلاً Noxia Cat",
+  "create.namePlaceholder": "مثلاً Next Cat",
   "create.ticker": "الرمز",
   "create.tickerPlaceholder": "مثلاً NCAT",
   "create.description": "الوصف",

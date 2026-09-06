@@ -1,21 +1,20 @@
 /**
- * Grind Solana mint addresses that end in "noxia" and push them to the platform pool.
+ * Grind Solana mint addresses that end in "next" and push them to the platform pool.
  *
  *   node pump/scripts/solana/grind.mjs --count 5 --out ./vanity
  *   API=https://app.noxia.work ADMIN_API_TOKEN=... node pump/scripts/solana/grind.mjs --count 5 --upload
  *
  * Options
  *   --count N     how many addresses to find (default 1)
- *   --suffix S    suffix to look for (default "noxia"; base58 only, no 0 O I l)
+ *   --suffix S    suffix to look for (default "next"; base58 only, no 0 O I l)
  *   --workers N   worker threads (default: number of CPUs)
  *   --out DIR     write <pubkey>.json keypair files there (default ./vanity)
  *   --upload      POST each key to $API/api/admin/vanity with x-admin-token
  *
- * Cost: a 5-character suffix is 58^5 ≈ 656 million tries. This script does roughly
- * 5,000 tries/second per core, i.e. ~36 core-hours per address. Rust's
- * `solana-keygen grind --ends-with noxia:10` is several times faster and a CUDA
- * grinder finds one in minutes; both produce the same JSON keypair files, which
- * this script can upload with --upload --from DIR.
+ * Cost: the four-character suffix "next" is 58^4 ≈ 11.3 million tries. This script does
+ * roughly 5,000 tries/second per core, so one address takes about 40 core-minutes —
+ * a few minutes on a normal laptop. Rust's `solana-keygen grind --ends-with next:10`
+ * is faster still and writes the same JSON keypair files, which this script can upload.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -59,7 +58,7 @@ if (!isMainThread) {
   };
   const has = (name) => args.includes(`--${name}`);
 
-  const suffix = flag("suffix", "noxia");
+  const suffix = flag("suffix", "next");
   const want = Number(flag("count", "1"));
   const workers = Number(flag("workers", String(os.cpus().length)));
   const outDir = path.resolve(flag("out", "./vanity"));

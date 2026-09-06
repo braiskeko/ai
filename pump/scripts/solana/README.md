@@ -1,11 +1,11 @@
-# Noxia on Solana — operator runbook
+# Next on Solana — operator runbook
 
-Noxia is a non-custodial launchpad: every coin is a real SPL token traded on a
+Next is a non-custodial launchpad: every coin is a real SPL token traded on a
 [Meteora Dynamic Bonding Curve](https://github.com/MeteoraAg/dynamic-bonding-curve) pool
 (program `dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN`). Users sign every transaction with
 their own wallet; the platform holds no funds and cannot move anyone's tokens.
 
-The curve config Noxia launches through is created once per cluster and pins the economics:
+The curve config Next launches through is created once per cluster and pins the economics:
 
 | Parameter | Value |
 | --- | --- |
@@ -47,9 +47,9 @@ and that the creator receives 10% of it, and prints the transaction history the 
 consumes. It also runs on GitHub Actions (`.github/workflows/solana-devnet-e2e.yml`) because
 sandboxes usually cannot reach a Solana RPC.
 
-## 3. Mine "noxia" mint addresses
+## 3. Mine "next" mint addresses
 
-Contract addresses that end in `noxia` are pre-mined and handed out at creation time; when the
+Contract addresses that end in `next` are pre-mined and handed out at creation time; when the
 pool is empty the platform falls back to a random mint, so launches never block.
 
 ```bash
@@ -57,9 +57,9 @@ node scripts/solana/grind.mjs --count 10 --out ./vanity
 API=https://app.noxia.work ADMIN_API_TOKEN=<token> node scripts/solana/grind.mjs --count 10 --upload
 ```
 
-A five-character suffix is 1 in 58⁵ ≈ 656 million keys. This script does ~5,000 keys/s per
-core, so budget roughly 36 core-hours per address: a 32-core machine finds one every ~1.1
-hours, and `solana-keygen grind --ends-with noxia:10` (Rust) or a CUDA grinder is far faster.
+The four-character suffix is 1 in 58⁴ ≈ 11.3 million keys. This script does ~5,000 keys/s per
+core, so an address costs about 40 core-minutes: a four-core laptop finds one every ten
+minutes, and `solana-keygen grind --ends-with next:10` (Rust) is faster still.
 Both write the same JSON keypair format, so anything they produce can be uploaded with
 `--upload --from <dir>` or posted to `POST /api/admin/vanity` with the `x-admin-token` header.
 

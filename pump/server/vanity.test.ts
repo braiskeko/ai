@@ -9,12 +9,12 @@ import { CA_SUFFIX } from "@shared/schema";
 import { VanityPool, verifyKeypair, type VanityKeypair } from "./vanity";
 
 /**
- * Real "…noxia" addresses take billions of tries to grind, so the tests use a
+ * Real "…next" addresses take billions of tries to grind, so the tests use a
  * pool with an empty suffix (which accepts any valid address) plus one explicit
  * check that the real suffix rule is enforced.
  */
 async function tmpPool(suffix = ""): Promise<{ dir: string; pool: VanityPool }> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "noxia-vanity-"));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "next-vanity-"));
   const pool = new VanityPool(dir, suffix);
   await pool.init();
   return { dir, pool };
@@ -34,7 +34,7 @@ test("verifyKeypair accepts a real pair and rejects everything else", () => {
   assert.equal(verifyKeypair({ publicKey: entry.publicKey, secretKey: bs58.encode(new Uint8Array(32)) }), null);
 });
 
-test("the real pool only accepts addresses ending in the Noxia suffix", async () => {
+test("the real pool only accepts addresses ending in the Next suffix", async () => {
   const { dir, pool } = await tmpPool(CA_SUFFIX);
   try {
     const entry = keypairEntry();

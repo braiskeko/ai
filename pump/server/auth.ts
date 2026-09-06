@@ -40,7 +40,7 @@ export const SESSION_COOKIE = "nx_session";
 /** Session lifetime: 30 days. */
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000;
-const SESSION_ISSUER = "noxia";
+const SESSION_ISSUER = "next";
 
 /** Raw HMAC key derived from the configured secret (jose wants bytes). */
 const sessionKey = new TextEncoder().encode(config.sessionSecret);

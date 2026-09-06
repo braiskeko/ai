@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Tạo memecoin trong vài giây",
   "nav.home": "Trang chủ",
   "nav.create": "Tạo token",
@@ -181,9 +181,9 @@
   "trades.empty": "Chưa có giao dịch.",
 
   "create.title": "Tạo token",
-  "create.subtitle": "Ra mắt memecoin của bạn trong vài giây. Nó lên sàn ngay lập tức tại địa chỉ riêng kết thúc bằng \"noxia\".",
+  "create.subtitle": "Ra mắt memecoin của bạn trong vài giây. Nó lên sàn ngay lập tức tại địa chỉ riêng kết thúc bằng \"next\".",
   "create.name": "Tên",
-  "create.namePlaceholder": "vd. Noxia Cat",
+  "create.namePlaceholder": "vd. Next Cat",
   "create.ticker": "Ticker",
   "create.tickerPlaceholder": "vd. NCAT",
   "create.description": "Mô tả",

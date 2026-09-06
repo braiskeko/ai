@@ -1,5 +1,5 @@
 /**
- * Noxia storage layer.
+ * Next storage layer.
  *
  * Everything that is *not* on chain lives here: accounts, the coins we know
  * about, the trades the indexer has decoded, per-wallet cost basis and the
@@ -82,7 +82,7 @@ export interface ChainCoinInput {
   curve: CurveState;
   createdTx?: string;
   createdAt?: string;
-  /** filled from our own metadata store when the coin was launched through Noxia */
+  /** filled from our own metadata store when the coin was launched through Next */
   description?: string;
   imageUrl?: string;
   website?: string | null;
@@ -160,7 +160,7 @@ function holdingKey(wallet: string, coinId: number): string {
   return `${wallet}:${coinId}`;
 }
 
-/** "7xKX…noxia" — how an unnamed wallet is shown. */
+/** "7xKX…next" — how an unnamed wallet is shown. */
 export function shortAddress(address: string): string {
   return address.length > 10 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address;
 }

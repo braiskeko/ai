@@ -24,7 +24,7 @@ import {
  * `{ "ns.key": "text" }` maps). English is bundled and used as the fallback; the
  * other locales are code-split and loaded on demand.
  *
- *   const t = useT();  t("auth.title", { app: "Noxia" })
+ *   const t = useT();  t("auth.title", { app: "Next" })
  *   const { locale, setLocale, locales } = useLocale();
  *   <LanguageSwitcher />
  */

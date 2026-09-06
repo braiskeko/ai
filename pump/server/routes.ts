@@ -1021,7 +1021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }),
   );
 
-  /** The grinder pushes pre-mined "…noxia" mints here (token auth, no session). */
+  /** The grinder pushes pre-mined "…next" mints here (token auth, no session). */
   app.post(
     "/api/admin/vanity",
     wrap(async (req, res) => {

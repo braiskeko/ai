@@ -1,7 +1,7 @@
 /**
  * Every piece of Solana / Meteora Dynamic Bonding Curve knowledge lives here.
  *
- * Noxia is non-custodial: this module only ever *reads* the chain and *builds*
+ * Next is non-custodial: this module only ever *reads* the chain and *builds*
  * unsigned transactions. The user's wallet signs them in the browser and posts
  * the signed bytes back to `/api/tx/send`, which relays them through
  * `sendSignedTx`. The only key material the server may hold is a pre-mined
@@ -34,7 +34,7 @@ import { log } from "./vite";
 
 export { DYNAMIC_BONDING_CURVE_PROGRAM_ID, deriveDbcPoolAddress, deriveMintMetadata };
 
-/** Wrapped SOL — the quote mint of every Noxia pool. */
+/** Wrapped SOL — the quote mint of every Next pool. */
 export const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 /** SPL Token program (hardcoded so the server needs no @solana/spl-token dependency). */
 export const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
@@ -59,7 +59,7 @@ function parsePubkey(raw: string | null, label: string): PublicKey | null {
   }
 }
 
-/** Meteora partner config every Noxia coin launches through. Null → launching is disabled. */
+/** Meteora partner config every Next coin launches through. Null → launching is disabled. */
 export const configPubkey = parsePubkey(config.solana.dbcConfig, "DBC_CONFIG");
 /** Wallet receiving the platform (partner) share of the swap fees. */
 export const treasuryPubkey = parsePubkey(config.solana.treasuryWallet, "TREASURY_WALLET");
@@ -237,7 +237,7 @@ export async function readPoolState(pool: PublicKey | string): Promise<{ pool: V
   return { pool: account, curve: curveStateFrom(account, poolConfig, slot) };
 }
 
-/** Every pool launched through Noxia's config. */
+/** Every pool launched through Next's config. */
 export async function listPools(): Promise<{ address: PublicKey; pool: VirtualPool }[]> {
   if (!configPubkey) return [];
   const accounts = await dbc.state.getPoolsByConfig(configPubkey);
@@ -254,7 +254,7 @@ export async function getPoolFees(pool: PublicKey | string): Promise<{ partnerSo
   };
 }
 
-/** The pool address a mint launched through Noxia's config lives at. */
+/** The pool address a mint launched through Next's config lives at. */
 export function poolAddressForMint(mint: PublicKey | string): PublicKey {
   if (!configPubkey) throw new Error("DBC_CONFIG is not configured");
   return deriveDbcPoolAddress(NATIVE_MINT, typeof mint === "string" ? new PublicKey(mint) : mint, configPubkey);

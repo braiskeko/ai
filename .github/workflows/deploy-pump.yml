@@ -41,9 +41,9 @@ on:
         required: false
         default: ""
       solana_cluster:
-        description: "devnet | mainnet-beta"
+        description: "mainnet-beta | devnet"
         required: true
-        default: "devnet"
+        default: "mainnet-beta"
       rpc_url:
         description: "Solana RPC endpoint (leave empty for the public cluster URL)"
         required: false
@@ -114,7 +114,7 @@ jobs:
           DOMAIN: ${{ inputs.domain || 'app.noxia.work' }}
           APP_URL: ${{ inputs.app_url || 'https://app.noxia.work' }}
           ADMIN_EMAILS: ${{ inputs.admin_emails || 'braiskeko@gmail.com' }}
-          SOLANA_CLUSTER: ${{ inputs.solana_cluster || 'devnet' }}
+          SOLANA_CLUSTER: ${{ inputs.solana_cluster || 'mainnet-beta' }}
           TREASURY_FALLBACK: Aso3VE2WZgomkjkh2HBPfDvghrvMqJaSXfUnfPyaMd9x
           RPC_URL: ${{ inputs.rpc_url || secrets.SOLANA_RPC_URL }}
           DBC_CONFIG: ${{ inputs.dbc_config || vars.DBC_CONFIG }}

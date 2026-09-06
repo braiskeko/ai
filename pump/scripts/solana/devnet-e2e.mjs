@@ -16,7 +16,7 @@ import {
   getCurrentPoint,
   getPriceFromSqrtPrice,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
-import { NATIVE_MINT, airdrop, connectionFor, explorer, loadKeypair, log, noxiaCurve, sendTx } from "./lib.mjs";
+import { NATIVE_MINT, airdrop, connectionFor, explorer, loadKeypair, log, nextCurve, sendTx } from "./lib.mjs";
 
 const cluster = "devnet";
 const connection = connectionFor(cluster);
@@ -41,7 +41,7 @@ let configPk;
 if (process.env.DBC_CONFIG) {
   configPk = new PublicKey(process.env.DBC_CONFIG);
 } else {
-  const curve = noxiaCurve(SOL_USD);
+  const curve = nextCurve(SOL_USD);
   const configKp = Keypair.generate();
   const tx = await dbc.partner.createConfig({
     config: configKp.publicKey,
@@ -63,7 +63,7 @@ const mint = Keypair.generate();
 const pool = deriveDbcPoolAddress(NATIVE_MINT, mint.publicKey, configPk);
 const createTx = await dbc.creator.createPoolWithFirstBuy({
   createPoolParam: {
-    name: "Noxia Devnet Cat",
+    name: "Next Devnet Cat",
     symbol: "NDCAT",
     uri: "https://app.noxia.work/api/meta/devnet-test.json",
     payer: payer.publicKey,

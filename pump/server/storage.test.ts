@@ -436,6 +436,6 @@ test("restoreState fills in fields a older snapshot is missing", () => {
 });
 
 test("shortAddress abbreviates long base58 addresses only", () => {
-  assert.equal(shortAddress("7xKXtgnoxia"), "7xKX…oxia");
+  assert.equal(shortAddress("7xKXtgyAnext"), "7xKX…next");
   assert.equal(shortAddress("short"), "short");
 });

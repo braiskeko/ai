@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "เปิดตัวมีมคอยน์ได้ในไม่กี่วินาที",
   "nav.home": "หน้าแรก",
   "nav.create": "สร้างโทเคน",
@@ -181,9 +181,9 @@
   "trades.empty": "ยังไม่มีการเทรด",
 
   "create.title": "สร้างโทเคน",
-  "create.subtitle": "เปิดตัวมีมคอยน์ของคุณในไม่กี่วินาที เหรียญจะออนไลน์ทันทีที่ที่อยู่เฉพาะซึ่งลงท้ายด้วย \"noxia\"",
+  "create.subtitle": "เปิดตัวมีมคอยน์ของคุณในไม่กี่วินาที เหรียญจะออนไลน์ทันทีที่ที่อยู่เฉพาะซึ่งลงท้ายด้วย \"next\"",
   "create.name": "ชื่อ",
-  "create.namePlaceholder": "เช่น Noxia Cat",
+  "create.namePlaceholder": "เช่น Next Cat",
   "create.ticker": "ติกเกอร์",
   "create.tickerPlaceholder": "เช่น NCAT",
   "create.description": "คำอธิบาย",

@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Wypuść memecoina w kilka sekund",
   "nav.home": "Start",
   "nav.create": "Stwórz token",
@@ -181,9 +181,9 @@
   "trades.empty": "Nie ma jeszcze transakcji.",
 
   "create.title": "Stwórz token",
-  "create.subtitle": "Wypuść swojego memecoina w kilka sekund. Od razu jest live pod własnym adresem kończącym się na \"noxia\".",
+  "create.subtitle": "Wypuść swojego memecoina w kilka sekund. Od razu jest live pod własnym adresem kończącym się na \"next\".",
   "create.name": "Nazwa",
-  "create.namePlaceholder": "np. Noxia Cat",
+  "create.namePlaceholder": "np. Next Cat",
   "create.ticker": "Ticker",
   "create.tickerPlaceholder": "np. NCAT",
   "create.description": "Opis",

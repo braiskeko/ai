@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "در چند ثانیه یک میم‌کوین راه بینداز",
   "nav.home": "خانه",
   "nav.create": "ساخت توکن",
@@ -181,9 +181,9 @@
   "trades.empty": "هنوز معامله‌ای نیست.",
 
   "create.title": "ساخت توکن",
-  "create.subtitle": "میم‌کوینت را در چند ثانیه لانچ کن. فوراً روی آدرس مخصوص خودش که به \"noxia\" ختم می‌شود فعال می‌شود.",
+  "create.subtitle": "میم‌کوینت را در چند ثانیه لانچ کن. فوراً روی آدرس مخصوص خودش که به \"next\" ختم می‌شود فعال می‌شود.",
   "create.name": "نام",
-  "create.namePlaceholder": "مثلاً Noxia Cat",
+  "create.namePlaceholder": "مثلاً Next Cat",
   "create.ticker": "تیکر",
   "create.tickerPlaceholder": "مثلاً NCAT",
   "create.description": "توضیحات",

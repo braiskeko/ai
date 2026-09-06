@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 /**
  * All runtime configuration lives here and comes from environment variables.
  *
- * Noxia is a non-custodial Solana launchpad: the server never holds keys for
+ * Next is a non-custodial Solana launchpad: the server never holds keys for
  * user funds. The only chain-related secrets it may hold are the pre-mined
  * vanity MINT keypairs (VANITY_DIR), which are one-shot, never funded and only
  * ever co-sign the pool creation transaction the user themselves signs.
@@ -13,7 +13,7 @@ const env = (k: string, fallback = ""): string => process.env[k]?.trim() || fall
 
 export type Cluster = "mainnet-beta" | "devnet";
 
-const cluster: Cluster = env("SOLANA_CLUSTER", "devnet") === "mainnet-beta" ? "mainnet-beta" : "devnet";
+const cluster: Cluster = env("SOLANA_CLUSTER", "mainnet-beta") === "devnet" ? "devnet" : "mainnet-beta";
 
 const defaultRpcUrl = cluster === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : "https://api.devnet.solana.com";
 const rpcUrl = env("RPC_URL", defaultRpcUrl);
@@ -30,7 +30,7 @@ function deriveWsUrl(http: string): string | null {
 }
 
 export const config = {
-  appName: env("APP_NAME", "Noxia"),
+  appName: env("APP_NAME", "Next"),
   /** Public URL of the deployment: magic-link emails and absolute metadata URLs. */
   appUrl: env("APP_URL", `http://localhost:${env("PORT", "5000")}`),
   port: Number(env("PORT", "5000")),
@@ -58,7 +58,7 @@ export const config = {
 
   email: {
     resendApiKey: env("RESEND_API_KEY") || null,
-    from: env("EMAIL_FROM", "Noxia <onboarding@resend.dev>"),
+    from: env("EMAIL_FROM", "Next <onboarding@resend.dev>"),
   },
   /**
    * Pre-launch mode: signing in with an email creates the account and the session
@@ -77,7 +77,7 @@ export const config = {
     testnet: cluster !== "mainnet-beta",
     rpcUrl,
     rpcWsUrl: env("RPC_WS_URL") || deriveWsUrl(rpcUrl),
-    /** Meteora Dynamic Bonding Curve partner config Noxia launches through (base58). */
+    /** Meteora Dynamic Bonding Curve partner config Next launches through (base58). */
     dbcConfig: env("DBC_CONFIG") || null,
     /** Wallet that receives the platform share of every swap fee (the config's feeClaimer). */
     treasuryWallet: env("TREASURY_WALLET") || null,

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Noxia design tokens — a social trading app, not a terminal.
+ * Next design tokens — a social trading app, not a terminal.
  * Dark is the default look; the `.dark` class is applied before first paint by
  * index.html (defaulting to dark when the visitor has no stored preference).
  *

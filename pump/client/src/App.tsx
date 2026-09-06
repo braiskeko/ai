@@ -57,7 +57,7 @@ function Router() {
       <Route path="/activity" component={Activity} />
       <Route path="/admin" component={Admin} />
       <Route path="/u/:username" component={Profile} />
-      {/* Coin page: the component validates the CA shape (44 base58 chars ending in "noxia") and renders NotFound otherwise. */}
+      {/* Coin page: the component validates the CA shape (44 base58 chars ending in "next") and renders NotFound otherwise. */}
       <Route path="/:ca" component={Coin} />
       <Route component={NotFound} />
     </Switch>

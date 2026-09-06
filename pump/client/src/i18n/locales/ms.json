@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Lancarkan memecoin dalam beberapa saat",
   "nav.home": "Utama",
   "nav.create": "Cipta Token",
@@ -181,9 +181,9 @@
   "trades.empty": "Belum ada dagangan.",
 
   "create.title": "Cipta token",
-  "create.subtitle": "Lancarkan memecoin anda dalam beberapa saat. Ia terus aktif pada alamatnya sendiri yang berakhir dengan \"noxia\".",
+  "create.subtitle": "Lancarkan memecoin anda dalam beberapa saat. Ia terus aktif pada alamatnya sendiri yang berakhir dengan \"next\".",
   "create.name": "Nama",
-  "create.namePlaceholder": "cth. Noxia Cat",
+  "create.namePlaceholder": "cth. Next Cat",
   "create.ticker": "Ticker",
   "create.tickerPlaceholder": "cth. NCAT",
   "create.description": "Penerangan",

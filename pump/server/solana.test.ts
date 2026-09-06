@@ -206,8 +206,8 @@ function metadataAccount(name: string, symbol: string, uri: string, pad = { name
 
 test("Metaplex metadata decodes to name, symbol and uri", () => {
   const uri = "https://app.noxia.work/api/meta/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU.json";
-  const decoded = decodeMetaplexMetadata(metadataAccount("Noxia Cat", "NCAT", uri));
-  assert.deepEqual(decoded, { name: "Noxia Cat", symbol: "NCAT", uri });
+  const decoded = decodeMetaplexMetadata(metadataAccount("Next Cat", "NCAT", uri));
+  assert.deepEqual(decoded, { name: "Next Cat", symbol: "NCAT", uri });
 });
 
 test("NUL padding and surrounding whitespace are trimmed", () => {

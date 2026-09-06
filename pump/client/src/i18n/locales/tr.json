@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Saniyeler içinde memecoin başlat",
   "nav.home": "Ana sayfa",
   "nav.create": "Token oluştur",
@@ -181,9 +181,9 @@
   "trades.empty": "Henüz işlem yok.",
 
   "create.title": "Token oluştur",
-  "create.subtitle": "Memecoinini saniyeler içinde başlat. \"noxia\" ile biten kendi adresinde anında yayına girer.",
+  "create.subtitle": "Memecoinini saniyeler içinde başlat. \"next\" ile biten kendi adresinde anında yayına girer.",
   "create.name": "İsim",
-  "create.namePlaceholder": "örn. Noxia Cat",
+  "create.namePlaceholder": "örn. Next Cat",
   "create.ticker": "Ticker",
   "create.tickerPlaceholder": "örn. NCAT",
   "create.description": "Açıklama",

@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "השיקו מימקוין בשניות",
   "nav.home": "בית",
   "nav.create": "יצירת טוקן",
@@ -181,9 +181,9 @@
   "trades.empty": "אין עסקאות עדיין.",
 
   "create.title": "יצירת טוקן",
-  "create.subtitle": "השיקו את המימקוין שלכם בשניות. הוא עולה לאוויר מיידית בכתובת משלו שמסתיימת ב-\"noxia\".",
+  "create.subtitle": "השיקו את המימקוין שלכם בשניות. הוא עולה לאוויר מיידית בכתובת משלו שמסתיימת ב-\"next\".",
   "create.name": "שם",
-  "create.namePlaceholder": "לדוגמה Noxia Cat",
+  "create.namePlaceholder": "לדוגמה Next Cat",
   "create.ticker": "טיקר",
   "create.tickerPlaceholder": "לדוגמה NCAT",
   "create.description": "תיאור",

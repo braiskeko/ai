@@ -1,6 +1,6 @@
-# Noxia
+# Next
 
-**Noxia** es un *launchpad* de memecoins al estilo pump.fun: cualquier usuario crea una moneda en segundos (imagen, nombre, ticker, descripción), recibe al instante una **dirección de contrato (CA)** y la moneda empieza a cotizar sobre una **curva de precios (bonding curve)** en la que el resto de usuarios compra y vende con USDC. Cada operación paga una comisión del 2,7 % y el creador se lleva el 10 % de esa comisión de por vida.
+**Next** es un *launchpad* de memecoins al estilo pump.fun: cualquier usuario crea una moneda en segundos (imagen, nombre, ticker, descripción), recibe al instante una **dirección de contrato (CA)** y la moneda empieza a cotizar sobre una **curva de precios (bonding curve)** en la que el resto de usuarios compra y vende con USDC. Cada operación paga una comisión del 2,7 % y el creador se lleva el 10 % de esa comisión de por vida.
 
 - **Crear una moneda** con imagen, nombre, ticker, descripción y enlaces; asignación opcional al creador (0–30 % del suministro) y compra inicial.
 - **Bonding curve de producto constante** con reservas virtuales (el modelo de pump.fun): el precio sube con cada compra y baja con cada venta, sin libro de órdenes ni proveedores de liquidez.
@@ -14,7 +14,7 @@
 - **Panel de administración** para acreditar saldos y consultar usuarios.
 - **26 idiomas** en la interfaz (detección automática, selector en la cabecera, soporte RTL).
 
-> **Nota de honestidad — qué es on-chain y qué no.** Las monedas de Noxia **no son tokens ERC-20 desplegados en una blockchain**. Viven en el **ledger interno de la plataforma**: la "dirección de contrato" es un identificador de 44 caracteres en base58 (termina en `noxia`) generado por el servidor, y la bonding curve la ejecuta el propio servidor (`server/curve.ts`). Lo único on-chain es la **custodia de USDC**: los depósitos llegan a direcciones reales derivadas de una mnemónica y los retiros se pagan desde una wallet tesorería. Es decir, Noxia es una plataforma **custodial y centralizada**, como un exchange; los usuarios confían en el operador. Operar con dinero real puede requerir licencias según la jurisdicción: consulta a un profesional legal antes de salir de testnet.
+> **Nota de honestidad — qué es on-chain y qué no.** Las monedas de Next **no son tokens ERC-20 desplegados en una blockchain**. Viven en el **ledger interno de la plataforma**: la "dirección de contrato" es un identificador de 44 caracteres en base58 (termina en `next`) generado por el servidor, y la bonding curve la ejecuta el propio servidor (`server/curve.ts`). Lo único on-chain es la **custodia de USDC**: los depósitos llegan a direcciones reales derivadas de una mnemónica y los retiros se pagan desde una wallet tesorería. Es decir, Next es una plataforma **custodial y centralizada**, como un exchange; los usuarios confían en el operador. Operar con dinero real puede requerir licencias según la jurisdicción: consulta a un profesional legal antes de salir de testnet.
 
 ---
 
@@ -24,7 +24,7 @@
 2. [Cómo funciona una moneda](#cómo-funciona-una-moneda)
 3. [Ejecutar en local](#ejecutar-en-local)
 4. [Variables de entorno](#variables-de-entorno)
-5. [Despliegue en app.noxia.work (cPanel)](#despliegue-en-appnoxiawork-cpanel)
+5. [Despliegue en app.noxia.work (cPanel)](#despliegue-en-appnextwork-cpanel)
 6. [Limitaciones en hosting compartido](#limitaciones-en-hosting-compartido)
 7. [API REST y WebSocket](#api-rest-y-websocket)
 8. [Estructura del proyecto](#estructura-del-proyecto)
@@ -34,7 +34,7 @@
 
 ## Arquitectura
 
-Noxia vive en `pump/` dentro del monorepo y es un proyecto **autónomo** (su propio `package.json`, `node_modules`, `tsconfig.json`). Comparte stack, convenciones y pipeline de despliegue con Foresight (la raíz del repositorio).
+Next vive en `pump/` dentro del monorepo y es un proyecto **autónomo** (su propio `package.json`, `node_modules`, `tsconfig.json`). Comparte stack, convenciones y pipeline de despliegue con Foresight (la raíz del repositorio).
 
 ```
 ┌──────────────────────────────────┐        ┌──────────────────────────────────────────┐
@@ -80,7 +80,7 @@ Constantes en `shared/schema.ts`; matemáticas en `server/curve.ts`.
 - Cada compra y cada venta paga `SWAP_FEE = 2,7 %`. El 10 % de la comisión (`CREATOR_FEE_SHARE`) se acredita al instante al creador; el 90 % es ingreso de la plataforma.
 - **King of the Hill**: la moneda abierta con mayor capitalización ≥ 30 000 $ (`KING_MCAP`). **Graduada**: capitalización ≥ 69 000 $ (`GRADUATION_MCAP`); es un hito visual, la moneda sigue cotizando en la curva.
 - Velas de 1 minuto derivadas de las operaciones (`CANDLE_INTERVAL_MS`), con una vela sintética inicial al precio de lanzamiento; el cliente las agrega a 5 m / 15 m / 1 h.
-- La **CA** se genera al crear la moneda (`server/ca.ts`): 44 caracteres base58 que terminan en `noxia`, únicos en la plataforma. La página de la moneda es `/{ca}`.
+- La **CA** se genera al crear la moneda (`server/ca.ts`): 44 caracteres base58 que terminan en `next`, únicos en la plataforma. La página de la moneda es `/{ca}`.
 
 ## Ejecutar en local
 
@@ -115,7 +115,7 @@ El servidor las lee de `process.env` al arrancar (`server/config.ts`). Todas tie
 
 | Variable | Obligatoria | Descripción |
 | --- | --- | --- |
-| `APP_NAME` | No | Nombre visible (por defecto `Noxia`). Aparece también en el mensaje que firma la wallet al iniciar sesión. |
+| `APP_NAME` | No | Nombre visible (por defecto `Next`). Aparece también en el mensaje que firma la wallet al iniciar sesión. |
 | `APP_URL` | **Producción** | URL pública con `https://` (`https://app.noxia.work`); se usa en los enlaces mágicos y en las cookies. |
 | `PORT` | No | Puerto HTTP (por defecto `5000`; Passenger/cPanel lo inyecta). |
 | `SESSION_SECRET` | **Producción** | 32+ bytes aleatorios para firmar las sesiones. Si falta se genera uno en cada arranque y todos los usuarios pierden la sesión al reiniciar. |
@@ -125,7 +125,7 @@ El servidor las lee de `process.env` al arrancar (`server/config.ts`). Todas tie
 | `APPLE_CLIENT_ID` | No | Services ID de Sign in with Apple (requiere https). |
 | `WALLETCONNECT_PROJECT_ID` | No | Project ID de Reown/WalletConnect Cloud (gratis en <https://cloud.reown.com>). Activa el botón **WalletConnect** para wallets móviles. Sin él, el botón aparece deshabilitado; las **wallets del navegador** (MetaMask, Rabby, Coinbase Wallet…) funcionan siempre. |
 | `RESEND_API_KEY` | No | Clave de <https://resend.com> para enviar enlaces mágicos. Sin ella la app está en modo demo y muestra el enlace en pantalla. |
-| `EMAIL_FROM` | No | Remitente de los correos (por defecto `Noxia <onboarding@resend.dev>`). |
+| `EMAIL_FROM` | No | Remitente de los correos (por defecto `Next <onboarding@resend.dev>`). |
 | `CHAIN` | No | `amoy` (defecto, testnet) \| `polygon` \| `base` \| `base-sepolia`. |
 | `RPC_URL` | Recomendada | Nodo RPC propio (Alchemy, Infura…); el público tiene límites de peticiones. |
 | `DEPOSIT_MNEMONIC` | **Producción** | Frase BIP-39 de la que se derivan todas las direcciones de depósito. Si falta se genera una y se guarda con el estado: perder el estado = perder los depósitos. |
@@ -139,14 +139,14 @@ El servidor las lee de `process.env` al arrancar (`server/config.ts`). Todas tie
 
 ## Despliegue en app.noxia.work (cPanel)
 
-Noxia se despliega en el mismo hosting cPanel que Foresight, en el **subdominio `app.noxia.work`**, con el mismo mecanismo probado: se empaqueta un zip, se sube por la **API HTTP de cPanel** (sin SSH) y un cron de un solo uso ejecuta `deploy.sh` dentro de la cuenta, que registra la app en **Setup Node.js App** (CloudLinux Node.js Selector / Passenger). Ambas apps conviven en la cuenta sin pisarse: Noxia usa la carpeta `~/noxia-pump`, el conf `~/noxia-pump-deploy.conf` y los archivos `~/noxia-pump-deploy.{log,status}`.
+Next se despliega en el mismo hosting cPanel que Foresight, en el **subdominio `app.noxia.work`**, con el mismo mecanismo probado: se empaqueta un zip, se sube por la **API HTTP de cPanel** (sin SSH) y un cron de un solo uso ejecuta `deploy.sh` dentro de la cuenta, que registra la app en **Setup Node.js App** (CloudLinux Node.js Selector / Passenger). Ambas apps conviven en la cuenta sin pisarse: Next usa la carpeta `~/noxia-pump`, el conf `~/noxia-pump-deploy.conf` y los archivos `~/noxia-pump-deploy.{log,status}`.
 
 ### Opción A — GitHub Actions (recomendada)
 
 Workflow: [`.github/workflows/deploy-pump.yml`](../.github/workflows/deploy-pump.yml).
 
-1. En el repositorio, **Settings → Secrets and variables → Actions** crea los secretos `CPANEL_HOST` (p. ej. `noxia.work`), `CPANEL_USER` y `CPANEL_TOKEN` (cPanel → *Manage API Tokens*). Son los mismos que usa el despliegue de Foresight. Opcionales: `SESSION_SECRET` (mantiene las sesiones entre despliegues) y `WALLETCONNECT_PROJECT_ID`.
-2. **Actions → "Deploy Noxia (pump) to cPanel" → Run workflow**. Los valores por defecto ya apuntan a `app.noxia.work`:
+1. En el repositorio, **Settings → Secrets and variables → Actions** crea los secretos `CPANEL_HOST` (p. ej. `next.work`), `CPANEL_USER` y `CPANEL_TOKEN` (cPanel → *Manage API Tokens*). Son los mismos que usa el despliegue de Foresight. Opcionales: `SESSION_SECRET` (mantiene las sesiones entre despliegues) y `WALLETCONNECT_PROJECT_ID`.
+2. **Actions → "Deploy Next (pump) to cPanel" → Run workflow**. Los valores por defecto ya apuntan a `app.noxia.work`:
 
    | Input | Por defecto | Qué es |
    | --- | --- | --- |
@@ -177,7 +177,7 @@ cd pump
 npm ci
 bash scripts/package-cpanel.sh        # → noxia-pump-cpanel.zip
 
-CPANEL_HOST=noxia.work CPANEL_USER=usuario CPANEL_TOKEN=token \
+CPANEL_HOST=next.work CPANEL_USER=usuario CPANEL_TOKEN=token \
 DOMAIN=app.noxia.work APP_URL=https://app.noxia.work ADMIN_EMAILS=tu@correo.com \
 node scripts/cpanel-remote-deploy.mjs
 ```

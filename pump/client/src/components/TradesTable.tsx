@@ -20,7 +20,7 @@ export interface TradesTableProps {
 }
 
 /**
- * Avatar for a trader: a linked Noxia user gets their custom/gradient avatar,
+ * Avatar for a trader: a linked Next user gets their custom/gradient avatar,
  * an anonymous wallet (no linked account — `user` is null) gets a deterministic
  * identicon keyed by the wallet address instead.
  */

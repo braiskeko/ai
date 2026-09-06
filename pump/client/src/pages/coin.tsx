@@ -638,7 +638,7 @@ export default function CoinPage() {
           <CoinSkeleton />
         )
       ) : (
-        <div className={cn("space-y-6", !data.curve.migrated && "pb-16 lg:pb-0")}>
+        <div className={cn("space-y-6", !data.curve.migrated && "pb-36 lg:pb-0")}>
           <CoinHeader coin={data} />
 
           {/*
@@ -685,7 +685,7 @@ export default function CoinPage() {
       {/* Mobile: trading collapses into a fixed bottom bar that opens the trade panel as a sheet */}
       {data && !data.curve.migrated && (
         <>
-          <div className="safe-bottom fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
+          <div className="fixed inset-x-0 bottom-[4.5rem] z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
             <div className="mx-auto flex max-w-7xl gap-2.5">
               <Button
                 type="button"

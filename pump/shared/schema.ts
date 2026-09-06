@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
-// Constants (mirror the on-chain Meteora Dynamic Bonding Curve config Noxia uses)
+// Constants (mirror the on-chain Meteora Dynamic Bonding Curve config Next uses)
 // ---------------------------------------------------------------------------
 
 /** Total supply minted for every coin (whole tokens, 6 decimals on-chain). */
@@ -19,8 +19,8 @@ export const GRADUATION_MCAP_USD = 69_000;
 export const CANDLE_INTERVAL_MS = 60_000;
 /** Solana addresses (mints, wallets, pools) are base58, 32–44 chars. */
 export const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-/** Vanity suffix Noxia mints end with when a pre-mined address is available. */
-export const CA_SUFFIX = "noxia";
+/** Vanity suffix Next mints end with when a pre-mined address is available. */
+export const CA_SUFFIX = "next";
 export const LAMPORTS_PER_SOL = 1_000_000_000;
 
 export type AuthProvider = "google" | "apple" | "wallet" | "email";
@@ -57,7 +57,7 @@ export const updateProfileSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Coins (one per on-chain DBC pool created through Noxia's config)
+// Coins (one per on-chain DBC pool created through Next's config)
 // ---------------------------------------------------------------------------
 
 /** Live curve state mirrored from the on-chain virtual pool. */
@@ -84,7 +84,7 @@ export interface CurveState {
 
 export interface Coin {
   id: number;
-  /** token mint address (base58) — the coin's CA; ends in "noxia" when pre-mined */
+  /** token mint address (base58) — the coin's CA; ends in "next" when pre-mined */
   ca: string;
   /** DBC virtual pool address */
   pool: string;
@@ -100,7 +100,7 @@ export interface Coin {
   telegram: string | null;
   /** wallet that created the pool (pool creator, receives 10% of the fees) */
   creatorWallet: string;
-  /** Noxia user linked to that wallet at creation time, if any */
+  /** Next user linked to that wallet at creation time, if any */
   creatorId: number | null;
   curve: CurveState;
   /** lifetime SOL volume through the curve (buys + sells, fee included) */
@@ -172,7 +172,7 @@ export interface Trade {
   signature: string;
   /** trader wallet (base58) */
   wallet: string;
-  /** Noxia user for that wallet, if known */
+  /** Next user for that wallet, if known */
   userId: number | null;
   side: "buy" | "sell";
   /** SOL paid (buy, fee included) or received (sell, net of fee) */
@@ -312,7 +312,7 @@ export interface ClusterInfo {
   cluster: string;
   testnet: boolean;
   explorer: string;
-  /** Meteora DBC config address Noxia launches through */
+  /** Meteora DBC config address Next launches through */
   dbcConfig: string | null;
   /** wallet that receives the platform share of the fees */
   treasury: string | null;
@@ -332,7 +332,7 @@ export interface AppConfig {
   totalSupply: number;
   launchMcapUsd: number;
   graduationMcapUsd: number;
-  /** pre-mined "noxia" mints available right now */
+  /** pre-mined "next" mints available right now */
   vanityAvailable: number;
   /** creation works end-to-end (config + RPC reachable) */
   launchEnabled: boolean;

@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "数秒でミームコインをローンチ",
   "nav.home": "ホーム",
   "nav.create": "トークン作成",
@@ -181,9 +181,9 @@
   "trades.empty": "まだ取引がありません。",
 
   "create.title": "トークンを作成",
-  "create.subtitle": "数秒でミームコインをローンチ。\"noxia\" で終わる専用アドレスで即時に公開されます。",
+  "create.subtitle": "数秒でミームコインをローンチ。\"next\" で終わる専用アドレスで即時に公開されます。",
   "create.name": "名前",
-  "create.namePlaceholder": "例：Noxia Cat",
+  "create.namePlaceholder": "例：Next Cat",
   "create.ticker": "ティッカー",
   "create.tickerPlaceholder": "例：NCAT",
   "create.description": "説明",

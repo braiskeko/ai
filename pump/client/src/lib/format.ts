@@ -162,7 +162,7 @@ export const sol = (n: number, maxDigits = 4): string => {
 /** Signed SOL amount: 0.5 → "+0.5 SOL", -0.5 → "-0.5 SOL". */
 export const signedSol = (n: number): string => `${n >= 0 ? "+" : "-"}${sol(Math.abs(n))}`;
 
-/** "Ab12Cd…noxia" — first 4 chars + last 5 (the vanity "noxia" suffix, when present). */
+/** "Ab12Cd…next" — first 4 chars + last 5 (the vanity "next" suffix, when present). */
 export const shortCa = (ca: string, head = 4, tail = 5): string =>
   ca.length <= head + tail + 1 ? ca : `${ca.slice(0, head)}…${ca.slice(-tail)}`;
 

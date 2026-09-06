@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Запусти мемкоин за секунды",
   "nav.home": "Главная",
   "nav.create": "Создать токен",
@@ -181,9 +181,9 @@
   "trades.empty": "Сделок пока нет.",
 
   "create.title": "Создать токен",
-  "create.subtitle": "Запусти свой мемкоин за секунды. Он мгновенно появится по собственному адресу, заканчивающемуся на \"noxia\".",
+  "create.subtitle": "Запусти свой мемкоин за секунды. Он мгновенно появится по собственному адресу, заканчивающемуся на \"next\".",
   "create.name": "Название",
-  "create.namePlaceholder": "напр. Noxia Cat",
+  "create.namePlaceholder": "напр. Next Cat",
   "create.ticker": "Тикер",
   "create.tickerPlaceholder": "напр. NCAT",
   "create.description": "Описание",

@@ -2,7 +2,7 @@
  * Chain → storage indexer.
  *
  * Three things keep the database in sync with the Meteora pools launched
- * through Noxia's config:
+ * through Next's config:
  *
  *  1. `syncPools()` every 10 s — `getPoolsByConfig` gives every pool with its
  *     full account state, so one call refreshes every curve and discovers coins

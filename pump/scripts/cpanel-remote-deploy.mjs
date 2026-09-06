@@ -4,7 +4,7 @@
  * GitHub Actions (see .github/workflows/deploy-pump.yml) or from any machine that can
  * reach the cPanel host.
  *
- *   CPANEL_HOST=noxia.work CPANEL_USER=... CPANEL_TOKEN=... \
+ *   CPANEL_HOST=next.work CPANEL_USER=... CPANEL_TOKEN=... \
  *   DOMAIN=app.noxia.work APP_URL=https://app.noxia.work ADMIN_EMAILS=me@x.com \
  *   ZIP_PATH=pump/noxia-pump-cpanel.zip node pump/scripts/cpanel-remote-deploy.mjs
  *
@@ -17,7 +17,7 @@
  *
  * Env: CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN (required); APP_ROOT (noxia-pump),
  * ZIP_PATH (noxia-pump-cpanel.zip), DOMAIN (app.noxia.work), APP_URL (https://DOMAIN),
- * ADMIN_EMAILS, SOLANA_CLUSTER (devnet), RPC_URL, DBC_CONFIG, TREASURY_WALLET,
+ * ADMIN_EMAILS, SOLANA_CLUSTER (mainnet-beta), RPC_URL, DBC_CONFIG, TREASURY_WALLET,
  * ADMIN_API_TOKEN, WIPE_PUBLIC_HTML (0), WIPE_DATA (0), SESSION_SECRET (random),
  * ORIGIN_IP, CPANEL_PORT (2083), DEPLOY_TIMEOUT_MIN (20).
  */
@@ -43,7 +43,7 @@ const APP_ROOT = env("APP_ROOT", "noxia-pump");
 const DOMAIN = env("DOMAIN", "app.noxia.work");
 const APP_URL = env("APP_URL", `https://${DOMAIN}`).replace(/\/+$/, "");
 const ADMIN_EMAILS = env("ADMIN_EMAILS", "");
-const SOLANA_CLUSTER = env("SOLANA_CLUSTER", "devnet");
+const SOLANA_CLUSTER = env("SOLANA_CLUSTER", "mainnet-beta");
 const RPC_URL = env("RPC_URL", "");
 const DBC_CONFIG = env("DBC_CONFIG", "");
 const TREASURY_WALLET = env("TREASURY_WALLET", "");
@@ -64,7 +64,7 @@ const ORIGIN_IP = env("ORIGIN_IP", "");
 const base = `https://${HOST}:${PORT}`;
 const authHeaders = { Authorization: `cpanel ${USER}:${TOKEN}` };
 const homeDir = `/home/${USER}`;
-// Per-app file names so Foresight (~/deploy.conf, ~/foresight-deploy.*) and Noxia can
+// Per-app file names so Foresight (~/deploy.conf, ~/foresight-deploy.*) and Next can
 // live in the same account without stepping on each other.
 const remoteConf = `${homeDir}/${APP_ROOT}-deploy.conf`;
 const remoteScript = `${homeDir}/${APP_ROOT}-deploy.sh`;

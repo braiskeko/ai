@@ -1,5 +1,5 @@
 {
-  "app.name": "Noxia",
+  "app.name": "Next",
   "app.tagline": "Mag-launch ng memecoin sa ilang segundo",
   "nav.home": "Home",
   "nav.create": "Gumawa ng Token",
@@ -181,9 +181,9 @@
   "trades.empty": "Wala pang trade.",
 
   "create.title": "Gumawa ng token",
-  "create.subtitle": "I-launch ang memecoin mo sa ilang segundo. Live ito kaagad sa sarili nitong address na nagtatapos sa \"noxia\".",
+  "create.subtitle": "I-launch ang memecoin mo sa ilang segundo. Live ito kaagad sa sarili nitong address na nagtatapos sa \"next\".",
   "create.name": "Pangalan",
-  "create.namePlaceholder": "hal. Noxia Cat",
+  "create.namePlaceholder": "hal. Next Cat",
   "create.ticker": "Ticker",
   "create.tickerPlaceholder": "hal. NCAT",
   "create.description": "Paglalarawan",

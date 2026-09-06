@@ -1,10 +1,10 @@
 /**
- * End-to-end smoke test + screenshots for the Noxia memecoin launchpad.
+ * End-to-end smoke test + screenshots for the Next memecoin launchpad.
  *
  *   BASE_URL=http://localhost:5100 OUT_DIR=./screens node scripts/smoke.mjs
  *
  * Exercises the real API and UI: public pages, instant email login, faucet,
- * coin creation (CA ends in "noxia"), buy/sell with the 2.7% fee, comments,
+ * coin creation (CA ends in "next"), buy/sell with the 2.7% fee, comments,
  * portfolio/wallet pages, dark/light and mobile screenshots.
  */
 import fs from "node:fs";
@@ -67,7 +67,7 @@ await step("GET /api/coins seeded", async () => {
   coins = await api("GET", "/api/coins?sort=mcap");
   if (!Array.isArray(coins) || coins.length < 5) throw new Error(`expected seeded coins, got ${coins.length}`);
   for (const c of coins) {
-    if (c.ca.length !== 44 || !c.ca.endsWith("noxia")) throw new Error(`bad CA ${c.ca}`);
+    if (c.ca.length !== 44 || !c.ca.endsWith("next")) throw new Error(`bad CA ${c.ca}`);
     if (!(c.marketCap > 0)) throw new Error(`bad mcap ${c.marketCap}`);
   }
 });
@@ -107,7 +107,7 @@ if (me) {
     if (me.balance <= 0) throw new Error(`balance ${me.balance}`);
   });
   let created;
-  await step("create coin -> CA ends with noxia", async () => {
+  await step("create coin -> CA ends with next", async () => {
     created = await api("POST", "/api/coins", {
       name: "Smoke Cat",
       ticker: "SMOKE",
@@ -116,7 +116,7 @@ if (me) {
       creatorAllocation: 0.05,
       initialBuy: 10,
     });
-    if (!created.ca.endsWith("noxia") || created.ca.length !== 44) throw new Error(`bad CA ${created.ca}`);
+    if (!created.ca.endsWith("next") || created.ca.length !== 44) throw new Error(`bad CA ${created.ca}`);
     if (!(created.marketCap > 3000)) throw new Error(`mcap ${created.marketCap}`);
     if (!created.imageUrl.startsWith("/uploads/")) throw new Error(`imageUrl ${created.imageUrl}`);
   });

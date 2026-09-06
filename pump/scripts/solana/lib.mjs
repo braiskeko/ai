@@ -62,11 +62,11 @@ export async function solUsd() {
 }
 
 /**
- * Noxia's partner config: 2.7% flat fee, 10% of it to the creator, curve from $5k to $69k
+ * Next's partner config: 2.7% flat fee, 10% of it to the creator, curve from $5k to $69k
  * market cap (in SOL at today's price), migration to DAMM v2 with LP permanently locked
  * 50/50 between partner and creator (they keep earning the pool fees; nobody can pull it).
  */
-export function noxiaCurve(solPrice, { launchMcapUsd = 5000, graduationMcapUsd = 69_000 } = {}) {
+export function nextCurve(solPrice, { launchMcapUsd = 5000, graduationMcapUsd = 69_000 } = {}) {
   return buildCurveWithMarketCap({
     token: {
       tokenType: TokenType.SPLToken,
