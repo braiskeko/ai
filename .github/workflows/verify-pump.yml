@@ -23,6 +23,8 @@ jobs:
           curl -sS -m 30 https://app.noxia.work/api/config | head -c 700; echo
           curl -sS -m 30 -o /dev/null -w "coins %{http_code}\n" https://app.noxia.work/api/coins
           curl -sS -m 30 https://app.noxia.work/api/coins | head -c 200; echo
+          echo "--- does the server have outbound internet? (solUsd 150 means the price feed failed)"
+          curl -sS -m 30 https://app.noxia.work/api/config | tr ',' '\n' | grep -i "solUsd\|cluster\|launchEnabled"
           # every asset referenced by the html must load
           html=$(curl -sS -m 30 https://app.noxia.work/)
           for a in $(echo "$html" | grep -oE '(src|href)="/[^"]+"' | cut -d'"' -f2 | sort -u); do
