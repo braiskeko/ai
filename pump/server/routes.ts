@@ -669,15 +669,19 @@ function assertAboveMinimum(side: "buy" | "sell", amountSol: number): void {
 }
 
 /**
- * Every token gets the same Buy screen, but only Solana can be filled today.
- * The other chains stop here, with a sentence that says why rather than a
- * validation error about an address shape.
+ * The mint a swap route should work with.
+ *
+ * Ids reach these routes as "<chain>:<address>" now that every chain has a Buy
+ * button, so the chain is stripped for Solana and refused — in a sentence, not a
+ * validation error about an address shape — for the chains that cannot fill yet.
  */
-function assertSwappable(rawId: string): void {
+function swapMint(rawId: string): string {
   const parsed = parseTokenId(rawId);
-  if (parsed && parsed.chain !== "solana") {
+  if (!parsed) return rawId; // let the schema reject it with its own message
+  if (parsed.chain !== "solana") {
     throw new HttpError(400, `Swaps on ${CHAIN_LABELS[parsed.chain]} are not live on Next yet. Solana trades fill right away.`);
   }
+  return parsed.address;
 }
 
 async function routeExternalTrade(input: {
@@ -1296,8 +1300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ipKey = `ip:${clientIp(req)}`;
       externalQuoteLimiter.check(ipKey, res, "Too many quotes. Please slow down.");
       externalQuoteLimiter.record(ipKey);
-      assertSwappable(req.params.mint);
-      const input = externalQuoteSchema.parse({ ...req.body, mint: req.params.mint });
+      const input = externalQuoteSchema.parse({ ...req.body, mint: swapMint(req.params.mint) });
       res.json((await routeExternalTrade(input)).quote);
     }),
   );
@@ -1310,8 +1313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { user, wallet } = currentWallet(req);
       txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
       txLimiter.record(`user:${user.id}`);
-      assertSwappable(req.params.mint);
-      const input = externalSwapTxSchema.parse({ ...req.body, mint: req.params.mint });
+      const input = externalSwapTxSchema.parse({ ...req.body, mint: swapMint(req.params.mint) });
       if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
       assertAboveMinimum(input.side, input.amount);
 

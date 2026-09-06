@@ -3,7 +3,7 @@ import { useLocation, useRoute } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronLeft, Delete, Loader2, Plus, Rocket, ShieldCheck } from "lucide-react";
 import type { CoinDetail, ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
-import { MIN_TRADE_USD } from "@shared/schema";
+import { MIN_TRADE_USD, parseTokenId } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
@@ -58,27 +58,30 @@ interface Target {
 }
 
 function useTarget(id: string, solUsd: number): { target: Target | null; loading: boolean; notFound: boolean } {
-  const valid = looksLikeCa(id);
+  // `/buy/<mint>` is Solana; `/buy/<chain>:<address>` is any other chain we list.
+  const parsed = parseTokenId(decodeURIComponent(id));
+  const onSolana = parsed?.chain === "solana";
+  // Only Solana addresses can be one of our own coins.
   const coin = useQuery<CoinDetail>({
-    queryKey: [`/api/coins/${id}`],
-    enabled: valid,
+    queryKey: [`/api/coins/${parsed?.address ?? ""}`],
+    enabled: onSolana && looksLikeCa(parsed?.address ?? ""),
     staleTime: 15_000,
     retry: (n, err) => !isNotFoundError(err) && n < 1,
   });
-  const coinMissing = coin.isError && isNotFoundError(coin.error);
+  const coinMissing = !onSolana || (coin.isError && isNotFoundError(coin.error));
   const token = useQuery<ExternalTokenDetail>({
-    queryKey: [`/api/tokens/${id}`],
-    enabled: valid && coinMissing,
+    queryKey: [`/api/tokens/${parsed?.chain ?? ""}/${parsed?.address ?? ""}`],
+    enabled: !!parsed && coinMissing,
     staleTime: 20_000,
     retry: (n, err) => !isNotFoundError(err) && n < 1,
   });
 
-  if (!valid) return { target: null, loading: false, notFound: true };
+  if (!parsed) return { target: null, loading: false, notFound: true };
   if (coin.data) {
     return {
       target: {
         kind: "coin",
-        id,
+        id: parsed.address,
         ticker: coin.data.ticker,
         imageUrl: coin.data.imageUrl,
         verified: true,
@@ -87,7 +90,7 @@ function useTarget(id: string, solUsd: number): { target: Target | null; loading
         marketCapUsd: coin.data.marketCapSol * solUsd,
         ownedTokens: coin.data.myHolding?.tokens ?? 0,
         disabled: coin.data.curve.migrated,
-        backHref: `/${id}`,
+        backHref: `/${parsed.address}`,
       },
       loading: false,
       notFound: false,
@@ -97,7 +100,7 @@ function useTarget(id: string, solUsd: number): { target: Target | null; loading
     return {
       target: {
         kind: "token",
-        id,
+        id: token.data.id,
         ticker: token.data.symbol,
         imageUrl: token.data.icon,
         verified: token.data.verified,
@@ -106,7 +109,7 @@ function useTarget(id: string, solUsd: number): { target: Target | null; loading
         marketCapUsd: token.data.marketCapUsd,
         ownedTokens: token.data.myTokens,
         disabled: false,
-        backHref: `/t/${id}`,
+        backHref: `/t/${encodeURIComponent(token.data.id)}`,
       },
       loading: false,
       notFound: false,

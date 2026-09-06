@@ -421,7 +421,7 @@ function ExternalTradePanel({ token, className }: { token: ExternalTokenDetail; 
     const ctl = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/tokens/${token.mint}/quote`, {
+        const res = await fetch(`/api/tokens/${encodeURIComponent(token.id)}/quote`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ side, amount, slippageBps }),
@@ -482,7 +482,7 @@ function ExternalTradePanel({ token, className }: { token: ExternalTokenDetail; 
     setSubmitting(true);
     try {
       setPhase("signing");
-      const res = await apiRequest("POST", `/api/tokens/${token.mint}/swap-tx`, {
+      const res = await apiRequest("POST", `/api/tokens/${encodeURIComponent(token.id)}/swap-tx`, {
         side,
         amount,
         slippageBps,
@@ -1044,7 +1044,7 @@ export default function TokenPage() {
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
-              onClick={() => navigate(`/buy/${data.mint}`)}
+              onClick={() => navigate(`/buy/${encodeURIComponent(data.id)}`)}
               className="tap h-12 flex-1 rounded-2xl bg-up text-base font-bold text-white hover:bg-up/90"
             >
               {t("trade.buy")}
@@ -1053,7 +1053,7 @@ export default function TokenPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/sell/${data.mint}`)}
+                onClick={() => navigate(`/sell/${encodeURIComponent(data.id)}`)}
                 className="tap h-12 flex-1 rounded-2xl border-down/50 text-base font-bold text-down hover:bg-down/10"
               >
                 {t("trade.sell")}
