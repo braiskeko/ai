@@ -482,5 +482,12 @@
   "wallet.disconnect": "Disconnect",
   "wallet.buySol": "Buy SOL",
   "wallet.buySolHint": "Buy SOL from an exchange or on-ramp, then send it to your address above.",
-  "wallet.buySolFooter": "Noxia does not process purchases — these are links to third-party services."
+  "wallet.buySolFooter": "Noxia does not process purchases — these are links to third-party services.",
+  "home.searchResults": "Results for \"{q}\"",
+  "home.resultsCount": "{n} coins found",
+  "home.noResults": "No coins match \"{q}\"",
+  "home.noResultsHint": "Try a different name, ticker or contract address.",
+  "home.sortBy": "Sort coins",
+  "home.clearSearch": "Clear search",
+  "home.loadError": "Could not load the coin feed"
 }
