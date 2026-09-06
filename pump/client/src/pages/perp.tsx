@@ -110,7 +110,8 @@ export default function PerpPage() {
               trades={[]}
               ticker={data.symbol}
               unit="USD"
-              supply={1}
+              mode="price"
+              modeSwitch={false}
               range={range}
               onRangeChange={setRange}
               className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"

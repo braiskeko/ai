@@ -23,7 +23,7 @@ import {
 import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
 import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
-import { CandleChart, type ChartRange } from "@/components/CandleChart";
+import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
 import { WatchButton } from "@/components/WatchButton";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,8 @@ const SLIPPAGE_PRESETS_BPS = [100, 300, 500, 1000] as const;
 const DEFAULT_SLIPPAGE_BPS = 500;
 const SLIPPAGE_KEY = "nx_slippage_bps";
 const QUOTE_DEBOUNCE_MS = 300;
+const CHART_MODE_KEY = "nx_chart_mode";
+const CHART_MODES: ReadonlySet<string> = new Set(["price", "mcap"]);
 const CHART_RANGE_KEY = "nx_chart_range";
 const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
 /** Live prices; each fetch also records a price sample server-side. */
@@ -864,6 +866,15 @@ export default function TokenPage() {
   });
 
   const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1H"));
+  const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, CHART_MODES, "mcap"));
+  const onModeChange = useCallback((m: ChartMode) => {
+    setMode(m);
+    try {
+      localStorage.setItem(CHART_MODE_KEY, m);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
   const onRangeChange = useCallback((r: ChartRange) => {
     setRange(r);
     try {
@@ -920,6 +931,8 @@ export default function TokenPage() {
                 ticker={data.symbol}
                 unit="USD"
                 supply={data.supply}
+                mode={mode}
+                onModeChange={onModeChange}
                 range={range}
                 onRangeChange={onRangeChange}
                 emptyMessage={data.chartSource === "none" ? t("chart.waitingCandles") : undefined}

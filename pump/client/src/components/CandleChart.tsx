@@ -51,9 +51,11 @@ export interface CandleChartProps {
   supply?: number;
   /** Fixed pixel height; by default the chart is shorter on phones than on desktop. */
   height?: number;
-  /** Controlled mode; when omitted the chart keeps its own state (default "price"). */
+  /** Controlled mode; when omitted the chart keeps its own state (default "mcap"). */
   mode?: ChartMode;
   onModeChange?: (mode: ChartMode) => void;
+  /** Hide the price/market-cap switch — a perp has no market cap to show. */
+  modeSwitch?: boolean;
   /** Controlled range; when omitted the chart keeps its own state (default "1H"). */
   range?: ChartRange;
   onRangeChange?: (range: ChartRange) => void;
@@ -353,6 +355,7 @@ export function CandleChart({
   height,
   mode: modeProp,
   onModeChange,
+  modeSwitch = true,
   range: rangeProp,
   onRangeChange,
   className,
@@ -365,7 +368,8 @@ export function CandleChart({
   const chartHeight = height ?? measured;
 
   // Controlled-or-uncontrolled mode / interval.
-  const [modeState, setModeState] = useState<ChartMode>(modeProp ?? "price");
+  // Market cap is what a memecoin is read by, so that is what the chart opens on.
+  const [modeState, setModeState] = useState<ChartMode>(modeProp ?? "mcap");
   const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "1H");
   useEffect(() => {
     if (modeProp) setModeState(modeProp);
@@ -823,15 +827,19 @@ export function CandleChart({
             {r.key}
           </button>
         ))}
-        <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-        <button
-          type="button"
-          onClick={() => setMode(mode === "price" ? "mcap" : "price")}
-          aria-label={mode === "price" ? t("chart.mcap") : t("chart.price")}
-          className="tap h-8 shrink-0 rounded-xl px-2.5 text-[13px] font-bold text-muted-foreground"
-        >
-          {mode === "price" ? t("chart.price") : t("chart.mcap")}
-        </button>
+        {modeSwitch && (
+          <>
+            <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+            <button
+              type="button"
+              onClick={() => setMode(mode === "price" ? "mcap" : "price")}
+              aria-label={mode === "price" ? t("chart.mcap") : t("chart.price")}
+              className="tap h-8 shrink-0 rounded-xl px-2.5 text-[13px] font-bold text-muted-foreground"
+            >
+              {mode === "price" ? t("chart.price") : t("chart.mcap")}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
