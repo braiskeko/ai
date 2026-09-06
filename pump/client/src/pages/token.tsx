@@ -24,6 +24,7 @@ import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@s
 import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
+import { PublicAvatar } from "@/components/TradesTable";
 import { PoolChart } from "@/components/TradingViewChart";
 import { TokenImage } from "@/components/TokenImage";
 import { WatchButton } from "@/components/WatchButton";
@@ -819,6 +820,48 @@ function OffChainNotice({ token }: { token: ExternalTokenDetail }) {
   );
 }
 
+/**
+ * Who on Next holds this token, biggest position first, with what it is worth.
+ *
+ * Only accounts from here: the point is seeing the people you follow in a coin,
+ * not a list of anonymous whales, and it is empty until somebody here buys it.
+ */
+function AppHolders({ token }: { token: ExternalTokenDetail }) {
+  const t = useT();
+  const holders = token.appHolders;
+  return (
+    <section>
+      <h2 className="mb-1 flex items-baseline gap-2 text-[17px] font-bold">
+        {t("comments.holders")}
+        {holders.length > 0 && <span className="text-sm font-medium text-muted-foreground">{holders.length}</span>}
+      </h2>
+      {holders.length === 0 ? (
+        <p className="py-3 text-sm text-muted-foreground">{t("token.noAppHolders")}</p>
+      ) : (
+        <ul className="feed-divide">
+          {holders.map((h, i) => (
+            <li key={h.wallet} className="flex items-center gap-3 py-3">
+              <span className="w-4 shrink-0 text-xs tabular text-muted-foreground">{i + 1}</span>
+              <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="shrink-0">
+                <PublicAvatar user={h.user} wallet={h.wallet} size={40} />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="block truncate text-[15px] font-bold hover:underline">
+                  {h.user.displayName || h.user.username}
+                </Link>
+                <div className="truncate text-[13px] text-muted-foreground tabular">
+                  {fmtTokens(h.tokens)} {token.symbol}
+                </div>
+              </div>
+              <div className="shrink-0 text-[15px] font-bold tabular">{compactUsd(h.valueUsd)}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -961,6 +1004,10 @@ export default function TokenPage() {
                 className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
               )}
+            </section>
+
+            <section className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <AppHolders token={data} />
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">

@@ -42,6 +42,7 @@ import {
   type CoinDetail,
   type CoinSummary,
   type CommentView,
+  type ExternalHolder,
   type ExternalToken,
   type ExternalTokenDetail,
   type FeedEntry,
@@ -360,6 +361,34 @@ async function chainHolders(coin: Coin): Promise<{ rows: HolderRow[]; total: num
   }
 }
 
+/**
+ * The people on Next who hold this token, biggest first.
+ *
+ * The chain's largest accounts are read once and their owners resolved; whoever
+ * turns out to have an account here is shown with what the position is worth. It
+ * is deliberately only our own users — the point is seeing who you follow in a
+ * coin, not a list of anonymous whales.
+ */
+async function holdersWithAccounts(mint: string, priceUsd: number): Promise<ExternalHolder[]> {
+  try {
+    const { holders } = await getTopHolders(mint);
+    if (holders.length === 0) return [];
+    const owners = await getTokenAccountOwners(holders.map((h) => h.address));
+    const rows: ExternalHolder[] = [];
+    for (const holder of holders) {
+      const wallet = owners.get(holder.address);
+      if (!wallet) continue;
+      const user = storage.publicUserForKnownWallet(wallet);
+      if (!user) continue;
+      rows.push({ user, wallet, tokens: holder.tokens, valueUsd: holder.tokens * priceUsd });
+    }
+    return rows.sort((a, b) => b.valueUsd - a.valueUsd).slice(0, 20);
+  } catch {
+    // No RPC, no holders — the rest of the page still stands.
+    return [];
+  }
+}
+
 /** Unclaimed creator fees on a pool, or 0 when the RPC is unavailable. */
 async function creatorClaimable(coin: Coin): Promise<number> {
   try {
@@ -450,10 +479,12 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
     : null;
   const { extras } = found;
   const sampled = charted.length > 0 ? [] : jupiter.candlesFor(mint);
+  const appHolders = await holdersWithAccounts(mint, found.token.priceUsd);
   return {
     ...found.token,
     chartSource: charted.length > 0 ? "market" : sampled.length > 0 ? "samples" : "none",
     chartEmbedUrl: markets.chartEmbedUrl("solana", chartPool),
+    appHolders,
     candles: charted.length > 0 ? charted : sampled,
     supply: extras.supply,
     organicScore: extras.organicScore,
@@ -483,6 +514,8 @@ async function buildEvmDetail(chain: Chain, address: string): Promise<ExternalTo
     ...found.token,
     chartSource: candles.length > 0 ? "market" : "none",
     chartEmbedUrl: markets.chartEmbedUrl(chain, best.pool),
+    // Reading holders needs an indexer per chain; only Solana has one here.
+    appHolders: [],
     candles,
     supply,
     organicScore: 0,

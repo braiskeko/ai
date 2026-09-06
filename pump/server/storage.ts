@@ -733,6 +733,11 @@ export class Storage {
     };
   }
 
+  /** The account behind `wallet`, or null when nobody here has linked it. */
+  publicUserForKnownWallet(wallet: string): PublicUser | null {
+    return this.toPublicUser(this.getUserByWallet(wallet)?.id ?? null);
+  }
+
   /** A user for `wallet`, or a synthetic "anonymous wallet" profile. */
   publicUserForWallet(wallet: string, userId: number | null = null): PublicUser {
     const known = this.toPublicUser(userId) ?? (wallet ? this.toPublicUser(this.getUserByWallet(wallet)?.id ?? null) : null);

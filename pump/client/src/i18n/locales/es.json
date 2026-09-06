@@ -638,5 +638,6 @@
   "settings.helpWallet": "Tu cuenta lleva su propia cartera. Guarda bien la frase de recuperación de Seguridad: si borras los datos de este navegador sin ella, pierdes los fondos.",
   "settings.helpFees": "Los swaps de monedas lanzadas aquí pagan un 2,7%, del que un 10% va al creador de la moneda.",
   "settings.helpContact": "¿Algo va mal? Escríbenos por donde encontraste Next contando qué hiciste y qué pasó.",
-  "chart.waitingCandles": "Este pool aún no da velas: se están tomando muestras de precio y el gráfico se irá rellenando."
+  "chart.waitingCandles": "Este pool aún no da velas: se están tomando muestras de precio y el gráfico se irá rellenando.",
+  "token.noAppHolders": "Todavía no lo tiene nadie de Next."
 }

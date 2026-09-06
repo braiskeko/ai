@@ -668,8 +668,18 @@ export interface ExternalTokenAudit {
 /** Where a token's candles came from — shown when there are none, so the reason is visible. */
 export type ChartSource = "market" | "samples" | "none";
 
+/** A Next account that holds this token, with what the position is worth. */
+export interface ExternalHolder {
+  user: PublicUser;
+  wallet: string;
+  tokens: number;
+  valueUsd: number;
+}
+
 export interface ExternalTokenDetail extends ExternalToken {
   chartSource: ChartSource;
+  /** Holders who have an account here, biggest position first. */
+  appHolders: ExternalHolder[];
   /** TradingView-rendered chart for the pool (GeckoTerminal embed), when there is one. */
   chartEmbedUrl: string | null;
   /**
