@@ -25,6 +25,7 @@ import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
+import { WatchButton } from "@/components/WatchButton";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -194,7 +195,7 @@ function TokenHeader({ token }: { token: ExternalTokenDetail }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground lg:hidden">
+        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground">
           <ChevronLeft className="h-6 w-6" />
         </Link>
         <span className="relative shrink-0">
@@ -213,6 +214,7 @@ function TokenHeader({ token }: { token: ExternalTokenDetail }) {
             <CopyMint mint={token.mint} className="shrink-0" />
           </div>
         </div>
+        <WatchButton id={token.id} />
       </div>
 
       <div className="flex items-start justify-between gap-4">
@@ -886,7 +888,7 @@ export default function TokenPage() {
   }
 
   return (
-    <PageShell wide className="pb-nav-actions md:pb-10">
+    <PageShell wide noHeader className="pt-4 pb-nav-actions md:pb-10">
       {token.isLoading || !data ? (
         token.isError ? (
           <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">

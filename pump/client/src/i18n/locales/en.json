@@ -656,5 +656,13 @@
   "home.watchlistHint": "Tap the star on any token to keep it here.",
   "common.watchlistAdd": "Add to watchlist",
   "common.watchlistRemove": "Remove from watchlist",
-  "perps.maxLeverage": "Up to {max}x long or short"
+  "perps.maxLeverage": "Up to {max}x long or short",
+  "perps.onHyperliquid": "Perpetual on Hyperliquid",
+  "perps.vol24h": "24h volume",
+  "perps.openInterest": "Open interest",
+  "perps.funding": "Funding (8h)",
+  "perps.leverage": "Max leverage",
+  "perps.tradingSoon": "Trading perps from Next is not enabled yet — this page is the live market.",
+  "perps.notFound": "Market not found",
+  "perps.notFoundHint": "Hyperliquid does not list that symbol."
 }

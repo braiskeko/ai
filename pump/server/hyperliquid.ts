@@ -15,7 +15,7 @@
  * the account's own EVM key) and deliberately not part of it.
  */
 import { z } from "zod";
-import type { ExternalStatus, PerpMarket } from "@shared/schema";
+import type { Candle, ExternalStatus, PerpMarket } from "@shared/schema";
 import { log } from "./vite";
 
 const API_URL = "https://api.hyperliquid.xyz/info";
@@ -27,6 +27,29 @@ let lastOkAt: number | null = null;
 let lastError: string | null = null;
 let lastLoggedAt = 0;
 let cached: { at: number; value: PerpMarket[] } | null = null;
+const candleCache = new Map<string, { at: number; value: Candle[] }>();
+const CANDLE_TTL_MS = 30_000;
+
+/** Interval strings Hyperliquid accepts, and what each is worth in minutes. */
+const INTERVAL_MINUTES: Record<string, number> = {
+  "1m": 1,
+  "5m": 5,
+  "15m": 15,
+  "1h": 60,
+  "4h": 240,
+  "1d": 1440,
+};
+
+const candleSchema = z.array(
+  z.object({
+    t: z.union([z.number(), z.string()]),
+    o: z.union([z.number(), z.string()]),
+    h: z.union([z.number(), z.string()]),
+    l: z.union([z.number(), z.string()]),
+    c: z.union([z.number(), z.string()]),
+    v: z.union([z.number(), z.string()]).optional(),
+  }),
+);
 
 export function hyperliquidStatus(): ExternalStatus {
   return {
@@ -133,6 +156,65 @@ async function fetchMarkets(): Promise<PerpMarket[] | null> {
       log(`perp markets unavailable: ${message}`, "hyperliquid");
     }
     return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** One market by symbol, or null when it is not listed (or we cannot reach them). */
+export async function getPerp(symbol: string): Promise<PerpMarket | null> {
+  const all = await listPerps(500);
+  const wanted = symbol.trim().toUpperCase();
+  return all.find((m) => m.symbol.toUpperCase() === wanted) ?? null;
+}
+
+/**
+ * Real candles for a market. Hyperliquid's `candleSnapshot` takes an interval
+ * string and a time window and answers with `{t,o,h,l,c,v}` rows.
+ */
+export async function getCandles(symbol: string, interval = "1m", limit = 500): Promise<Candle[]> {
+  const minutes = INTERVAL_MINUTES[interval] ?? 1;
+  const endTime = Date.now();
+  const startTime = endTime - minutes * 60_000 * limit;
+  const key = `${symbol}|${interval}`;
+  const hit = candleCache.get(key);
+  if (hit && endTime - hit.at < CANDLE_TTL_MS) return hit.value;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ type: "candleSnapshot", req: { coin: symbol, interval, startTime, endTime } }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const parsed = candleSchema.safeParse(await res.json());
+    if (!parsed.success) throw new Error("unexpected candle shape");
+    const candles: Candle[] = parsed.data
+      .map((row) => ({
+        t: finite(row.t),
+        o: finite(row.o),
+        h: finite(row.h),
+        l: finite(row.l),
+        c: finite(row.c),
+        v: finite(row.v),
+      }))
+      .filter((c) => c.t > 0 && c.c > 0)
+      .sort((a, b) => a.t - b.t);
+    lastOkAt = Date.now();
+    candleCache.set(key, { at: endTime, value: candles });
+    return candles;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    lastError = message;
+    const now = Date.now();
+    if (now - lastLoggedAt >= LOG_THROTTLE_MS) {
+      lastLoggedAt = now;
+      log(`candles for ${symbol} unavailable: ${message}`, "hyperliquid");
+    }
+    return hit?.value ?? [];
   } finally {
     clearTimeout(timer);
   }

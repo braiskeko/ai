@@ -152,8 +152,6 @@ function TokenRow({
   highlight,
   fallback,
   chain,
-  starred,
-  onStar,
 }: {
   href: string;
   image: string | null;
@@ -165,8 +163,6 @@ function TokenRow({
   highlight?: boolean;
   fallback: string;
   chain?: Chain;
-  starred?: boolean;
-  onStar?: () => void;
 }) {
   const t = useT();
   const up = change24h >= 0;
@@ -197,23 +193,6 @@ function TokenRow({
           {compactUsd(marketCapUsd)} {t("home.mc")}
         </span>
       </span>
-
-      {onStar && (
-        <button
-          type="button"
-          aria-label={starred ? t("common.watchlistRemove") : t("common.watchlistAdd")}
-          aria-pressed={starred}
-          onClick={(e) => {
-            // The row is a link; starring must not navigate.
-            e.preventDefault();
-            e.stopPropagation();
-            onStar();
-          }}
-          className={cn("tap shrink-0 p-1", starred ? "text-gold" : "text-muted-foreground/50")}
-        >
-          <Star className={cn("h-[18px] w-[18px]", starred && "fill-current")} />
-        </button>
-      )}
 
       <span className="shrink-0 text-right">
         <span className="block text-[17px] font-bold leading-tight tabular">{priceUsd(price)}</span>
@@ -391,6 +370,11 @@ export default function Home() {
   useLiveEvent("coin:created", onCreated);
 
   const watchlist = useWatchlist();
+  // Starred perps live on the same board as starred tokens.
+  const starredPerps = useMemo(
+    () => watchlist.ids.filter((id) => id.startsWith("perp:")).map((id) => id.slice("perp:".length)),
+    [watchlist.ids],
+  );
   const rows = useMemo(() => {
     const own = (coins.data ?? []).map((c) => rowFromCoin(c, solUsd));
     const external = (tokens.data ?? []).map(rowFromToken);
@@ -445,7 +429,7 @@ export default function Home() {
                   </Button>
                 }
               />
-            ) : rows.length === 0 && board === "watchlist" ? (
+            ) : rows.length === 0 && board === "watchlist" && starredPerps.length === 0 ? (
               <EmptyState title={t("home.watchlistEmpty")} hint={t("home.watchlistHint")} />
             ) : rows.length === 0 ? (
               q ? (
@@ -487,11 +471,10 @@ export default function Home() {
                   highlight={row.coinId !== undefined && recent.has(row.coinId)}
                   fallback={row.fallback}
                   chain={row.chain}
-                  starred={watchlist.has(row.key)}
-                  onStar={() => watchlist.toggle(row.key)}
                 />
               ))
             )}
+            {board === "watchlist" && starredPerps.length > 0 && <PerpsList onlySymbols={starredPerps} />}
           </div>
         </section>
         )}

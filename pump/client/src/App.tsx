@@ -20,6 +20,7 @@ import Feed from "@/pages/feed";
 import Search from "@/pages/search";
 import People from "@/pages/people";
 import TradeSheet from "@/pages/tradeSheet";
+import Perp from "@/pages/perp";
 import Profile from "@/pages/profile";
 import MyProfile from "@/pages/my-profile";
 import Admin from "@/pages/admin";
@@ -81,6 +82,7 @@ function Routes() {
       <Route path="/wallet" component={Wallet} />
       <Route path="/search" component={Search} />
       <Route path="/people" component={People} />
+      <Route path="/perp/:symbol" component={Perp} />
       <Route path="/feed" component={Feed} />
       {/* Activity is now the Feed screen; kept as an alias so old links/bookmarks still work. */}
       <Route path="/activity" component={Feed} />

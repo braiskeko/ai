@@ -697,6 +697,11 @@ export interface PerpMarket {
 
 export type PerpCategory = "crypto" | "stocks" | "commodities" | "indices";
 
+/** A perp market plus its candles (USD per unit), for the detail page. */
+export interface PerpDetail extends PerpMarket {
+  candles: Candle[];
+}
+
 export interface ExternalStatus {
   available: boolean;
   lastOkAt: string | null;

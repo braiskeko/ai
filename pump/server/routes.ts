@@ -1172,6 +1172,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }),
   );
 
+  /** One perp market with its real candles, for the detail page. */
+  app.get(
+    "/api/perps/:symbol",
+    wrap(async (req, res) => {
+      const symbol = req.params.symbol.trim().slice(0, 32);
+      const market = await hyperliquid.getPerp(symbol);
+      if (!market) throw new HttpError(404, "Market not found");
+      const candles = await hyperliquid.getCandles(market.symbol, "1m", 500);
+      res.json({ ...market, candles });
+    }),
+  );
+
   // ---- Comments -----------------------------------------------------------
 
   app.get(

@@ -28,6 +28,7 @@ import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, SWAP_FEE, TOTAL_SUPPLY } from "
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
+import { WatchButton } from "@/components/WatchButton";
 import { TradePanel } from "@/components/TradePanel";
 import { Comments } from "@/components/Comments";
 import { PublicAvatar } from "@/components/TradesTable";
@@ -177,7 +178,7 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
     <section className="space-y-4">
       {/* Identity row: back, image, ticker, name, and the per-coin actions. */}
       <div className="flex items-center gap-3">
-        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground lg:hidden">
+        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground">
           <ChevronLeft className="h-6 w-6" />
         </Link>
         <TokenImage src={coin.imageUrl} name={coin.ticker} size={44} />
@@ -196,6 +197,7 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
             <CopyCa ca={coin.ca} className="shrink-0" />
           </div>
         </div>
+        <WatchButton id={`next:${coin.ca}`} />
         <Link
           href={`/u/${encodeURIComponent(coin.creator.username)}`}
           aria-label={`@${coin.creator.username}`}
@@ -667,7 +669,7 @@ export default function CoinPage() {
   }
 
   return (
-    <PageShell wide className="pb-nav-actions md:pb-10">
+    <PageShell wide noHeader className="pt-4 pb-nav-actions md:pb-10">
       {coin.isLoading || !data ? (
         coin.isError ? (
           <ErrorState message={apiErrorMessage(coin.error, t("common.error"))} onRetry={() => void coin.refetch()} retrying={coin.isFetching} />
