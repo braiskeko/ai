@@ -414,9 +414,12 @@ export async function firstCandles(
   pools: string[],
   max = 3,
 ): Promise<{ candles: Candle[]; pool: string | null }> {
-  for (const pool of pools.slice(0, max)) {
-    const candles = await getCandles(chain, pool);
-    if (candles.length > 0) return { candles, pool };
+  // All the candidates at once, then the first that answered with something: a
+  // dry pool used to cost a full timeout before the next one was even asked.
+  const tried = pools.slice(0, max);
+  const results = await Promise.all(tried.map((pool) => getCandles(chain, pool)));
+  for (let i = 0; i < results.length; i += 1) {
+    if (results[i].length > 0) return { candles: results[i], pool: tried[i] };
   }
   return { candles: [], pool: pools[0] ?? null };
 }

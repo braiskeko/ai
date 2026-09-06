@@ -467,6 +467,13 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   // a pool, so fall back to asking the chart source which pool it charts, and to
   // the sampled ring buffer when neither knows one.
   const poolId = found.extras.pool?.id ?? null;
+  // Neither the viewer's balance nor the holder list depends on the chart, so
+  // they run alongside it: opening a chart should be one wait, not three.
+  const sidework = Promise.all([
+    viewerWallet ? getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>()) : Promise.resolve(null),
+    holdersWithAccounts(mint, found.token.priceUsd),
+  ]);
+
   let charted = poolId ? await markets.getCandles("solana", poolId) : [];
   let chartPool = charted.length > 0 ? poolId : null;
   if (charted.length === 0) {
@@ -477,12 +484,9 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
       chartPool = best.pool ?? viaMarkets.pool?.address ?? null;
     }
   }
-  const balances = viewerWallet
-    ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
-    : null;
+  const [balances, appHolders] = await sidework;
   const { extras } = found;
   const sampled = charted.length > 0 ? [] : jupiter.candlesFor(mint);
-  const appHolders = await holdersWithAccounts(mint, found.token.priceUsd);
   return {
     ...found.token,
     chartSource: charted.length > 0 ? "market" : sampled.length > 0 ? "samples" : "none",
@@ -1311,9 +1315,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/perps/:symbol",
     wrap(async (req, res) => {
       const symbol = req.params.symbol.trim().slice(0, 32);
-      const market = await hyperliquid.getPerp(symbol);
+      // The candles are asked for by the symbol in the URL, alongside the market
+      // rather than after it: two round trips, one wait.
+      const [market, candles] = await Promise.all([
+        hyperliquid.getPerp(symbol),
+        hyperliquid.getCandles(symbol, "1m", 500),
+      ]);
       if (!market) throw new HttpError(404, "Market not found");
-      const candles = await hyperliquid.getCandles(market.symbol, "1m", 500);
       res.json({ ...market, candles });
     }),
   );

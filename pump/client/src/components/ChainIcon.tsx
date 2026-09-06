@@ -41,8 +41,9 @@ const GLYPHS: Record<Chain, JSX.Element> = {
       <path d="M5.6 13.5 12 22l6.4-8.5-6.4 3.8-6.4-3.8Z" opacity={0.7} />
     </g>
   ),
-  // Base's mark: a disc with its right edge squared off.
-  base: <path d="M11.6 2a10 10 0 1 0 0 20c5.2 0 9.5-4 9.9-9H8.7V11h12.8c-.4-5-4.7-9-9.9-9Z" />,
+  // Base's mark: a disc with its right side cut open. One path, two subpaths —
+  // evenodd only carves a hole within a single path.
+  base: <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-3.4 9h13.3v2H8.6z" />,
   bsc: (
     <g>
       <path d="m12 2 3.1 3.1L12 8.2 8.9 5.1 12 2Zm-6.9 6.9L8.2 12l-3.1 3.1L2 12l3.1-3.1Zm13.8 0L22 12l-3.1 3.1L15.8 12l3.1-3.1ZM12 15.8l3.1 3.1L12 22l-3.1-3.1 3.1-3.1Z" />
@@ -89,7 +90,18 @@ export function ChainIcon({
   const label = CHAIN_LABELS[chain];
   if (attempt >= candidates.length) {
     return (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" role="img" aria-label={label} className={cn("shrink-0", className)}>
+      <svg
+        viewBox="0 0 24 24"
+        width={size}
+        height={size}
+        fill="currentColor"
+        // Marks with a hole in them (Monad's centre, Base's slot) are drawn as an
+        // outer shape plus an inner one; nonzero filling would flood the hole.
+        fillRule="evenodd"
+        role="img"
+        aria-label={label}
+        className={cn("shrink-0", className)}
+      >
         <title>{label}</title>
         {GLYPHS[chain]}
       </svg>
@@ -118,16 +130,14 @@ export function ChainIcon({
  * as it was. Only the deposit screen, where the logo is the thing being picked,
  * loads the real artwork.
  */
-export function ChainBadge({ chain, className }: { chain: Chain; className?: string }) {
+export function ChainBadge({ chain, size = 20, className }: { chain: Chain; size?: number; className?: string }) {
   return (
     <span
-      className={cn(
-        "inline-grid h-5 w-5 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground",
-        className,
-      )}
+      className={cn("inline-grid shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground", className)}
+      style={{ width: size, height: size }}
       title={CHAIN_LABELS[chain]}
     >
-      <svg viewBox="0 0 24 24" width={12} height={12} fill="currentColor" aria-hidden>
+      <svg viewBox="0 0 24 24" width={size * 0.6} height={size * 0.6} fill="currentColor" fillRule="evenodd" aria-hidden>
         {GLYPHS[chain]}
       </svg>
     </span>

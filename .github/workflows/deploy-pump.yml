@@ -120,7 +120,6 @@ jobs:
           RPC_URL: ${{ inputs.rpc_url || secrets.SOLANA_RPC_URL }}
           DBC_CONFIG: ${{ inputs.dbc_config || vars.DBC_CONFIG }}
           TREASURY_WALLET: ${{ inputs.treasury_wallet || vars.TREASURY_WALLET }}
-          WIPE_DATA_FALLBACK: "1"
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
           # A fixed SESSION_SECRET keeps people signed in across deploys (a random one is
           # generated when unset).
@@ -138,9 +137,9 @@ jobs:
           if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
             echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
           fi
-          # First Solana deploy: start from an empty database and use the generated treasury
-          # until a wallet is configured in the repository variables.
+          # Use the generated treasury until a wallet is configured in the repository
+          # variables. The database is NEVER wiped by an ordinary deploy: doing so
+          # deleted every account, which is what signed people out on each release.
           export TREASURY_WALLET="${TREASURY_WALLET:-$TREASURY_FALLBACK}"
-          export WIPE_DATA="${WIPE_DATA_FALLBACK:-$WIPE_DATA}"
           export ZIP_PATH="pump/${APP_ROOT}-cpanel.zip"
           node pump/scripts/cpanel-remote-deploy.mjs

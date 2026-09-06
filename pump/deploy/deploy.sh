@@ -84,6 +84,17 @@ if [ -d "$APP_ROOT/data" ]; then
     rm -f "$NEW/$APP_ROOT/data/state.json"
   fi
 fi
+# A release must never arrive with an empty database when a snapshot of the real
+# one is sitting in the home directory: restore the newest backup instead, so a
+# reset that happened once does not repeat itself on every deploy.
+if [ ! -f "$NEW/$APP_ROOT/data/state.json" ] && [ "${WIPE_DATA:-0}" != "1" ]; then
+  LAST_BACKUP="$(ls -1t "$HOME/${APP_ROOT}"-state-backup-*.json 2>/dev/null | head -1 || true)"
+  if [ -n "$LAST_BACKUP" ]; then
+    mkdir -p "$NEW/$APP_ROOT/data"
+    cp "$LAST_BACKUP" "$NEW/$APP_ROOT/data/state.json"
+    echo "no database in this release; restored $(basename "$LAST_BACKUP")"
+  fi
+fi
 mkdir -p "$NEW/$APP_ROOT/data/uploads/coins" "$NEW/$APP_ROOT/data/uploads/comments" "$NEW/$APP_ROOT/data/uploads/avatars"
 if [ -d "$APP_ROOT/node_modules" ]; then
   echo "reusing node_modules from previous release to speed up install"

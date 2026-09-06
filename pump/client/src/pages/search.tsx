@@ -147,6 +147,54 @@ function ResultRow({ row }: { row: Row }) {
   );
 }
 
+/**
+ * The search field.
+ *
+ * It lives out here on purpose: declared inside the page it would be a brand new
+ * component type on every render, so React would tear the input down and build
+ * it again after each keystroke — losing the caret, and on a phone closing the
+ * keyboard as if Enter had been pressed.
+ */
+function SearchField({
+  value,
+  onChange,
+  onPaste,
+  className,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onPaste: () => void;
+  className?: string;
+  autoFocus?: boolean;
+}) {
+  const t = useT();
+  return (
+    <div className={cn("flex items-center gap-2 rounded-full border border-border bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur", className)}>
+      <SearchIcon className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+      <input
+        type="search"
+        value={value}
+        autoFocus={autoFocus}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t("search.placeholder")}
+        aria-label={t("search.placeholder")}
+        spellCheck={false}
+        enterKeyHint="search"
+        className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+      />
+      <button
+        type="button"
+        onClick={onPaste}
+        className="tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-bold text-foreground"
+      >
+        <ClipboardPaste className="h-3.5 w-3.5" />
+        {t("search.paste")}
+      </button>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -215,35 +263,11 @@ export default function SearchPage() {
   const loading = (showTokens && (coins.isLoading || tokens.isLoading)) || (chip === "traders" && traders.isLoading);
   const nothingFound = !loading && (!showTokens || rows.length === 0) && (!showTraders || filteredTraders.length === 0);
 
-  const SearchField = ({ className, autoFocus }: { className?: string; autoFocus?: boolean }) => (
-    <div className={cn("flex items-center gap-2 rounded-full border border-border bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur", className)}>
-      <SearchIcon className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-      <input
-        type="search"
-        value={q}
-        autoFocus={autoFocus}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={t("search.placeholder")}
-        aria-label={t("search.placeholder")}
-        spellCheck={false}
-        className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-      />
-      <button
-        type="button"
-        onClick={() => void pasteFromClipboard()}
-        className="tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-bold text-foreground"
-      >
-        <ClipboardPaste className="h-3.5 w-3.5" />
-        {t("search.paste")}
-      </button>
-    </div>
-  );
-
   return (
     <PageShell noFooter className="pt-3 pb-32 md:pt-6 md:pb-10">
       {/* Outside the stack: on mobile the field lives at the bottom, and a hidden first
           child would still push the chips down by the stack's gap. */}
-      <SearchField className="mx-auto mb-5 hidden max-w-2xl md:flex" />
+      <SearchField value={q} onChange={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto mb-5 hidden max-w-2xl md:flex" />
 
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="tablist" aria-label={t("search.title")}>
@@ -335,7 +359,7 @@ export default function SearchPage() {
 
       {/* Floating pill search field, mobile only — sits just above the bottom tab bar. */}
       <div className="fixed inset-x-0 bottom-[calc(5.4rem+env(safe-area-inset-bottom,0px))] z-30 px-4 md:hidden">
-        <SearchField className="mx-auto max-w-md" />
+        <SearchField value={q} onChange={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto max-w-md" />
       </div>
     </PageShell>
   );

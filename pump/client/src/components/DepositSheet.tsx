@@ -3,7 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ChevronLeft, Copy, CreditCard, LayoutGrid, Loader2, QrCode } from "lucide-react";
 import type { Chain as SchemaChain } from "@shared/schema";
 import { CHAIN_LABELS } from "@shared/schema";
-import { ChainIcon } from "@/components/ChainIcon";
+import { ChainBadge } from "@/components/ChainIcon";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -120,7 +120,7 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                   className="tap flex w-full items-center justify-between gap-3 rounded-2xl bg-card px-5 py-4 text-left"
                 >
                   <span className="text-[19px] font-bold">{n.label}</span>
-                  <ChainIcon chain={n.icon} size={28} mono className="text-muted-foreground" />
+                  <ChainBadge chain={n.icon} size={34} />
                 </button>
               ))}
             </div>

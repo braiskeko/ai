@@ -59,25 +59,42 @@ function LeverageRuler({ max, value, onChange }: { max: number; value: number; o
   const ref = useRef<HTMLDivElement>(null);
   const steps = useMemo(() => Array.from({ length: Math.max(1, max) }, (_, i) => i + 1), [max]);
   const settling = useRef<number | null>(null);
+  /** True while the change came from the drag itself, which is already in place. */
+  const fromScroll = useRef(false);
+  const placed = useRef(false);
 
-  // Keep the selected step under the centre line when it changes from outside.
+  // Put the selected step under the bracket — but never while the finger is
+  // doing it, or the correction fights the drag and stops it half a step off.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (fromScroll.current) {
+      fromScroll.current = false;
+      return;
+    }
     const target = (value - 1) * STEP_W;
-    if (Math.abs(el.scrollLeft - target) > 2) el.scrollTo({ left: target, behavior: "smooth" });
+    if (Math.abs(el.scrollLeft - target) > 1) {
+      el.scrollTo({ left: target, behavior: placed.current ? "smooth" : "auto" });
+    }
+    placed.current = true;
     // Only when the value itself changes: scrolling reports its own value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
+  // Read the value once the scroll has come to rest, not on every frame of it.
   const onScroll = () => {
     const el = ref.current;
     if (!el) return;
-    if (settling.current !== null) cancelAnimationFrame(settling.current);
-    settling.current = requestAnimationFrame(() => {
+    if (settling.current !== null) window.clearTimeout(settling.current);
+    settling.current = window.setTimeout(() => {
       const next = Math.min(max, Math.max(1, Math.round(el.scrollLeft / STEP_W) + 1));
-      if (next !== value) onChange(next);
-    });
+      const target = (next - 1) * STEP_W;
+      if (Math.abs(el.scrollLeft - target) > 1) el.scrollTo({ left: target, behavior: "smooth" });
+      if (next !== value) {
+        fromScroll.current = true;
+        onChange(next);
+      }
+    }, 120);
   };
 
   return (
