@@ -23,6 +23,7 @@ import TradeSheet from "@/pages/tradeSheet";
 import Perp from "@/pages/perp";
 import Profile from "@/pages/profile";
 import MyProfile from "@/pages/my-profile";
+import Settings from "@/pages/settings";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
@@ -88,6 +89,8 @@ function Routes() {
       <Route path="/activity" component={Feed} />
       <Route path="/admin" component={Admin} />
       <Route path="/profile" component={MyProfile} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/settings/:section" component={Settings} />
       <Route path="/u/:username">{() => <Profile />}</Route>
       {/* Full-screen buy/sell keypad (mobile). Must stay above "/:ca". */}
       <Route path="/buy/:mint" component={TradeSheet} />

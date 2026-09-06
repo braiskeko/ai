@@ -34,9 +34,15 @@ export interface User {
   /** email for google/apple/email logins; `${address}@wallet.local` for wallet logins */
   email: string;
   username: string;
+  /** free-form name shown above the handle; falls back to the username */
+  displayName: string | null;
+  /** short line under the name on the profile */
+  bio: string | null;
   avatarSeed: string;
   /** optional custom avatar (data URL / uploaded path) */
   avatarUrl: string | null;
+  /** optional cover image behind the avatar on the profile */
+  bannerUrl: string | null;
   provider: AuthProvider;
   /** Solana wallet (base58) linked to the account — required to create or trade */
   walletAddress: string | null;
@@ -44,8 +50,14 @@ export interface User {
   createdAt: string;
 }
 
-export type PublicUser = Pick<User, "id" | "username" | "avatarSeed" | "avatarUrl" | "walletAddress">;
+export type PublicUser = Pick<
+  User,
+  "id" | "username" | "displayName" | "bio" | "avatarSeed" | "avatarUrl" | "bannerUrl" | "walletAddress"
+>;
 export type SafeUser = User;
+
+/** Longest a profile bio may be. */
+export const BIO_MAX = 160;
 
 export const updateProfileSchema = z.object({
   username: z
@@ -54,6 +66,9 @@ export const updateProfileSchema = z.object({
     .min(3)
     .max(24)
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers and underscores"),
+  /** Empty string clears it and falls back to the username. */
+  displayName: z.string().trim().max(32).optional(),
+  bio: z.string().trim().max(BIO_MAX).optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -753,8 +753,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/me",
     requireAuth,
     wrap((req, res) => {
-      const { username } = updateProfileSchema.parse(req.body);
-      const user = storage.updateUsername(currentUser(req).id, username);
+      const input = updateProfileSchema.parse(req.body);
+      const user = storage.updateProfile(currentUser(req).id, input);
       res.json(storage.toSafeUser(user));
     }),
   );
@@ -768,6 +768,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // One file per user, overwritten on each upload; the query string defeats the 7-day cache.
       const url = await saveImage(image, "avatars", String(me.id), 128);
       const user = storage.setAvatar(me.id, `${url}?v=${Date.now().toString(36)}`);
+      res.json(storage.toSafeUser(user));
+    }),
+  );
+
+  app.post(
+    "/api/me/banner",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { image } = avatarSchema.parse(req.body);
+      const me = currentUser(req);
+      // One file per user, overwritten on each upload; the query string defeats the cache.
+      const url = await saveImage(image, "banners", String(me.id), 1200);
+      const user = storage.setBanner(me.id, `${url}?v=${Date.now().toString(36)}`);
       res.json(storage.toSafeUser(user));
     }),
   );

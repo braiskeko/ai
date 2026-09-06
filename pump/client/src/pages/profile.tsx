@@ -451,7 +451,16 @@ export default function ProfilePage({ username: explicit }: { username?: string 
     profile.data ??
     (isSelfLookup && me
       ? {
-          user: { id: me.id, username: me.username, avatarSeed: me.avatarSeed, avatarUrl: me.avatarUrl, walletAddress: me.walletAddress },
+          user: {
+            id: me.id,
+            username: me.username,
+            displayName: me.displayName ?? null,
+            bio: me.bio ?? null,
+            avatarSeed: me.avatarSeed,
+            avatarUrl: me.avatarUrl,
+            bannerUrl: me.bannerUrl ?? null,
+            walletAddress: me.walletAddress,
+          },
           createdCoins: [],
           trades: [],
           joinedAt: me.createdAt,
@@ -496,8 +505,8 @@ export default function ProfilePage({ username: explicit }: { username?: string 
             </button>
             {isMe ? (
               <Link
-                href="/portfolio"
-                aria-label={t("profile.editProfile")}
+                href="/settings"
+                aria-label={t("settings.title")}
                 className="tap grid h-10 w-10 place-items-center rounded-full bg-muted/60 text-foreground"
               >
                 <Settings className="h-[18px] w-[18px]" />
@@ -510,8 +519,9 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           <div className="flex items-start gap-4">
             {isMe ? <EditableAvatar user={me!} /> : <PublicAvatar user={data.user} size={96} className="ring-4 ring-background shadow-lg" />}
             <div className="min-w-0 flex-1 pt-1">
-              <h1 className="truncate text-xl font-extrabold tracking-tight">{data.user.username}</h1>
+              <h1 className="truncate text-xl font-extrabold tracking-tight">{data.user.displayName || data.user.username}</h1>
               <p className="truncate text-sm text-muted-foreground">@{data.user.username}</p>
+              {data.user.bio && <p className="mt-1.5 whitespace-pre-wrap break-words text-[15px]">{data.user.bio}</p>}
             </div>
           </div>
 

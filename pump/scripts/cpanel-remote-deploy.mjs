@@ -27,6 +27,7 @@ import https from "node:https";
 import http from "node:http";
 import dns from "node:dns/promises";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 
 const env = (k, fallback) => {
   const v = process.env[k]?.trim();
@@ -52,9 +53,10 @@ const WIPE = env("WIPE_PUBLIC_HTML", "0");
 /** 1 = start from an empty database (the old snapshot is backed up on the host first). */
 const WIPE_DATA = env("WIPE_DATA", "0");
 /**
- * Only sent when explicitly configured. A fresh random secret on every deploy
- * signs every session out, which is exactly what it used to do; with no value the
- * server generates one once and keeps it beside its data (server/config.ts).
+ * Sessions are signed with a secret that must be stable across deploys AND shared
+ * by every Passenger worker. Configured value wins; otherwise it is read from (or
+ * created in) a file in the host's home directory — outside the app root, so a
+ * release never replaces it — and passed to every worker through the environment.
  */
 const SESSION_SECRET = env("SESSION_SECRET", "");
 const ZIP = env("ZIP_PATH", `${APP_ROOT}-cpanel.zip`);
@@ -402,6 +404,25 @@ async function verify(subdomainIsNew) {
   throw new Error("deploy reported OK but the site does not answer on /api/config yet — open the Node.js App page in cPanel and press Restart");
 }
 
+/**
+ * The session secret kept on the host. Read it if it is there, otherwise make one
+ * and store it — `~/.<app>-session-secret`, which no release touches.
+ */
+async function stableSessionSecret() {
+  const name = `.${APP_ROOT}-session-secret`;
+  const existing = (await readRemoteFile(path.join(homeDir, name)))?.trim();
+  if (existing && existing.length >= 32) {
+    log("reusing the host's session secret (sessions survive this deploy)");
+    return existing;
+  }
+  const secret = randomBytes(32).toString("hex");
+  const local = path.join(path.dirname(ZIP), name);
+  fs.writeFileSync(local, secret);
+  await uploadFile(local, homeDir, name);
+  log("created a session secret on the host; from now on deploys keep sessions alive");
+  return secret;
+}
+
 async function main() {
   if (!fs.existsSync(ZIP)) throw new Error(`${ZIP} not found — run pump/scripts/package-cpanel.sh first`);
 
@@ -411,10 +432,11 @@ async function main() {
   log(`ok, home has ${Array.isArray(files) ? files.length : "?"} directories`);
 
   // 1. deploy conf consumed by deploy.sh on the host (shell-sourced; values single-quoted)
+  const sessionSecret = SESSION_SECRET || (await stableSessionSecret());
   const envVars = {
     NODE_ENV: "production",
     APP_URL,
-    ...(SESSION_SECRET ? { SESSION_SECRET } : {}),
+    SESSION_SECRET: sessionSecret,
     ADMIN_EMAILS,
     SOLANA_CLUSTER,
     INSTANT_EMAIL_LOGIN: "1",

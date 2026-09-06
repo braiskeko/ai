@@ -17,7 +17,7 @@ import { HttpError } from "./storage";
  * `/uploads/...` (see routes.ts).
  */
 
-export type UploadKind = "coins" | "comments" | "avatars";
+export type UploadKind = "coins" | "comments" | "avatars" | "banners";
 
 type SharpFactory = typeof Sharp;
 let sharpFactory: SharpFactory | null | undefined;
@@ -44,7 +44,7 @@ function rawExtension(dataUrl: string): string {
   return mime === "jpeg" || mime === "jpg" ? "jpg" : mime;
 }
 
-export const UPLOAD_KINDS: readonly UploadKind[] = ["coins", "comments", "avatars"];
+export const UPLOAD_KINDS: readonly UploadKind[] = ["coins", "comments", "avatars", "banners"];
 
 /** Absolute upload root; `config.uploadsDir` may be relative to the working directory. */
 export const UPLOADS_ROOT = path.resolve(config.uploadsDir);

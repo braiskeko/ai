@@ -253,8 +253,11 @@ export function restoreState(json: string): State {
         id: 0,
         email: "",
         username: "",
+        displayName: null,
+        bio: null,
         avatarSeed: "",
         avatarUrl: null,
+        bannerUrl: null,
         provider: "email",
         walletAddress: null,
         isAdmin: false,
@@ -632,8 +635,11 @@ export class Storage {
       id: this.nextId("user"),
       email: input.email,
       username: this.uniqueUsername(input.preferredUsername),
+      displayName: null,
+      bio: null,
       avatarSeed: randomUUID(),
       avatarUrl: null,
+      bannerUrl: null,
       provider: input.provider,
       walletAddress: input.walletAddress,
       isAdmin: listedAdmin || bootstrapAdmin,
@@ -681,10 +687,20 @@ export class Storage {
     return this.state.users.some((u) => u.id !== exceptUserId && u.username.toLowerCase() === lower);
   }
 
-  updateUsername(userId: number, username: string): User {
+  /** Username, display name and bio in one write; empty strings clear the optional two. */
+  updateProfile(userId: number, input: { username: string; displayName?: string; bio?: string }): User {
     const user = this.mustUser(userId);
-    if (this.usernameTaken(username, userId)) throw new HttpError(409, "That username is already taken");
-    user.username = username;
+    if (this.usernameTaken(input.username, userId)) throw new HttpError(409, "That username is already taken");
+    user.username = input.username;
+    if (input.displayName !== undefined) user.displayName = input.displayName || null;
+    if (input.bio !== undefined) user.bio = input.bio || null;
+    this.persist();
+    return user;
+  }
+
+  setBanner(userId: number, imageUrl: string | null): User {
+    const user = this.mustUser(userId);
+    user.bannerUrl = imageUrl;
     this.persist();
     return user;
   }
@@ -705,14 +721,32 @@ export class Storage {
     if (id === null) return null;
     const u = this.usersById.get(id);
     if (!u) return null;
-    return { id: u.id, username: u.username, avatarSeed: u.avatarSeed, avatarUrl: u.avatarUrl, walletAddress: u.walletAddress };
+    return {
+      id: u.id,
+      username: u.username,
+      displayName: u.displayName ?? null,
+      bio: u.bio ?? null,
+      avatarSeed: u.avatarSeed,
+      avatarUrl: u.avatarUrl,
+      bannerUrl: u.bannerUrl ?? null,
+      walletAddress: u.walletAddress,
+    };
   }
 
   /** A user for `wallet`, or a synthetic "anonymous wallet" profile. */
   publicUserForWallet(wallet: string, userId: number | null = null): PublicUser {
     const known = this.toPublicUser(userId) ?? (wallet ? this.toPublicUser(this.getUserByWallet(wallet)?.id ?? null) : null);
     if (known) return known;
-    return { id: 0, username: shortAddress(wallet), avatarSeed: wallet || "unknown", avatarUrl: null, walletAddress: wallet || null };
+    return {
+      id: 0,
+      username: shortAddress(wallet),
+      displayName: null,
+      bio: null,
+      avatarSeed: wallet || "unknown",
+      avatarUrl: null,
+      bannerUrl: null,
+      walletAddress: wallet || null,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -1125,7 +1159,17 @@ export class Storage {
     const holding = wallet ? this.findHolding(wallet, c.coinId) : undefined;
     return {
       ...c,
-      user: this.toPublicUser(c.userId) ?? { id: c.userId, username: "unknown", avatarSeed: "unknown", avatarUrl: null, walletAddress: null },
+      user:
+        this.toPublicUser(c.userId) ?? {
+          id: c.userId,
+          username: "unknown",
+          displayName: null,
+          bio: null,
+          avatarSeed: "unknown",
+          avatarUrl: null,
+          bannerUrl: null,
+          walletAddress: null,
+        },
       holding: holding && holding.tokens > TOKEN_EPSILON ? holding.tokens : 0,
       kind: c.kind ?? "comment",
       wallet,

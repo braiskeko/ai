@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import type { Portfolio, WalletView } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { useDepositSheet } from "@/components/DepositSheet";
@@ -56,8 +55,11 @@ export function BalanceHeader({ className }: { className?: string }) {
 
       {signedIn ? (
         <>
-          <Button size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold" onClick={deposit.open}>
-            <Plus className="h-4 w-4" />
+          <Button
+            size="lg"
+            onClick={deposit.open}
+            className="tap h-[52px] shrink-0 rounded-[18px] border-2 border-primary/60 px-9 text-[19px] font-bold shadow-[0_10px_30px_-12px_hsl(var(--primary))]"
+          >
             {t("home.deposit")}
           </Button>
           {deposit.sheet}

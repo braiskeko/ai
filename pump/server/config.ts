@@ -53,9 +53,17 @@ function persistedSessionSecret(): string {
   const secret = randomBytes(32).toString("hex");
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, secret, { mode: 0o600 });
+    // "wx": several workers can boot at once, and they must all end up with the
+    // same secret — whoever loses the race reads the winner's file.
+    fs.writeFileSync(file, secret, { mode: 0o600, flag: "wx" });
+    return secret;
   } catch {
-    // Read-only disk: fall back to a per-boot secret rather than refusing to start.
+    try {
+      const raced = fs.readFileSync(file, "utf8").trim();
+      if (raced.length >= 32) return raced;
+    } catch {
+      // Read-only disk: a per-boot secret is the last resort.
+    }
   }
   return secret;
 }
