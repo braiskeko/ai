@@ -588,5 +588,7 @@
   "tradeSheet.details": "Show details",
   "tradeSheet.backspace": "Delete",
   "tradeSheet.approxSol": "≈ {amount} SOL",
-  "tradeSheet.approxTokens": "≈ {amount} {ticker}"
+  "tradeSheet.approxTokens": "≈ {amount} {ticker}",
+  "home.topTrades": "Weekly top trades",
+  "home.mc": "MC"
 }

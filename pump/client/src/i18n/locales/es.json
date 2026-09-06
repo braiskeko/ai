@@ -523,5 +523,7 @@
   "tradeSheet.details": "Mostrar detalles",
   "tradeSheet.backspace": "Borrar",
   "tradeSheet.approxSol": "≈ {amount} SOL",
-  "tradeSheet.approxTokens": "≈ {amount} {ticker}"
+  "tradeSheet.approxTokens": "≈ {amount} {ticker}",
+  "home.topTrades": "Mejores operaciones de la semana",
+  "home.mc": "cap."
 }

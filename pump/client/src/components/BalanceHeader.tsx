@@ -52,14 +52,14 @@ export function BalanceHeader({ className }: { className?: string }) {
       </div>
 
       {connected ? (
-        <Button asChild size="lg" className="tap h-11 shrink-0 rounded-full px-6 text-sm font-bold">
+        <Button asChild size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold">
           <Link href="/wallet">
             <Plus className="h-4 w-4" />
             {t("home.addFunds")}
           </Link>
         </Button>
       ) : (
-        <Button size="lg" className="tap h-11 shrink-0 rounded-full px-6 text-sm font-bold" onClick={openLogin}>
+        <Button size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold" onClick={openLogin}>
           {t("nav.connect")}
         </Button>
       )}

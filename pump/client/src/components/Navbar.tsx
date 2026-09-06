@@ -108,11 +108,11 @@ export function Navbar() {
     <>
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
         <div className="mx-auto flex h-12 w-full max-w-screen-2xl items-center gap-2 px-4 sm:h-14 sm:gap-3">
-          <Link href="/" className="flex shrink-0 items-center gap-2" aria-label={t("nav.homeAria", { app: appName })}>
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-base font-black text-primary-foreground shadow-[0_0_18px_-4px_hsl(var(--primary)/0.8)]">
-              N
+          <Link href="/" className="flex shrink-0 items-center" aria-label={t("nav.homeAria", { app: appName })}>
+            <span className="wordmark text-2xl leading-none">
+              {appName.toLowerCase()}
+              <span className="text-primary">.</span>
             </span>
-            <span className="hidden text-lg font-bold tracking-tight sm:block">{appName}</span>
           </Link>
 
           {/* Search stays in the header on desktop; mobile reaches it via the bottom-bar Search tab (pages/search.tsx). */}
@@ -262,10 +262,10 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Button variant="ghost" size="sm" className="rounded-lg font-semibold" onClick={openLogin}>
+                <Button variant="ghost" size="sm" className="hidden rounded-lg font-semibold sm:inline-flex" onClick={openLogin}>
                   {t("nav.login")}
                 </Button>
-                <Button size="sm" className="rounded-lg font-semibold" onClick={openLogin}>
+                <Button size="sm" className="hidden rounded-lg font-semibold sm:inline-flex" onClick={openLogin}>
                   {t("nav.signup")}
                 </Button>
               </>
@@ -276,7 +276,7 @@ export function Navbar() {
         {/* Earn banner for viewports where the header pill does not fit */}
         <Link
           href="/create"
-          className="flex items-center justify-center gap-2 border-t border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 lg:hidden"
+          className="hidden items-center justify-center gap-2 border-t border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 sm:flex lg:hidden"
         >
           <Sparkles className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{t("header.earn")}</span>

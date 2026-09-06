@@ -2,33 +2,31 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   BarChart3,
-  Coins,
   Flame,
   GraduationCap,
+  Lightbulb,
   PlusCircle,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Sparkles,
   TrendingUp,
-  Users,
   X,
   BadgeCheck,
-  Droplets,
   type LucideIcon,
 } from "lucide-react";
-import type { CoinSummary, ExternalToken, PlatformStats } from "@shared/schema";
+import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
-import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
-import { LiveTicker } from "@/components/LiveTicker";
+import { CoinCardSkeleton } from "@/components/CoinCard";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveEvent, useRecentlyCreatedIds } from "@/lib/useLive";
-import { age, compactUsd, priceUsd, signedPct, useSolUsd } from "@/lib/format";
+import { compactUsd, priceUsd, shortCa, signedPct, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Sort = "new" | "trending" | "mcap" | "volume" | "graduated";
@@ -60,46 +58,6 @@ const LIST_LIMIT = 60;
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
 
 // ---------------------------------------------------------------------------
-// Stats strip — a compact horizontal scroller of pill-shaped tiles
-// ---------------------------------------------------------------------------
-
-function StatsStrip() {
-  const t = useT();
-  const solUsd = useSolUsd();
-  const { data, isLoading } = useQuery<PlatformStats>({ queryKey: ["/api/stats"], staleTime: 30_000 });
-
-  const tiles: { key: string; icon: LucideIcon; value: string | null }[] = [
-    { key: "home.stats.coins", icon: Coins, value: data ? count(data.coins) : null },
-    { key: "home.stats.volume", icon: TrendingUp, value: data ? compactUsd(data.volumeSol * solUsd) : null },
-    { key: "home.stats.traders", icon: Users, value: data ? count(data.traders) : null },
-    { key: "home.stats.trades", icon: Activity, value: data ? count(data.trades) : null },
-  ];
-
-  return (
-    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-3 sm:px-0">
-      {tiles.map(({ key, icon: Icon, value }) => (
-        <div
-          key={key}
-          className="surface flex shrink-0 items-center gap-2.5 px-3.5 py-2.5 sm:shrink"
-        >
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-            <Icon className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <div className="label whitespace-nowrap">{t(key)}</div>
-            {isLoading || value === null ? (
-              <div className="mt-1 h-4 w-14 animate-pulse rounded bg-muted" />
-            ) : (
-              <div className="truncate text-sm font-bold leading-tight tabular">{value}</div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Sticky filter pills
 // ---------------------------------------------------------------------------
 
@@ -117,11 +75,17 @@ function SortPills({
   const t = useT();
   return (
     <div
-      className="no-scrollbar sticky top-14 z-20 -mx-4 flex gap-2 overflow-x-auto bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:px-0"
+      className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 sm:mx-0 sm:px-0"
       role="tablist"
       aria-label={ariaLabel}
     >
-      {options.map(({ key, labelKey, icon: Icon }) => {
+      <span
+        aria-hidden
+        className="grid h-9 w-10 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+      </span>
+      {options.map(({ key, labelKey }) => {
         const active = key === sort;
         return (
           <button
@@ -131,18 +95,64 @@ function SortPills({
             aria-selected={active}
             onClick={() => onChange(key)}
             className={cn(
-              "tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-              active
-                ? "border-primary bg-primary/15 text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              "tap h-9 shrink-0 rounded-xl px-4 text-sm transition-colors",
+              active ? "bg-accent font-bold text-foreground" : "bg-secondary/60 font-medium text-muted-foreground",
             )}
           >
-            <Icon className="h-3.5 w-3.5" />
             {t(labelKey)}
           </button>
         );
       })}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Weekly top trades — the horizontal strip of the best performing traders
+// ---------------------------------------------------------------------------
+
+function TopTraders() {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const { data } = useQuery<TraderRank[]>({ queryKey: ["/api/traders?range=7d"], staleTime: 60_000 });
+  const traders = (data ?? []).filter((x) => x.pnlSol > 0).slice(0, 10);
+  if (traders.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="mb-2.5 flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Lightbulb className="h-4 w-4 text-muted-foreground" />
+        {t("home.topTrades")}
+      </h2>
+      <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        {traders.map((trader) => {
+          const name = trader.user?.username ?? shortCa(trader.wallet);
+          const token = trader.topTokens[0];
+          return (
+            <Link
+              key={trader.wallet}
+              href={trader.user ? `/u/${trader.user.username}` : "/people"}
+              className="tap w-[19rem] shrink-0 overflow-hidden rounded-2xl border border-border"
+            >
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+                <UserAvatar seed={trader.user?.avatarSeed ?? trader.wallet} name={name} size={28} />
+                <span className="truncate text-[15px] font-semibold">{name}</span>
+              </div>
+              <div className="flex items-center gap-2.5 border-t border-border px-3.5 py-2.5">
+                {token ? (
+                  <img src={token.imageUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-full bg-muted object-cover" />
+                ) : (
+                  <span className="h-7 w-7 shrink-0 rounded-full bg-muted" />
+                )}
+                <span className="truncate text-[15px] font-bold tabular text-up">
+                  +{compactUsd(trader.pnlSol * solUsd)}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -157,29 +167,28 @@ function ScopeSwitch({ scope, onChange }: { scope: Scope; onChange: (s: Scope) =
     { key: "solana", label: t("home.scope.solana") },
   ];
   return (
-    <div
-      className="inline-flex rounded-full border border-border bg-card p-1"
-      role="tablist"
-      aria-label={t("home.scope.aria")}
-    >
-      {options.map(({ key, label }) => {
-        const active = key === scope;
-        return (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(key)}
-            className={cn(
-              "tap h-9 rounded-full px-4 text-sm font-bold transition-colors",
-              active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label}
-          </button>
-        );
-      })}
+    <div className="-mx-4 border-b border-border sm:mx-0" role="tablist" aria-label={t("home.scope.aria")}>
+      <div className="flex">
+        {options.map(({ key, label }) => {
+          const active = key === scope;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(key)}
+              className={cn(
+                "tap relative flex-1 pb-2.5 pt-1 text-[17px] transition-colors",
+                active ? "font-bold text-foreground" : "font-medium text-muted-foreground",
+              )}
+            >
+              {label}
+              {active && <span className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-2/3 rounded-full bg-primary" />}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -188,78 +197,77 @@ function ScopeSwitch({ scope, onChange }: { scope: Scope; onChange: (s: Scope) =
 // External token feed row (same look as CoinCard's "row" variant)
 // ---------------------------------------------------------------------------
 
-function ExternalTokenRow({ token }: { token: ExternalToken }) {
+function TokenRow({
+  href,
+  image,
+  title,
+  marketCapUsd,
+  priceUsd: price,
+  change24h,
+  verified,
+  highlight,
+  fallback,
+}: {
+  href: string;
+  image: string | null;
+  title: string;
+  marketCapUsd: number;
+  priceUsd: number;
+  change24h: number;
+  verified?: boolean;
+  highlight?: boolean;
+  fallback: string;
+}) {
   const t = useT();
-  const [, navigate] = useLocation();
-  const [iconFailed, setIconFailed] = useState(false);
-  const href = `/t/${token.mint}`;
-
+  const [failed, setFailed] = useState(false);
+  const up = change24h >= 0;
   return (
-    <div className="group feed-row tap">
-      <Link href={href} aria-label={t("coin.openCoin", { name: token.name })} className="absolute inset-0" />
-      {token.icon && !iconFailed ? (
-        <img
-          src={token.icon}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          onError={() => setIconFailed(true)}
-          className="relative h-14 w-14 shrink-0 rounded-2xl bg-muted object-cover"
-        />
-      ) : (
-        <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-muted text-base font-black text-muted-foreground">
-          {token.symbol.slice(0, 2)}
-        </div>
+    <Link
+      href={href}
+      className={cn(
+        "tap flex items-center gap-3 py-3.5 transition-colors",
+        highlight && "animate-in fade-in slide-in-from-top-2 duration-500",
       )}
-
-      <div className="relative min-w-0 flex-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
-          <span className="truncate font-bold leading-tight">{token.name}</span>
-          <span className="shrink-0 text-xs font-semibold text-muted-foreground">${token.symbol}</span>
-          {token.verified && (
-            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label={t("token.verified")} />
-          )}
-        </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="tabular">{priceUsd(token.priceUsd)}</span>
-          <span className="inline-flex shrink-0 items-center gap-0.5" title={t("token.liquidity")}>
-            <Droplets className="h-3 w-3" />
-            {compactUsd(token.liquidityUsd)}
+    >
+      <span className="relative shrink-0">
+        {image && !failed ? (
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailed(true)}
+            className="h-12 w-12 rounded-full bg-muted object-cover"
+          />
+        ) : (
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-sm font-black text-muted-foreground">
+            {fallback.slice(0, 2)}
           </span>
-          {token.holders > 0 && (
-            <span className="hidden shrink-0 items-center gap-0.5 sm:inline-flex" title={t("coin.holders")}>
-              <Users className="h-3 w-3" />
-              {count(token.holders)}
-            </span>
-          )}
-          {token.createdAt && <span className="hidden shrink-0 sm:inline">· {age(token.createdAt)}</span>}
-        </div>
-      </div>
+        )}
+        {verified && (
+          <BadgeCheck
+            className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background text-primary"
+            aria-label={t("token.verified")}
+          />
+        )}
+      </span>
 
-      <div className="relative flex shrink-0 items-center gap-2">
-        <div className="text-right">
-          <div className="stat text-base leading-tight text-foreground">{compactUsd(token.marketCapUsd)}</div>
-          {Number.isFinite(token.change24h) && token.change24h !== 0 ? (
-            <div className={cn("text-[11px] font-semibold tabular", token.change24h >= 0 ? "text-up" : "text-down")}>
-              {signedPct(token.change24h)}
-            </div>
-          ) : (
-            <div className="text-[11px] text-muted-foreground">·</div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            navigate(href);
-          }}
-          className="tap inline-flex h-8 shrink-0 items-center rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-        >
-          {t("trade.buy")}
-        </button>
-      </div>
-    </div>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[17px] font-bold leading-tight">{title}</span>
+        <span className="mt-0.5 block truncate text-[15px] text-muted-foreground tabular">
+          {compactUsd(marketCapUsd)} {t("home.mc")}
+        </span>
+      </span>
+
+      <span className="shrink-0 text-right">
+        <span className="block text-[17px] font-bold leading-tight tabular">{priceUsd(price)}</span>
+        {Number.isFinite(change24h) && change24h !== 0 && (
+          <span className={cn("mt-0.5 block text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
+            {up ? "▲" : "▼"} {signedPct(Math.abs(change24h))}
+          </span>
+        )}
+      </span>
+    </Link>
   );
 }
 
@@ -289,7 +297,6 @@ function ExternalFeed({ sort, q }: { sort: Sort; q: string }) {
   if (tokens.isError) {
     return (
       <EmptyState
-        emoji="😵"
         title={t("home.external.unavailable")}
         hint={apiErrorMessage(tokens.error, t("home.external.unavailableHint"))}
         action={
@@ -306,7 +313,6 @@ function ExternalFeed({ sort, q }: { sort: Sort; q: string }) {
     // unreachable" — the server degrades both to []. Say so honestly.
     return (
       <EmptyState
-        emoji={q ? "🔍" : "📡"}
         title={q ? t("home.noResults", { q }) : t("home.external.unavailable")}
         hint={q ? t("home.external.searchHint") : t("home.external.unavailableHint")}
         action={
@@ -321,7 +327,17 @@ function ExternalFeed({ sort, q }: { sort: Sort; q: string }) {
   return (
     <>
       {list.map((token) => (
-        <ExternalTokenRow key={token.mint} token={token} />
+        <TokenRow
+          key={token.mint}
+          href={`/t/${token.mint}`}
+          image={token.icon}
+          title={token.symbol.toUpperCase()}
+          marketCapUsd={token.marketCapUsd}
+          priceUsd={token.priceUsd}
+          change24h={token.change24h}
+          verified={token.verified}
+          fallback={token.symbol}
+        />
       ))}
     </>
   );
@@ -333,6 +349,7 @@ function ExternalFeed({ sort, q }: { sort: Sort; q: string }) {
 
 export default function Home() {
   const t = useT();
+  const solUsd = useSolUsd();
   const { toast } = useToast();
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -403,41 +420,20 @@ export default function Home() {
       <div className="space-y-5">
         <BalanceHeader />
 
-        <LiveTicker />
-
-        <StatsStrip />
+        <TopTraders />
 
         <section>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
-                {q ? t("home.searchResults", { q }) : external ? t("home.external.title") : t("home.title")}
-              </h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {q
-                  ? external || coins.data
-                    ? external
-                      ? t("home.external.searchHint")
-                      : t("home.resultsCount", { n: count(list.length) })
-                    : t("common.loading")
-                  : external
-                    ? t("home.external.subtitle")
-                    : t("home.subtitle")}
-              </p>
+          {q && (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h1 className="min-w-0 truncate text-lg font-bold">{t("home.searchResults", { q })}</h1>
+              <Button variant="outline" size="sm" className="shrink-0 rounded-full" onClick={clearSearch}>
+                <X className="h-3.5 w-3.5" />
+                {t("home.clearSearch")}
+              </Button>
             </div>
-            <div className="flex items-center gap-3">
-              {q && (
-                <Button variant="outline" size="sm" className="rounded-full" onClick={clearSearch}>
-                  <X className="h-3.5 w-3.5" />
-                  {t("home.clearSearch")}
-                </Button>
-              )}
-            </div>
-          </div>
+          )}
 
-          <div className="mt-3">
-            <ScopeSwitch scope={scope} onChange={setScope} />
-          </div>
+          <ScopeSwitch scope={scope} onChange={setScope} />
 
           <SortPills
             sort={sort}
@@ -446,14 +442,13 @@ export default function Home() {
             options={external ? EXTERNAL_SORTS : SORTS}
           />
 
-          <div className="surface feed-divide mt-3 overflow-hidden">
+          <div>
             {external ? (
               <ExternalFeed sort={sort} q={q} />
             ) : coins.isLoading ? (
               Array.from({ length: 8 }).map((_, i) => <CoinCardSkeleton key={i} variant="row" />)
             ) : coins.isError ? (
               <EmptyState
-                emoji="😵"
                 title={t("home.loadError")}
                 hint={apiErrorMessage(coins.error, t("common.error"))}
                 action={
@@ -466,12 +461,10 @@ export default function Home() {
             ) : list.length === 0 ? (
               q ? (
                 <EmptyState
-                  emoji="🔍"
                   title={t("home.noResults", { q })}
                   hint={t("home.noResultsHint")}
                   action={
                     <div className="flex flex-wrap justify-center gap-2">
-                      {/* Nothing of ours matched — offer the same search across every Solana token. */}
                       <Button className="rounded-full font-semibold" onClick={() => setScope("solana")}>
                         <Search className="h-4 w-4" />
                         {t("home.external.searchAll")}
@@ -485,7 +478,6 @@ export default function Home() {
                 />
               ) : (
                 <EmptyState
-                  emoji="🚀"
                   title={t("home.empty")}
                   hint={t("app.tagline")}
                   action={
@@ -500,11 +492,16 @@ export default function Home() {
               )
             ) : (
               list.map((coin) => (
-                <CoinCard
+                <TokenRow
                   key={coin.id}
-                  coin={coin}
-                  variant="row"
+                  href={`/${coin.ca}`}
+                  image={coin.imageUrl}
+                  title={coin.name}
+                  marketCapUsd={coin.marketCapSol * solUsd}
+                  priceUsd={coin.priceSol * solUsd}
+                  change24h={coin.change24h}
                   highlight={recent.has(coin.id)}
+                  fallback={coin.ticker}
                 />
               ))
             )}
@@ -516,20 +513,17 @@ export default function Home() {
 }
 
 function EmptyState({
-  emoji,
   title,
   hint,
   action,
 }: {
-  emoji: string;
   title: string;
   hint?: string;
   action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
-      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-3xl leading-none">{emoji}</div>
-      <h2 className="mt-4 text-lg font-bold">{title}</h2>
+      <h2 className="text-lg font-bold">{title}</h2>
       {hint && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{hint}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
