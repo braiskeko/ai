@@ -188,13 +188,13 @@ export function LaunchKeypad({
             onClick={() => exceedsBalance && onDeposit()}
             disabled={busy || (belowMin && !exceedsBalance)}
             className={cn(
-              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold transition-colors disabled:cursor-not-allowed",
               belowMin && !exceedsBalance
                 ? "bg-muted text-muted-foreground"
                 : // Adding cash is not the launch: it reads as a plain action.
                   exceedsBalance
                   ? "bg-foreground text-background"
-                  : "bg-up hover:bg-up/90",
+                  : "bg-up text-white hover:bg-up/90",
             )}
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : labelText()}

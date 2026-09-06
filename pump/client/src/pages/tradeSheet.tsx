@@ -439,15 +439,15 @@ export default function TradeSheetPage() {
             onClick={() => void onCta()}
             disabled={ctaDisabled}
             className={cn(
-              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold transition-colors disabled:cursor-not-allowed",
               showAsIdle
                 ? "bg-muted text-muted-foreground"
                 : // Adding cash is not the trade: it reads as a plain action, not a buy.
                   exceedsBalance
                   ? "bg-foreground text-background"
                   : isBuy
-                    ? "bg-up hover:bg-up/90"
-                    : "bg-down hover:bg-down/90",
+                    ? "bg-up text-white hover:bg-up/90"
+                    : "bg-down text-white hover:bg-down/90",
             )}
           >
             {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : ctaLabel()}

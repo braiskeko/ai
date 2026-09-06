@@ -356,15 +356,15 @@ export default function PerpTradePage() {
             onClick={submit}
             disabled={!!user && !exceedsBalance && (amountUsd <= 0 || belowMin)}
             className={cn(
-              "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
+              "tap h-14 w-full rounded-2xl text-lg font-extrabold transition-colors disabled:cursor-not-allowed",
               (amountUsd <= 0 || belowMin) && !exceedsBalance
                 ? "bg-muted text-muted-foreground"
                 : // Adding cash is not the order: it reads as a plain action.
                   exceedsBalance
                   ? "bg-foreground text-background"
                   : side === "long"
-                    ? "bg-up hover:bg-up/90"
-                    : "bg-down hover:bg-down/90",
+                    ? "bg-up text-white hover:bg-up/90"
+                    : "bg-down text-white hover:bg-down/90",
             )}
           >
             {ctaLabel()}
