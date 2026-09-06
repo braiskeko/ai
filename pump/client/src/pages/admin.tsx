@@ -183,45 +183,74 @@ function ClaimableFeesCard({ overview }: { overview: AdminOverview | undefined }
       ) : rows.length === 0 ? (
         <p className="p-6 text-center text-sm text-muted-foreground">{t("admin.noClaimable")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table className="min-w-[560px]">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("admin.pool")}</TableHead>
-                <TableHead className="text-right">{t("admin.partnerFees")}</TableHead>
-                <TableHead className="text-right">{t("admin.creatorFees")}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.coin.ca}>
-                  <TableCell className="font-medium">
-                    <Link href={`/${r.coin.ca}`} className="flex items-center gap-2 hover:underline">
-                      <img src={r.coin.imageUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-lg bg-muted object-cover" />
-                      <span className="truncate">{r.coin.name}</span>
-                      <span className="shrink-0 text-xs font-medium text-muted-foreground">${r.coin.ticker}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right font-semibold tabular text-gold">{sol(r.partnerSol)}</TableCell>
-                  <TableCell className="whitespace-nowrap text-right tabular text-muted-foreground">{sol(r.creatorSol)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-lg"
-                      disabled={r.partnerSol <= 0 || claimingCa === r.coin.ca}
-                      onClick={() => void claim(r.coin.ca)}
-                    >
-                      {claimingCa === r.coin.ca && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {t("admin.claim")}
-                    </Button>
-                  </TableCell>
+        <>
+          {/* Mobile: stacked rows */}
+          <ul className="feed-divide sm:hidden">
+            {rows.map((r) => (
+              <li key={r.coin.ca} className="flex items-center gap-3 px-4 py-3">
+                <Link href={`/${r.coin.ca}`} className="flex min-w-0 flex-1 items-center gap-2 hover:underline">
+                  <img src={r.coin.imageUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-xl bg-muted object-cover" />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold">
+                      {r.coin.name} <span className="text-xs font-medium text-muted-foreground">${r.coin.ticker}</span>
+                    </div>
+                    <div className="text-xs tabular text-gold">{sol(r.partnerSol)}</div>
+                  </div>
+                </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 rounded-full"
+                  disabled={r.partnerSol <= 0 || claimingCa === r.coin.ca}
+                  onClick={() => void claim(r.coin.ca)}
+                >
+                  {claimingCa === r.coin.ca && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {t("admin.claim")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto sm:block">
+            <Table className="min-w-[560px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("admin.pool")}</TableHead>
+                  <TableHead className="text-right">{t("admin.partnerFees")}</TableHead>
+                  <TableHead className="text-right">{t("admin.creatorFees")}</TableHead>
+                  <TableHead />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.coin.ca}>
+                    <TableCell className="font-medium">
+                      <Link href={`/${r.coin.ca}`} className="flex items-center gap-2 hover:underline">
+                        <img src={r.coin.imageUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-lg bg-muted object-cover" />
+                        <span className="truncate">{r.coin.name}</span>
+                        <span className="shrink-0 text-xs font-medium text-muted-foreground">${r.coin.ticker}</span>
+                      </Link>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-semibold tabular text-gold">{sol(r.partnerSol)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular text-muted-foreground">{sol(r.creatorSol)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg"
+                        disabled={r.partnerSol <= 0 || claimingCa === r.coin.ca}
+                        onClick={() => void claim(r.coin.ca)}
+                      >
+                        {claimingCa === r.coin.ca && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        {t("admin.claim")}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </section>
   );
@@ -259,44 +288,71 @@ function UsersTab() {
       ) : !users.data?.length ? (
         <p className="p-6 text-center text-sm text-muted-foreground">{t("admin.noUsers")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table className="min-w-[680px]">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("admin.users")}</TableHead>
-                <TableHead>{t("admin.wallet")}</TableHead>
-                <TableHead>{t("admin.joined")}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.data.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">
-                    <span className="flex items-center gap-2">
-                      <UserAvatar seed={u.avatarSeed} name={u.username} size={24} />
-                      <Link href={`/u/${encodeURIComponent(u.username)}`} className="hover:underline">
-                        @{u.username}
-                      </Link>
-                      {u.isAdmin && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{t("nav.admin")}</span>
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-[220px] truncate font-mono text-xs text-muted-foreground">
-                    {u.walletAddress ? shortCa(u.walletAddress, 6, 6) : "—"}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="sm" variant="ghost" className="rounded-lg">
-                      <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
-                    </Button>
-                  </TableCell>
+        <>
+          {/* Mobile: stacked rows */}
+          <ul className="feed-divide sm:hidden">
+            {users.data.map((u) => (
+              <li key={u.id} className="flex items-center gap-3 px-4 py-3">
+                <UserAvatar seed={u.avatarSeed} name={u.username} size={32} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Link href={`/u/${encodeURIComponent(u.username)}`} className="truncate text-sm font-semibold hover:underline">
+                      @{u.username}
+                    </Link>
+                    {u.isAdmin && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{t("nav.admin")}</span>
+                    )}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {u.walletAddress ? shortCa(u.walletAddress, 6, 6) : "—"} · {dateShort(u.createdAt)}
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="ghost" className="shrink-0 rounded-full">
+                  <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto sm:block">
+            <Table className="min-w-[680px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("admin.users")}</TableHead>
+                  <TableHead>{t("admin.wallet")}</TableHead>
+                  <TableHead>{t("admin.joined")}</TableHead>
+                  <TableHead />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {users.data.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        <UserAvatar seed={u.avatarSeed} name={u.username} size={24} />
+                        <Link href={`/u/${encodeURIComponent(u.username)}`} className="hover:underline">
+                          @{u.username}
+                        </Link>
+                        {u.isAdmin && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{t("nav.admin")}</span>
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate font-mono text-xs text-muted-foreground">
+                      {u.walletAddress ? shortCa(u.walletAddress, 6, 6) : "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild size="sm" variant="ghost" className="rounded-lg">
+                        <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </section>
   );

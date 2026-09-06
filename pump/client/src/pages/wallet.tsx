@@ -204,8 +204,8 @@ export default function WalletPage() {
 
         <section className="flex flex-col justify-between gap-4 surface p-5 sm:flex-row sm:items-center">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("wallet.solBalance")}</div>
-            <div className="mt-1 text-4xl font-extrabold text-primary tabular">{usd(data.balanceSol, data.solUsd)}</div>
+            <div className="label">{t("wallet.solBalance")}</div>
+            <div className="stat mt-1 text-4xl text-primary">{usd(data.balanceSol, data.solUsd)}</div>
             <div className="mt-1 text-sm text-muted-foreground tabular">{sol(data.balanceSol)}</div>
             {chain.testnet && (
               <span className="mt-1.5 inline-flex items-center rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
