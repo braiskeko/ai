@@ -907,6 +907,7 @@ export class Storage {
   /** One row of the holders table (`isCurve` is set by the caller for the vault). */
   holderRow(coin: Coin, wallet: string, tokens: number, isCurve = false): HolderRow {
     const user = this.getUserByWallet(wallet);
+    const indexed = isCurve ? undefined : this.findHolding(wallet, coin.id);
     return {
       wallet,
       user: user ? this.toPublicUser(user.id) : null,
@@ -914,6 +915,7 @@ export class Storage {
       share: TOTAL_SUPPLY > 0 ? tokens / TOTAL_SUPPLY : 0,
       isCreator: wallet === coin.creatorWallet,
       isCurve,
+      costBasisSol: indexed?.costBasisSol ?? 0,
     };
   }
 

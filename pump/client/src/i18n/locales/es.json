@@ -571,5 +571,6 @@
   "home.allChains": "Todas",
   "token.notTradableTitle": "Todavía no se puede operar {chain} aquí",
   "token.notTradableHint": "Next ejecuta swaps en Solana por ahora. Precios, gráficos y depósitos funcionan en todas las redes de la lista.",
-  "token.openMarket": "Abrir el mercado"
+  "token.openMarket": "Abrir el mercado",
+  "holders.avgEntry": "Entrada media: {mcap} MC"
 }

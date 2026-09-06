@@ -2,15 +2,16 @@ import { useMemo } from "react";
 import { Link } from "wouter";
 import { Heart, Users } from "lucide-react";
 import type { CoinDetail, CommentView, HolderRow } from "@shared/schema";
+import { TOTAL_SUPPLY } from "@shared/schema";
 import { EmptyBox, PublicAvatar, TraderName } from "@/components/TradesTable";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
-import { tokens as fmtTokens } from "@/lib/format";
+import { compactUsd, tokens as fmtTokens, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface HoldersTableProps {
   /** Only the fields the table needs from a CoinDetail. */
-  coin: Pick<CoinDetail, "topHolders" | "ticker" | "commentsList">;
+  coin: Pick<CoinDetail, "topHolders" | "ticker" | "commentsList" | "priceSol">;
   className?: string;
 }
 
@@ -21,20 +22,15 @@ const sharePct = (share: number) => {
   return `${p.toFixed(2)}%`;
 };
 
+/**
+ * Who holds this coin, biggest position first, with what that position is worth
+ * in dollars — and, where the wallet traded here, the market cap they bought at
+ * and how far they are up or down. A holder's latest thesis hangs off their row.
+ */
 export function HoldersTable({ coin, className }: HoldersTableProps) {
   const t = useT();
+  const solUsd = useSolUsd();
   const { user } = useAuth();
-
-  // Each holder's most recent thesis, shown under their row the way a reply is.
-  const thesisByWallet = useMemo(() => {
-    const map = new Map<string, CommentView>();
-    for (const c of coin.commentsList) {
-      if (c.kind !== "thesis" || !c.wallet) continue;
-      const current = map.get(c.wallet);
-      if (!current || Date.parse(c.createdAt) > Date.parse(current.createdAt)) map.set(c.wallet, c);
-    }
-    return map;
-  }, [coin.commentsList]);
 
   const holders = useMemo<HolderRow[]>(
     () =>
@@ -45,38 +41,53 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
     [coin.topHolders],
   );
 
+  const thesisByWallet = useMemo(() => {
+    const map = new Map<string, CommentView>();
+    for (const c of coin.commentsList) {
+      if (c.kind !== "thesis" || !c.wallet) continue;
+      const current = map.get(c.wallet);
+      if (!current || Date.parse(c.createdAt) > Date.parse(current.createdAt)) map.set(c.wallet, c);
+    }
+    return map;
+  }, [coin.commentsList]);
+
   if (holders.length === 0) {
     return <EmptyBox icon={<Users className="h-5 w-5" />}>{t("home.empty")}</EmptyBox>;
   }
 
   return (
-    <div className={cn("surface overflow-hidden", className)}>
-      {/* Mobile: stacked rows */}
-      <ul className="feed-divide tabular sm:hidden">
-        {holders.map((h, i) => {
-          const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
-          return (
-            <li key={h.wallet} className={cn("px-4 py-3", h.isCurve ? "bg-muted/30" : mine && "bg-primary/5")}>
-              <div className="flex items-center gap-3">
-              <span className="w-5 shrink-0 text-xs text-muted-foreground">{h.isCurve ? "—" : i + 1}</span>
+    <ul className={cn("feed-divide", className)}>
+      {holders.map((h, i) => {
+        const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
+        const valueUsd = h.tokens * coin.priceSol * solUsd;
+        // Average entry as the market cap they bought at — how traders quote it.
+        const entryMcapUsd = h.tokens > 0 && h.costBasisSol > 0 ? (h.costBasisSol / h.tokens) * TOTAL_SUPPLY * solUsd : 0;
+        const costUsd = h.costBasisSol * solUsd;
+        const returnPct = costUsd > 0 ? (valueUsd - costUsd) / costUsd : null;
+
+        return (
+          <li key={h.wallet} className={cn("px-1 py-3", mine && !h.isCurve && "rounded-2xl bg-primary/5 px-3")}>
+            <div className="flex items-center gap-3">
+              <span className="w-4 shrink-0 text-xs tabular text-muted-foreground">{h.isCurve ? "—" : i + 1}</span>
               {h.isCurve ? (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
                     <path d="M4 18c6-1 8-6 9-10 1 5 3 8 7 9" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               ) : h.user ? (
                 <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="shrink-0">
-                  <PublicAvatar user={h.user} wallet={h.wallet} size={32} />
+                  <PublicAvatar user={h.user} wallet={h.wallet} size={40} />
                 </Link>
               ) : (
                 <span className="shrink-0">
-                  <PublicAvatar user={null} wallet={h.wallet} size={32} />
+                  <PublicAvatar user={null} wallet={h.wallet} size={40} />
                 </span>
               )}
+
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-sm font-medium">
+                  <span className="truncate text-[15px] font-bold">
                     {h.isCurve ? (
                       t("holders.curve")
                     ) : h.user ? (
@@ -93,89 +104,30 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                     </span>
                   )}
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {fmtTokens(h.tokens)} {coin.ticker}
+                <div className="truncate text-[13px] text-muted-foreground tabular">
+                  {entryMcapUsd > 0
+                    ? t("holders.avgEntry", { mcap: compactUsd(entryMcapUsd) })
+                    : `${fmtTokens(h.tokens)} ${coin.ticker} · ${sharePct(h.share)}`}
                 </div>
               </div>
-                <div className="shrink-0 text-right text-sm font-semibold">{sharePct(h.share)}</div>
-              </div>
-              <Thesis comment={thesisByWallet.get(h.wallet)} />
-            </li>
-          );
-        })}
-      </ul>
 
-      {/* sm+: table */}
-      <table className="hidden w-full min-w-[420px] text-sm sm:table">
-        <thead>
-          <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-            <th className="w-10 px-3 py-2 font-medium">{t("holders.rank")}</th>
-            <th className="px-3 py-2 font-medium">{t("holders.holder")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("holders.tokens")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("holders.share")}</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/70 tabular">
-          {holders.map((h, i) => {
-            const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
-            return (
-              <tr key={h.wallet} className={cn(h.isCurve ? "bg-muted/30" : mine && "bg-primary/5")}>
-                <td className="px-3 py-2 text-muted-foreground">{h.isCurve ? "—" : i + 1}</td>
-                <td className="px-3 py-2">
-                  {h.isCurve ? (
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
-                          <path d="M4 18c6-1 8-6 9-10 1 5 3 8 7 9" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                      {t("holders.curve")}
-                    </span>
-                  ) : (
-                    <div className="flex min-w-0 items-center gap-2">
-                      {h.user ? (
-                        <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="inline-flex min-w-0 items-center gap-2 hover:underline">
-                          <PublicAvatar user={h.user} wallet={h.wallet} size={24} />
-                          <span className="truncate font-medium">
-                            <TraderName user={h.user} wallet={h.wallet} mine={mine} />
-                          </span>
-                        </Link>
-                      ) : (
-                        <span className="inline-flex min-w-0 items-center gap-2">
-                          <PublicAvatar user={null} wallet={h.wallet} size={24} />
-                          <span className="truncate font-medium">
-                            <TraderName user={null} wallet={h.wallet} mine={mine} />
-                          </span>
-                        </span>
-                      )}
-                      {h.isCreator && (
-                        <span className="shrink-0 rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
-                          {t("holders.creator")}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
-                  {fmtTokens(h.tokens)} <span className="text-muted-foreground">{coin.ticker}</span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                  <div className="flex items-center justify-end gap-2">
-                    <span className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted sm:block">
-                      <span
-                        className="block h-full rounded-full bg-primary"
-                        style={{ width: `${Math.min(100, Math.max(2, h.share * 100))}%` }}
-                      />
-                    </span>
-                    {sharePct(h.share)}
+              <div className="shrink-0 text-right">
+                <div className="text-[15px] font-bold tabular leading-tight">{compactUsd(valueUsd)}</div>
+                {returnPct === null ? (
+                  <div className="text-[13px] tabular text-muted-foreground">{sharePct(h.share)}</div>
+                ) : (
+                  <div className={cn("text-[13px] font-semibold tabular", returnPct >= 0 ? "text-up" : "text-down")}>
+                    {returnPct >= 0 ? "▲" : "▼"} {(Math.abs(returnPct) * 100).toFixed(2)}%
                   </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                )}
+              </div>
+            </div>
+
+            <Thesis comment={thesisByWallet.get(h.wallet)} />
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -183,7 +135,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
 function Thesis({ comment }: { comment: CommentView | undefined }) {
   if (!comment) return null;
   return (
-    <div className="ml-4 mt-1.5 border-l border-dotted border-border pl-4">
+    <div className="ml-9 mt-1.5 border-l border-dotted border-border pl-4">
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{comment.body}</p>
       <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
         <Heart className="h-3.5 w-3.5" />

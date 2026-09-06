@@ -397,6 +397,12 @@ export interface HolderRow {
   isCreator: boolean;
   /** the bonding curve itself */
   isCurve: boolean;
+  /**
+   * SOL this wallet is net down on the position, from the indexed trades. 0 when
+   * the wallet never traded here (it received the tokens some other way), which
+   * is why the average entry is only shown when this is positive.
+   */
+  costBasisSol: number;
 }
 
 export interface CoinDetail extends CoinSummary {

@@ -636,5 +636,6 @@
   "home.allChains": "All chains",
   "token.notTradableTitle": "{chain} tokens are not tradable here yet",
   "token.notTradableHint": "Next executes swaps on Solana today. Prices, charts and deposits work on every chain listed.",
-  "token.openMarket": "Open the market"
+  "token.openMarket": "Open the market",
+  "holders.avgEntry": "Avg. entry: {mcap} MC"
 }
