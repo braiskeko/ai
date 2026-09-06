@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChevronLeft, Copy, CreditCard, LayoutGrid, Loader2, QrCode } from "lucide-react";
+import type { Chain as SchemaChain } from "@shared/schema";
+import { CHAIN_LABELS } from "@shared/schema";
+import { ChainIcon } from "@/components/ChainIcon";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,59 +23,17 @@ import { cn } from "@/lib/utils";
 type Step = "how" | "network" | "address";
 type Chain = "solana" | "evm";
 
-interface Network {
-  key: string;
-  label: string;
-  chain: Chain;
-  /** Simplified network glyph, drawn rather than fetched. */
-  glyph: ReactNode;
-}
-
-const SOLANA_GLYPH = (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-    <path d="M4.3 16.4c.2-.2.4-.3.7-.3h15c.4 0 .6.5.3.8l-3 3c-.2.2-.4.3-.7.3h-15c-.4 0-.6-.5-.3-.8l3-3Z" />
-    <path d="M4.3 3.8c.2-.2.5-.3.7-.3h15c.4 0 .6.5.3.8l-3 3c-.2.2-.4.3-.7.3h-15c-.4 0-.6-.5-.3-.8l3-3Z" />
-    <path d="M17.3 10.1c-.2-.2-.4-.3-.7-.3h-15c-.4 0-.6.5-.3.8l3 3c.2.2.4.3.7.3h15c.4 0 .6-.5.3-.8l-3-3Z" />
-  </svg>
-);
-
-const NETWORKS: Network[] = [
-  { key: "solana", label: "Solana", chain: "solana", glyph: SOLANA_GLYPH },
-  {
-    key: "base",
-    label: "Base",
-    chain: "evm",
-    glyph: <span className="block h-4 w-4 rounded-[3px] bg-current" />,
-  },
-  {
-    key: "bnb",
-    label: "BNB Chain",
-    chain: "evm",
-    glyph: <span className="block h-4 w-4 rotate-45 rounded-[3px] border-2 border-current" />,
-  },
-  {
-    key: "monad",
-    label: "Monad",
-    chain: "evm",
-    glyph: <span className="block h-4 w-4 rotate-45 rounded-[5px] bg-current" />,
-  },
-  {
-    key: "hyperliquid",
-    label: "Hyperliquid",
-    chain: "evm",
-    glyph: <span className="block h-4 w-4 rounded-full border-2 border-current" />,
-  },
-  {
-    key: "ethereum",
-    label: "Ethereum",
-    chain: "evm",
-    glyph: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M12 2 5.5 12.2 12 16l6.5-3.8L12 2ZM5.5 13.6 12 22l6.5-8.4L12 17.4l-6.5-3.8Z" />
-      </svg>
-    ),
-  },
+const NETWORKS: { key: string; label: string; chain: Chain; icon: SchemaChain }[] = [
+  { key: "solana", label: CHAIN_LABELS.solana, chain: "solana", icon: "solana" },
+  { key: "base", label: CHAIN_LABELS.base, chain: "evm", icon: "base" },
+  { key: "bnb", label: CHAIN_LABELS.bsc, chain: "evm", icon: "bsc" },
+  { key: "monad", label: CHAIN_LABELS.monad, chain: "evm", icon: "monad" },
+  { key: "hyperliquid", label: CHAIN_LABELS.hyperliquid, chain: "evm", icon: "hyperliquid" },
+  { key: "robinhood", label: CHAIN_LABELS.robinhood, chain: "evm", icon: "robinhood" },
+  { key: "ethereum", label: CHAIN_LABELS.ethereum, chain: "evm", icon: "ethereum" },
 ];
+
+type Network = (typeof NETWORKS)[number];
 
 export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useT();
@@ -159,7 +120,7 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                   className="tap flex w-full items-center justify-between gap-3 rounded-2xl bg-card px-5 py-4 text-left"
                 >
                   <span className="text-[19px] font-bold">{n.label}</span>
-                  <span className="text-foreground">{n.glyph}</span>
+                  <ChainIcon chain={n.icon} size={28} />
                 </button>
               ))}
             </div>
