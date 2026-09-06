@@ -606,7 +606,7 @@
   "deposit.copied": "Address copied",
   "deposit.soon": "Coming soon",
   "deposit.soonHint": "Card and exchange transfers are not enabled yet — deposit crypto instead.",
-  "deposit.evmHint": "This address works on every EVM network listed here.",
+  "deposit.evmHint": "One address for every EVM network here. Trading happens on Solana — deposit there to trade.",
   "thesis.title": "Thesis",
   "thesis.write": "Write a thesis",
   "thesis.placeholder": "Why are you holding? Make the case.",

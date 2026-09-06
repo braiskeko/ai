@@ -16,6 +16,21 @@ import { ensureVault, importVault, loadVault, solanaKeypair, type Vault } from "
  * and signatures (see lib/embeddedWallet.ts).
  */
 
+/**
+ * One link at a time per browser: several components mount this hook, and the
+ * challenge endpoint is rate-limited per IP — without this they would race.
+ */
+let linkInFlight: Promise<SafeUser> | null = null;
+
+function linkOnce(keypair: Keypair, path: "/api/me/wallet" | "/api/auth/wallet"): Promise<SafeUser> {
+  if (!linkInFlight) {
+    linkInFlight = signChallenge(keypair, path).finally(() => {
+      linkInFlight = null;
+    });
+  }
+  return linkInFlight;
+}
+
 async function signChallenge(keypair: Keypair, path: "/api/me/wallet" | "/api/auth/wallet"): Promise<SafeUser> {
   const address = keypair.publicKey.toBase58();
   const res = await fetch(`/api/auth/wallet/nonce?address=${encodeURIComponent(address)}`, { credentials: "include" });
@@ -48,7 +63,7 @@ export function useEmbeddedWallet(): EmbeddedWallet {
     setVault(created);
     // Link it only when signed in and not already linked to this same address.
     if (user && user.walletAddress !== created.solana) {
-      const next = await signChallenge(solanaKeypair(created.mnemonic), "/api/me/wallet");
+      const next = await linkOnce(solanaKeypair(created.mnemonic), "/api/me/wallet");
       queryClient.setQueryData(["/api/me"], next);
       void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
     }
@@ -58,7 +73,7 @@ export function useEmbeddedWallet(): EmbeddedWallet {
   const restore = useCallback(async (mnemonic: string) => {
     const restored = importVault(mnemonic);
     setVault(restored);
-    const next = await signChallenge(solanaKeypair(restored.mnemonic), "/api/me/wallet");
+    const next = await linkOnce(solanaKeypair(restored.mnemonic), "/api/me/wallet");
     queryClient.setQueryData(["/api/me"], next);
     void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
     return restored;
