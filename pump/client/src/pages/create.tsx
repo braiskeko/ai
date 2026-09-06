@@ -407,7 +407,7 @@ export default function CreatePage() {
 
       const ca = sent.coin?.ca ?? unsigned.mint;
       if (!ca) throw new Error(t("create.failed"));
-      toast({ title: `🚀 ${t("create.created", { ticker: `$${pending.ticker}` })}`, description: t("create.createdHint", { ca }) });
+      toast({ title: t("create.created", { ticker: `$${pending.ticker}` }), description: t("create.createdHint", { ca }) });
       setPending(null);
       navigate(`/${ca}`);
     } catch (err) {

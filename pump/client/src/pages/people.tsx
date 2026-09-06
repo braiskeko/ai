@@ -219,7 +219,7 @@ export default function PeoplePage() {
             </div>
             <h3 className="font-semibold">{t("people.emptyFollowing")}</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("people.emptyFollowingHint")}</p>
-            <Link href="/search" className="mt-4 text-sm font-bold text-primary">
+            <Link href="/search?tab=traders" className="mt-4 text-sm font-bold text-primary">
               {t("people.findTraders")}
             </Link>
           </div>

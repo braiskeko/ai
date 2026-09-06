@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowLeft, PlusCircle } from "lucide-react";
+import { ArrowLeft, Compass, PlusCircle } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n";
@@ -10,7 +10,9 @@ export default function NotFound({ title, hint }: { title?: string; hint?: strin
   return (
     <PageShell className="flex items-center justify-center">
       <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-3xl leading-none">🫠</div>
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <Compass className="h-6 w-6" />
+        </div>
         <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">404</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{title ?? t("common.notFound")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{hint ?? t("common.notFoundHint")}</p>

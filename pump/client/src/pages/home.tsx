@@ -405,7 +405,7 @@ export default function Home() {
     (coin: CoinSummary) => {
       if (user && coin.creatorId === user.id) return;
       toast({
-        title: `🚀 ${t("home.newCoin")}`,
+        title: t("home.newCoin"),
         description: t("home.feed.created", { user: `@${coin.creator.username}`, ticker: `${coin.name} ($${coin.ticker})` }),
       });
     },

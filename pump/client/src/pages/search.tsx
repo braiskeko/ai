@@ -233,7 +233,11 @@ export default function SearchPage() {
   const t = useT();
   const solUsd = useSolUsd();
   const search = useSearch();
-  const [chip, setChip] = useState<Chip>("all");
+  // A link can open the page on one chip — "Find traders" arrives on Traders.
+  const [chip, setChip] = useState<Chip>(() => {
+    const tab = new URLSearchParams(search).get("tab");
+    return tab === "traders" || tab === "tokens" ? tab : "all";
+  });
   const [q, setQ] = useState(() => new URLSearchParams(search).get("q") ?? "");
   const recents = useRecentTraderWallets();
 
@@ -355,7 +359,9 @@ export default function SearchPage() {
             </div>
           ) : nothingFound ? (
             <div className="flex flex-col items-center px-6 py-14 text-center">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-3xl leading-none">🔍</div>
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                <SearchIcon className="h-6 w-6" />
+              </div>
               <h2 className="mt-4 text-lg font-bold">{t("search.noResults")}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{t("search.noResultsHint")}</p>
             </div>
