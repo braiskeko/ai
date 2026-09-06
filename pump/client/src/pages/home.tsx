@@ -10,6 +10,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
+  Star,
   TrendingUp,
   X,
   BadgeCheck,
@@ -21,6 +22,7 @@ import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCardSkeleton } from "@/components/CoinCard";
 import { ChainBadge } from "@/components/ChainIcon";
+import { PerpsList } from "@/components/PerpsList";
 import { TokenImage } from "@/components/TokenImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -29,9 +31,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveEvent, useRecentlyCreatedIds } from "@/lib/useLive";
 import { compactUsd, priceUsd, shortCa, signedPct, useSolUsd } from "@/lib/format";
+import { useWatchlist } from "@/lib/watchlist";
 import { cn } from "@/lib/utils";
 
 type Sort = "new" | "trending" | "mcap" | "volume" | "graduated";
+/** The three boards the home screen offers; Tokens is what opens. */
+type Board = "watchlist" | "tokens" | "perps";
+const BOARDS: Board[] = ["watchlist", "tokens", "perps"];
 
 /**
  * One list, whatever the origin: coins launched on Next and every other Solana token the
@@ -193,6 +199,8 @@ function TokenRow({
   highlight,
   fallback,
   chain,
+  starred,
+  onStar,
 }: {
   href: string;
   image: string | null;
@@ -204,6 +212,8 @@ function TokenRow({
   highlight?: boolean;
   fallback: string;
   chain?: Chain;
+  starred?: boolean;
+  onStar?: () => void;
 }) {
   const t = useT();
   const up = change24h >= 0;
@@ -234,6 +244,23 @@ function TokenRow({
           {compactUsd(marketCapUsd)} {t("home.mc")}
         </span>
       </span>
+
+      {onStar && (
+        <button
+          type="button"
+          aria-label={starred ? t("common.watchlistRemove") : t("common.watchlistAdd")}
+          aria-pressed={starred}
+          onClick={(e) => {
+            // The row is a link; starring must not navigate.
+            e.preventDefault();
+            e.stopPropagation();
+            onStar();
+          }}
+          className={cn("tap shrink-0 p-1", starred ? "text-gold" : "text-muted-foreground/50")}
+        >
+          <Star className={cn("h-[18px] w-[18px]", starred && "fill-current")} />
+        </button>
+      )}
 
       <span className="shrink-0 text-right">
         <span className="block text-[17px] font-bold leading-tight tabular">{priceUsd(price)}</span>
@@ -333,6 +360,16 @@ export default function Home() {
   const q = (params.get("q") ?? "").trim();
   const rawSort = params.get("sort") ?? "";
   const sort: Sort = SORT_KEYS.has(rawSort) ? (rawSort as Sort) : "trending";
+  const rawBoard = params.get("board") ?? "";
+  const board: Board = (BOARDS as string[]).includes(rawBoard) ? (rawBoard as Board) : "tokens";
+  const setBoard = (next: Board) => {
+    const p = new URLSearchParams(search);
+    if (next === "tokens") p.delete("board");
+    else p.set("board", next);
+    const qs = p.toString();
+    navigate(qs ? `/?${qs}` : "/", { replace: true });
+  };
+
   const rawChain = params.get("chain") ?? "";
   const chain: Chain | "all" = (CHAINS as string[]).includes(rawChain) ? (rawChain as Chain) : "all";
 
@@ -391,11 +428,13 @@ export default function Home() {
   );
   useLiveEvent("coin:created", onCreated);
 
+  const watchlist = useWatchlist();
   const rows = useMemo(() => {
     const own = (coins.data ?? []).map((c) => rowFromCoin(c, solUsd));
     const external = (tokens.data ?? []).map(rowFromToken);
-    return rankRows([...own, ...external], sort);
-  }, [coins.data, tokens.data, solUsd, sort]);
+    const merged = rankRows([...own, ...external], sort);
+    return board === "watchlist" ? merged.filter((r) => watchlist.has(r.key)) : merged;
+  }, [coins.data, tokens.data, solUsd, sort, board, watchlist]);
 
   const loading = coins.isLoading || (tokens.isLoading && sort !== "graduated");
   const failed = coins.isError && (tokens.isError || sort === "graduated");
@@ -407,6 +446,11 @@ export default function Home() {
 
         <TopTraders />
 
+        <BoardTabs board={board} onChange={setBoard} />
+
+        {board === "perps" ? (
+          <PerpsList />
+        ) : (
         <section>
           {q && (
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -441,6 +485,8 @@ export default function Home() {
                   </Button>
                 }
               />
+            ) : rows.length === 0 && board === "watchlist" ? (
+              <EmptyState title={t("home.watchlistEmpty")} hint={t("home.watchlistHint")} />
             ) : rows.length === 0 ? (
               q ? (
                 <EmptyState
@@ -481,13 +527,49 @@ export default function Home() {
                   highlight={row.coinId !== undefined && recent.has(row.coinId)}
                   fallback={row.fallback}
                   chain={row.chain}
+                  starred={watchlist.has(row.key)}
+                  onStar={() => watchlist.toggle(row.key)}
                 />
               ))
             )}
           </div>
         </section>
+        )}
       </div>
     </PageShell>
+  );
+}
+
+/** Watchlist · Tokens · Perps, the way the reference design splits the home screen. */
+function BoardTabs({ board, onChange }: { board: Board; onChange: (b: Board) => void }) {
+  const t = useT();
+  return (
+    <div className="flex items-center border-b border-border" role="tablist">
+      {BOARDS.map((key) => {
+        const active = key === board;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(key)}
+            className={cn(
+              "tap relative -mb-px flex flex-1 items-center justify-center gap-1.5 border-b-[3px] py-3 text-[17px] transition-colors",
+              active ? "border-primary font-bold text-foreground" : "border-transparent font-semibold text-muted-foreground",
+            )}
+          >
+            {key === "watchlist" && <Star className={cn("h-[18px] w-[18px]", active && "fill-current")} />}
+            {key === "watchlist" ? t("home.tabs.watchlist") : key === "tokens" ? t("home.tabs.tokens") : t("perps.title")}
+            {key === "perps" && (
+              <span className="rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-bold text-primary-foreground">
+                {t("perps.new")}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

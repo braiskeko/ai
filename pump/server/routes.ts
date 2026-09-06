@@ -74,6 +74,7 @@ import { magicLinkDevMode, sendMagicLink } from "./email";
 import * as indexer from "./indexer";
 import * as jupiter from "./jupiter";
 import * as markets from "./markets";
+import * as hyperliquid from "./hyperliquid";
 import { buildTokenMetadata, metadataUri, readTokenMetadata, saveTokenMetadata } from "./meta";
 import {
   buildClaimCreatorFeeTx,
@@ -1141,6 +1142,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quote,
       };
       res.json(response);
+    }),
+  );
+
+  // ---- Perps (Hyperliquid) -------------------------------------------------
+
+  app.get(
+    "/api/perps",
+    wrap(async (req, res) => {
+      res.json(await hyperliquid.listPerps(parseLimit(req.query.limit, 100, 200)));
     }),
   );
 

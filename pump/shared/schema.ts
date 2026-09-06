@@ -680,6 +680,23 @@ export const externalSwapTxSchema = externalQuoteSchema.extend({
 export type ExternalSwapTxInput = z.infer<typeof externalSwapTxSchema>;
 
 /** Whether the aggregator answered recently (drives the "unavailable" UI state). */
+/**
+ * A perpetual market on Hyperliquid. Prices and volume are USD; `fundingRate` is
+ * the 8-hour rate as a fraction.
+ */
+export interface PerpMarket {
+  symbol: string;
+  priceUsd: number;
+  change24h: number;
+  volume24hUsd: number;
+  openInterestUsd: number;
+  fundingRate: number;
+  maxLeverage: number;
+  category: PerpCategory;
+}
+
+export type PerpCategory = "crypto" | "stocks" | "commodities" | "indices";
+
 export interface ExternalStatus {
   available: boolean;
   lastOkAt: string | null;
