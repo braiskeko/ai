@@ -436,10 +436,13 @@ export default function Home() {
 
         <BoardTabs board={board} onChange={setBoard} />
 
+        {/* The board's own content starts right under its tabs, not a gap below them. */}
         {board === "perps" ? (
-          <PerpsList />
+          <div className="-mt-4">
+            <PerpsList />
+          </div>
         ) : (
-        <section>
+        <section className="-mt-4">
           {q && (
             <div className="mb-3 flex items-center justify-between gap-3">
               <h1 className="min-w-0 truncate text-lg font-bold">{t("home.searchResults", { q })}</h1>
