@@ -4,6 +4,7 @@ import { Transaction, VersionedTransaction, type Keypair } from "@solana/web3.js
 import type { SendTxInput, SentTx, UnsignedTx } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { loadVault, solanaKeypair } from "@/lib/embeddedWallet";
+import { useAuth } from "@/hooks/useAuth";
 
 export type TxKind = SendTxInput["kind"];
 
@@ -72,12 +73,15 @@ function signLocally(tx: Transaction | VersionedTransaction, keypair: Keypair): 
 
 export function useWalletTx(): WalletTx {
   const { publicKey, connected, connecting, signTransaction } = useWallet();
-  // The account's built-in wallet, used whenever no extension is connected.
-  const vault = loadVault();
+  const { user } = useAuth();
+  // The signed-in account's own wallet, used whenever no extension is connected.
+  // Scoped to the account: two people on one browser have two wallets.
+  const scope = user?.id ?? "guest";
+  const vault = loadVault(scope);
 
   const signAndSend = useCallback(
     async (unsigned: UnsignedTx, kind: TxKind, ca?: string, onSigned?: () => void): Promise<SentTx> => {
-      const local = !connected || !signTransaction ? loadVault() : null;
+      const local = !connected || !signTransaction ? loadVault(scope) : null;
       if (!signTransaction && !local) {
         throw new Error("Sign in to trade — your account comes with its own wallet.");
       }
@@ -92,7 +96,7 @@ export function useWalletTx(): WalletTx {
       const res = await apiRequest("POST", "/api/tx/send", body);
       return (await res.json()) as SentTx;
     },
-    [signTransaction, connected],
+    [signTransaction, connected, scope],
   );
 
   return {

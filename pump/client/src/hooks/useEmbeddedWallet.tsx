@@ -54,12 +54,20 @@ export interface EmbeddedWallet {
 
 export function useEmbeddedWallet(): EmbeddedWallet {
   const { user } = useAuth();
-  const [vault, setVault] = useState<Vault | null>(() => loadVault());
+  // The wallet belongs to the account, not to the browser: two people signing in
+  // here get two wallets, and a deposit meant for one cannot land in the other.
+  const scope = user?.id ?? "guest";
+  const [vault, setVault] = useState<Vault | null>(() => loadVault(scope));
+
+  // Switching accounts swaps the wallet under everything that reads it.
+  useEffect(() => {
+    setVault(loadVault(scope));
+  }, [scope]);
   const [provisioning, setProvisioning] = useState(false);
   const attempted = useRef<string | null>(null);
 
   const provision = useCallback(async () => {
-    const created = ensureVault();
+    const created = ensureVault(scope);
     setVault(created);
     // Link it whenever the account points somewhere else: this key is the only
     // one this browser can sign with, and the address people deposit to.
@@ -69,16 +77,16 @@ export function useEmbeddedWallet(): EmbeddedWallet {
       void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
     }
     return created;
-  }, [user]);
+  }, [user, scope]);
 
   const restore = useCallback(async (mnemonic: string) => {
-    const restored = importVault(mnemonic);
+    const restored = importVault(mnemonic, scope);
     setVault(restored);
     const next = await linkOnce(solanaKeypair(restored.mnemonic), "/api/me/wallet");
     queryClient.setQueryData(["/api/me"], next);
     void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
     return restored;
-  }, []);
+  }, [scope]);
 
   /**
    * Signing in is all it takes to have a wallet: create and link one silently.
@@ -90,7 +98,7 @@ export function useEmbeddedWallet(): EmbeddedWallet {
   useEffect(() => {
     if (!user) return;
     // The account is settled only when it points at this browser's own wallet.
-    const local = vault?.solana ?? loadVault()?.solana ?? null;
+    const local = vault?.solana ?? loadVault(scope)?.solana ?? null;
     if (user.walletAddress && local && user.walletAddress === local) return;
     // No wallet here yet and the account already has one: nothing to correct.
     if (user.walletAddress && !local) return;
@@ -118,12 +126,12 @@ export function useEmbeddedWallet(): EmbeddedWallet {
     return () => {
       cancelled = true;
     };
-  }, [user, provision, vault?.solana]);
+  }, [user, provision, scope, vault?.solana]);
 
   const keypair = useCallback(() => {
-    const current = vault ?? loadVault();
+    const current = vault ?? loadVault(scope);
     return current ? solanaKeypair(current.mnemonic) : null;
-  }, [vault]);
+  }, [vault, scope]);
 
   return { vault, provisioning, provision, restore, keypair };
 }

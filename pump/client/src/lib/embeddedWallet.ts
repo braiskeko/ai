@@ -21,7 +21,26 @@ import { HDNodeWallet, Mnemonic } from "ethers";
  * written the phrase down loses them.
  */
 
-const VAULT_KEY = "nx_wallet_v1";
+/**
+ * One wallet per account, not per browser.
+ *
+ * The vault used to live under a single key, so two accounts signing in on the
+ * same browser shared one phrase — one address, one balance, and a deposit meant
+ * for the second landing in the first. Each account now has its own entry, and
+ * the old single-vault key is adopted by the first account to look for it, which
+ * is the account it was created for.
+ */
+const VAULT_PREFIX = "nx_wallet_v1:";
+const LEGACY_VAULT_KEY = "nx_wallet_v1";
+/** Which account, if any, has taken over the legacy single-browser vault. */
+const LEGACY_OWNER_KEY = "nx_wallet_legacy_owner";
+
+/** An account id, or "guest" before anyone has signed in. */
+export type VaultScope = string | number;
+
+function keyFor(scope: VaultScope): string {
+  return `${VAULT_PREFIX}${scope}`;
+}
 /** Phantom/Solflare's account path — same phrase, same address, so the seed imports cleanly. */
 const SOLANA_PATH = "m/44'/501'/0'/0'";
 const EVM_PATH = "m/44'/60'/0'/0/0";
@@ -94,9 +113,9 @@ export function isValidMnemonic(phrase: string): boolean {
 // Storage
 // ---------------------------------------------------------------------------
 
-export function loadVault(): Vault | null {
+function readVaultAt(key: string): Vault | null {
   try {
-    const raw = localStorage.getItem(VAULT_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Vault>;
     if (typeof parsed.mnemonic !== "string" || !isValidMnemonic(parsed.mnemonic)) return null;
@@ -109,9 +128,27 @@ export function loadVault(): Vault | null {
   }
 }
 
-function saveVault(vault: Vault): Vault {
+/** The legacy vault, but only for the account that has claimed it. */
+function legacyVaultFor(scope: VaultScope): Vault | null {
   try {
-    localStorage.setItem(VAULT_KEY, JSON.stringify(vault));
+    const owner = localStorage.getItem(LEGACY_OWNER_KEY);
+    if (owner !== null && owner !== String(scope)) return null;
+    const vault = readVaultAt(LEGACY_VAULT_KEY);
+    if (!vault) return null;
+    if (owner === null) localStorage.setItem(LEGACY_OWNER_KEY, String(scope));
+    return vault;
+  } catch {
+    return null;
+  }
+}
+
+export function loadVault(scope: VaultScope = "guest"): Vault | null {
+  return readVaultAt(keyFor(scope)) ?? legacyVaultFor(scope);
+}
+
+function saveVault(scope: VaultScope, vault: Vault): Vault {
+  try {
+    localStorage.setItem(keyFor(scope), JSON.stringify(vault));
   } catch {
     /* private mode: the wallet lives for this session only */
   }
@@ -128,23 +165,23 @@ function vaultFromMnemonic(mnemonic: string): Vault {
   };
 }
 
-/** The browser's wallet, created on first use. */
-export function ensureVault(): Vault {
-  const existing = loadVault();
-  if (existing) return existing;
+/** This account's wallet, created on first use. */
+export function ensureVault(scope: VaultScope = "guest"): Vault {
+  const existing = loadVault(scope);
+  if (existing) return saveVault(scope, existing);
   const phrase = Mnemonic.fromEntropy(crypto.getRandomValues(new Uint8Array(16))).phrase;
-  return saveVault(vaultFromMnemonic(phrase));
+  return saveVault(scope, vaultFromMnemonic(phrase));
 }
 
-/** Replaces this browser's wallet with the one the phrase describes. */
-export function importVault(mnemonic: string): Vault {
+/** Replaces this account's wallet with the one the phrase describes. */
+export function importVault(mnemonic: string, scope: VaultScope = "guest"): Vault {
   if (!isValidMnemonic(mnemonic)) throw new Error("That recovery phrase is not valid.");
-  return saveVault(vaultFromMnemonic(mnemonic));
+  return saveVault(scope, vaultFromMnemonic(mnemonic));
 }
 
-export function clearVault(): void {
+export function clearVault(scope: VaultScope = "guest"): void {
   try {
-    localStorage.removeItem(VAULT_KEY);
+    localStorage.removeItem(keyFor(scope));
   } catch {
     /* nothing to clear */
   }
