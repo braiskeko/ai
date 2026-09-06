@@ -61,7 +61,8 @@ export function useEmbeddedWallet(): EmbeddedWallet {
   const provision = useCallback(async () => {
     const created = ensureVault();
     setVault(created);
-    // Link it only when signed in and not already linked to this same address.
+    // Link it whenever the account points somewhere else: this key is the only
+    // one this browser can sign with, and the address people deposit to.
     if (user && user.walletAddress !== created.solana) {
       const next = await linkOnce(solanaKeypair(created.mnemonic), "/api/me/wallet");
       queryClient.setQueryData(["/api/me"], next);
@@ -87,9 +88,15 @@ export function useEmbeddedWallet(): EmbeddedWallet {
    * keeps trying for a while rather than giving up after one go.
    */
   useEffect(() => {
-    if (!user || user.walletAddress) return;
-    if (attempted.current === String(user.id)) return;
-    attempted.current = String(user.id);
+    if (!user) return;
+    // The account is settled only when it points at this browser's own wallet.
+    const local = vault?.solana ?? loadVault()?.solana ?? null;
+    if (user.walletAddress && local && user.walletAddress === local) return;
+    // No wallet here yet and the account already has one: nothing to correct.
+    if (user.walletAddress && !local) return;
+    const key = `${user.id}:${local ?? "new"}`;
+    if (attempted.current === key) return;
+    attempted.current = key;
 
     let cancelled = false;
     setProvisioning(true);
@@ -111,7 +118,7 @@ export function useEmbeddedWallet(): EmbeddedWallet {
     return () => {
       cancelled = true;
     };
-  }, [user, provision]);
+  }, [user, provision, vault?.solana]);
 
   const keypair = useCallback(() => {
     const current = vault ?? loadVault();

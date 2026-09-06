@@ -22,8 +22,22 @@ export function BalanceHeader({ className }: { className?: string }) {
   const signedIn = Boolean(user);
   const connected = Boolean(user?.walletAddress);
 
-  const wallet = useQuery<WalletView>({ queryKey: ["/api/wallet"], staleTime: 20_000, enabled: connected });
-  const portfolio = useQuery<Portfolio>({ queryKey: ["/api/portfolio"], staleTime: 20_000, enabled: connected });
+  // A deposit arrives on its own schedule: the balance watches for it rather than
+  // waiting for a reload.
+  const wallet = useQuery<WalletView>({
+    queryKey: ["/api/wallet"],
+    staleTime: 8_000,
+    refetchInterval: 12_000,
+    refetchOnWindowFocus: true,
+    enabled: connected,
+  });
+  const portfolio = useQuery<Portfolio>({
+    queryKey: ["/api/portfolio"],
+    staleTime: 8_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+    enabled: connected,
+  });
 
   const solUsd = wallet.data?.solUsd ?? 0;
   const totalSol = portfolio.data?.totalValueSol ?? wallet.data?.balanceSol ?? 0;

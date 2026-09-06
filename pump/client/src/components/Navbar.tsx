@@ -66,7 +66,8 @@ export function Navbar({ hideTabs = false }: { hideTabs?: boolean } = {}) {
     queryKey: ["/api/wallet"],
     queryFn: getQueryFn<WalletView | null>({ on401: "returnNull" }),
     enabled: walletLinked,
-    staleTime: 15_000,
+    staleTime: 8_000,
+    refetchInterval: 12_000,
   });
 
   // Keep the search box in sync with ?q= while browsing the home list.

@@ -380,7 +380,10 @@ export default function WalletPage() {
 
   const wallet = useQuery<WalletView>({
     queryKey: ["/api/wallet"],
-    staleTime: 15_000,
+    staleTime: 8_000,
+    // Same reason as the home balance: deposits show up by themselves.
+    refetchInterval: 12_000,
+    refetchOnWindowFocus: true,
   });
 
   if (authLoading || wallet.isLoading) {
