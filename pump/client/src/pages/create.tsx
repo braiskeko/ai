@@ -426,6 +426,19 @@ export default function CreatePage() {
 
           <EarnBanner />
 
+          {/* Say it up front rather than at the end of a filled-in form. */}
+          {config && !config.launchEnabled && (
+            <div className="flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive/20 text-destructive">
+                <Lock className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 text-sm">
+                <div className="font-bold text-destructive">{t("create.launchDisabled")}</div>
+                <div className="text-xs text-muted-foreground">{t("create.launchDisabledHint")}</div>
+              </div>
+            </div>
+          )}
+
           {!authLoading && !canLaunch && (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">

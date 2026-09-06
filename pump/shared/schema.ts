@@ -23,6 +23,8 @@ export const GRADUATION_MCAP_USD = 69_000;
  * stake in the supply.
  */
 export const LAUNCH_MIN_BUY_USD = 1;
+/** Smallest order Next accepts, on any market and either side (USD). */
+export const MIN_TRADE_USD = 1;
 /** Candle interval for the live chart (ms). */
 export const CANDLE_INTERVAL_MS = 60_000;
 /** Solana addresses (mints, wallets, pools) are base58, 32–44 chars. */

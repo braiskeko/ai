@@ -3,6 +3,7 @@ import { useLocation, useParams, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronsUpDown, Delete, Info, Plus } from "lucide-react";
 import type { PerpDetail, WalletView } from "@shared/schema";
+import { MIN_TRADE_USD } from "@shared/schema";
 import { perpLogo } from "@/components/PerpsList";
 import { TokenImage } from "@/components/TokenImage";
 import { useDepositSheet } from "@/components/DepositSheet";
@@ -211,6 +212,7 @@ export default function PerpTradePage() {
 
   const liq = data ? liquidationPrice(data.priceUsd, leverage, side) : 0;
   const exceedsBalance = amountUsd > availableUsd + 1e-9;
+  const belowMin = amountUsd > 0 && amountUsd + 1e-9 < MIN_TRADE_USD;
 
   const submit = () => {
     if (!user) {
@@ -221,17 +223,19 @@ export default function PerpTradePage() {
       deposit.open();
       return;
     }
+    if (belowMin) return;
     // Order routing to Hyperliquid is not live yet; the screen is.
     toast({ title: t("perps.tradingSoon") });
   };
 
   /** The order is ready to send: everything else is a plain button. */
-  const ready = !!user && !exceedsBalance && amountUsd > 0;
+  const ready = !!user && !exceedsBalance && !belowMin && amountUsd > 0;
 
   const ctaLabel = (): string => {
     if (!user) return t("trade.loginToTrade");
     if (exceedsBalance) return t("home.deposit");
     if (amountUsd <= 0) return t("tradeSheet.enterAmount");
+    if (belowMin) return t("trade.minimum", { amount: `$${MIN_TRADE_USD}` });
     const label = side === "long" ? t("perps.long") : t("perps.short");
     return `${label} ${data?.symbol ?? ""} · $${raw}`;
   };
@@ -345,10 +349,10 @@ export default function PerpTradePage() {
           <button
             type="button"
             onClick={submit}
-            disabled={!!user && !exceedsBalance && amountUsd <= 0}
+            disabled={!!user && !exceedsBalance && (amountUsd <= 0 || belowMin)}
             className={cn(
               "tap h-14 w-full rounded-2xl text-lg font-extrabold text-white transition-colors disabled:cursor-not-allowed",
-              amountUsd <= 0 && !exceedsBalance
+              (amountUsd <= 0 || belowMin) && !exceedsBalance
                 ? "bg-muted text-muted-foreground"
                 : side === "long"
                   ? "bg-up hover:bg-up/90"

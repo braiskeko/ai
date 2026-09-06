@@ -58,7 +58,7 @@ export function BalanceHeader({ className }: { className?: string }) {
           <Button
             size="lg"
             onClick={deposit.open}
-            className="tap h-[52px] shrink-0 rounded-[18px] border-2 border-primary/60 px-9 text-[19px] font-bold shadow-[0_10px_30px_-12px_hsl(var(--primary))]"
+            className="tap h-[52px] shrink-0 rounded-[14px] border-2 border-primary/60 px-9 text-[19px] font-semibold shadow-none"
           >
             {t("home.deposit")}
           </Button>

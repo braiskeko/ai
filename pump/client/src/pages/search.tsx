@@ -150,39 +150,69 @@ function ResultRow({ row }: { row: Row }) {
 /**
  * The search field.
  *
- * It lives out here on purpose: declared inside the page it would be a brand new
- * component type on every render, so React would tear the input down and build
- * it again after each keystroke — losing the caret, and on a phone closing the
- * keyboard as if Enter had been pressed.
+ * Two things it does deliberately. It lives out here rather than inside the page,
+ * because a component declared in a render is a new component type every time and
+ * React would tear the input down after each keystroke. And it searches when you
+ * ask it to — Enter, the search button, or a paste — not on every character: what
+ * you are halfway through typing is not yet a query.
  */
 function SearchField({
   value,
-  onChange,
+  onSubmit,
   onPaste,
   className,
   autoFocus,
 }: {
+  /** The query currently being shown, which the field starts from. */
   value: string;
-  onChange: (next: string) => void;
+  onSubmit: (next: string) => void;
   onPaste: () => void;
   className?: string;
   autoFocus?: boolean;
 }) {
   const t = useT();
+  const [draft, setDraft] = useState(value);
+  // A query set from outside (a pasted address, a link with ?q=) shows up here.
+  useEffect(() => setDraft(value), [value]);
+
+  const submit = () => onSubmit(draft.trim());
+
   return (
     <div className={cn("flex items-center gap-2 rounded-full border border-border bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur", className)}>
       <SearchIcon className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
       <input
         type="search"
-        value={value}
+        value={draft}
         autoFocus={autoFocus}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          // Emptying the field (including its own clear button) puts the default
+          // board back straight away; anything else waits for Enter.
+          if (!next.trim()) onSubmit("");
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          submit();
+          e.currentTarget.blur();
+        }}
         placeholder={t("search.placeholder")}
         aria-label={t("search.placeholder")}
         spellCheck={false}
         enterKeyHint="search"
         className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
+      {draft.trim() && draft.trim() !== value && (
+        <button
+          type="button"
+          onClick={submit}
+          aria-label={t("search.title")}
+          className="tap inline-flex h-9 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-bold text-background"
+        >
+          {t("search.title")}
+        </button>
+      )}
       <button
         type="button"
         onClick={onPaste}
@@ -267,7 +297,7 @@ export default function SearchPage() {
     <PageShell noFooter className="pt-3 pb-32 md:pt-6 md:pb-10">
       {/* Outside the stack: on mobile the field lives at the bottom, and a hidden first
           child would still push the chips down by the stack's gap. */}
-      <SearchField value={q} onChange={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto mb-5 hidden max-w-2xl md:flex" />
+      <SearchField value={q} onSubmit={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto mb-5 hidden max-w-2xl md:flex" />
 
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="tablist" aria-label={t("search.title")}>
@@ -359,7 +389,7 @@ export default function SearchPage() {
 
       {/* Floating pill search field, mobile only — sits just above the bottom tab bar. */}
       <div className="fixed inset-x-0 bottom-[calc(5.4rem+env(safe-area-inset-bottom,0px))] z-30 px-4 md:hidden">
-        <SearchField value={q} onChange={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto max-w-md" />
+        <SearchField value={q} onSubmit={setQ} onPaste={() => void pasteFromClipboard()} className="mx-auto max-w-md" />
       </div>
     </PageShell>
   );

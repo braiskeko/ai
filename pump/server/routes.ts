@@ -12,6 +12,7 @@ import {
   GRADUATION_MCAP_USD,
   LAUNCH_MCAP_USD,
   LAUNCH_MIN_BUY_USD,
+  MIN_TRADE_USD,
   CHAINS,
   CHAIN_LABELS,
   EVM_ADDRESS_RE,
@@ -633,6 +634,17 @@ function interleave(lists: ExternalToken[][]): ExternalToken[] {
  * verbatim.
  */
 /**
+ * Orders below a dollar are not worth the fees they pay: the same floor the
+ * keypad shows is enforced here, so nothing smaller reaches a pool.
+ */
+function assertAboveMinimum(side: "buy" | "sell", amountSol: number): void {
+  if (side !== "buy") return; // a sell is priced in tokens; the keypad holds that floor
+  if (amountSol * getSolUsd() + 1e-9 < MIN_TRADE_USD) {
+    throw new HttpError(400, `The smallest order is $${MIN_TRADE_USD}.`);
+  }
+}
+
+/**
  * Every token gets the same Buy screen, but only Solana can be filled today.
  * The other chains stop here, with a sentence that says why rather than a
  * validation error about an address shape.
@@ -1121,6 +1133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const input = swapTxSchema.parse(req.body);
       if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
       if (coin.curve.migrated) throw new HttpError(400, "This coin has graduated and now trades on Meteora");
+      assertAboveMinimum(input.side, input.amount);
 
       const quote = await quoteSwap(coin.pool, input.side, input.amount, input.slippageBps).catch((err: unknown) => {
         throw new HttpError(400, errorMessage(err));
@@ -1276,6 +1289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       assertSwappable(req.params.mint);
       const input = externalSwapTxSchema.parse({ ...req.body, mint: req.params.mint });
       if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
+      assertAboveMinimum(input.side, input.amount);
 
       const { quote, route } = await routeExternalTrade(input);
       const built = await jupiter.buildSwapTx({ quote: route, userPublicKey: wallet });

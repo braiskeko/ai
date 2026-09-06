@@ -3,6 +3,7 @@ import { useLocation, useRoute } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronLeft, Delete, Loader2, Plus, Rocket, ShieldCheck } from "lucide-react";
 import type { CoinDetail, ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
+import { MIN_TRADE_USD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
@@ -218,7 +219,9 @@ export default function TradeSheetPage() {
 
   const exceedsBalance = isBuy && walletLinked && amountUsd > spendableUsd + EPS;
   const exceedsOwned = !isBuy && walletLinked && amountUsd > ownedUsd + EPS;
-  const invalid = amountUsd <= 0 || exceedsBalance || exceedsOwned;
+  // Anything under a dollar is eaten by fees, so it is not accepted either way.
+  const belowMin = amountUsd > 0 && amountUsd + EPS < MIN_TRADE_USD;
+  const invalid = amountUsd <= 0 || belowMin || exceedsBalance || exceedsOwned;
 
   const onCta = async () => {
     if (!target) return;
@@ -279,6 +282,7 @@ export default function TradeSheetPage() {
     if (exceedsBalance) return t("home.deposit");
     if (exceedsOwned) return t("trade.notEnoughTokens");
     if (amountUsd <= 0) return t("tradeSheet.enterAmount");
+    if (belowMin) return t("trade.minimum", { amount: `$${MIN_TRADE_USD}` });
     return isBuy ? t("tradeSheet.buyAmount", { amount: compactUsd(amountUsd) }) : t("tradeSheet.sellAmount", { amount: compactUsd(amountUsd) });
   };
   const ctaDisabled = submitting || !target || (canTrade && ((invalid && !exceedsBalance) || target.disabled));
