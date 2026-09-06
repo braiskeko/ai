@@ -61,7 +61,18 @@ const GLYPHS: Record<Chain, JSX.Element> = {
 /** Our cached server-side copy of the same image (server/imgproxy.ts). */
 const proxied = (url: string) => `/api/img?u=${encodeURIComponent(url)}`;
 
-export function ChainIcon({ chain, size = 20, className }: { chain: Chain; size?: number; className?: string }) {
+export function ChainIcon({
+  chain,
+  size = 20,
+  className,
+  mono,
+}: {
+  chain: Chain;
+  size?: number;
+  className?: string;
+  /** Flatten the logo to the text colour — how the deposit list shows them. */
+  mono?: boolean;
+}) {
   // Each hosted source is tried directly, then through the proxy; the drawn mark
   // is the last step.
   const candidates = SOURCES[chain].flatMap((url) => [url, proxied(url)]);
@@ -89,7 +100,12 @@ export function ChainIcon({ chain, size = 20, className }: { chain: Chain; size?
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setAttempt((n) => n + 1)}
-      className={cn("shrink-0 rounded-full object-contain", className)}
+      className={cn(
+        "shrink-0 rounded-full object-contain",
+        // Any artwork, flattened to solid black and inverted to white on dark.
+        mono && "[filter:grayscale(1)_brightness(0)] dark:[filter:grayscale(1)_brightness(0)_invert(1)]",
+        className,
+      )}
       style={{ width: size, height: size }}
     />
   );
