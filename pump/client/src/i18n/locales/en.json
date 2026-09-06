@@ -708,7 +708,6 @@
   "launch.supplyShare": "≈{pct} of the supply, bought at the launch price",
   "launch.minimum": "Buy at least {amount}",
   "launch.confirm": "Create {ticker} · {amount}",
-  "launch.formNotice": "Setting up your coin is free. You finish the launch by buying at least {amount} of it yourself — those are your own tokens, and your share of the supply.",
   "perps.long": "Long",
   "perps.short": "Short",
   "perps.oiShort": "OI",

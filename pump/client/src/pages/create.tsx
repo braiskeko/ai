@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 import { ChevronDown, ImagePlus, Loader2, Lock, Rocket, Sparkles, X } from "lucide-react";
 import type { PreparedCoin, SentTx, UnsignedTx, WalletView } from "@shared/schema";
-import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, LAUNCH_MCAP_USD, LAUNCH_MIN_BUY_USD, SWAP_FEE, prepareCoinSchema } from "@shared/schema";
+import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, LAUNCH_MCAP_USD, SWAP_FEE, prepareCoinSchema } from "@shared/schema";
 import { LaunchKeypad } from "@/components/LaunchKeypad";
 import { useDepositSheet } from "@/components/DepositSheet";
 import { useSolUsd } from "@/lib/format";
@@ -553,10 +553,6 @@ export default function CreatePage() {
 
             {/* Curve facts */}
             <section className="space-y-6 rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <p className="text-xs text-muted-foreground">
-                {t("launch.formNotice", { amount: `$${LAUNCH_MIN_BUY_USD}` })}
-              </p>
-
               <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 sm:grid-cols-3">
                 <Stat label={t("create.launchMcap")} value={fmtCompactUsd(config?.launchMcapUsd ?? LAUNCH_MCAP_USD)} />
                 <Stat label={t("create.graduationMcap")} value={fmtCompactUsd(config?.graduationMcapUsd ?? GRADUATION_MCAP_USD)} />
@@ -576,7 +572,7 @@ export default function CreatePage() {
               the end of the form: it is the only action here, and it should be in
               reach however far down the page you are.
             */}
-            <div className="fixed inset-x-0 bottom-[calc(5.4rem+env(safe-area-inset-bottom,0px))] z-30 flex flex-col-reverse items-stretch gap-3 px-4 sm:static sm:flex-row sm:items-center sm:justify-end sm:px-0">
+            <div className="fixed inset-x-0 bottom-[calc(4.7rem+env(safe-area-inset-bottom,0px))] z-30 flex flex-col-reverse items-stretch gap-3 px-4 sm:static sm:flex-row sm:items-center sm:justify-end sm:px-0">
               {canLaunch ? (
                 <Button
                   type="submit"

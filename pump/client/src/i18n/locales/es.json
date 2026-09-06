@@ -643,7 +643,6 @@
   "launch.supplyShare": "≈{pct} del supply, al precio de lanzamiento",
   "launch.minimum": "Compra mínimo {amount}",
   "launch.confirm": "Crear {ticker} · {amount}",
-  "launch.formNotice": "Preparar tu moneda es gratis. Terminas el lanzamiento comprando al menos {amount} de ella — esos tokens son tuyos, y son tu parte del supply.",
   "perps.long": "Long",
   "perps.short": "Short",
   "perps.oiShort": "OI",
