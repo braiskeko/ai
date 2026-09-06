@@ -208,7 +208,8 @@ export function TradePanel({ coin, className }: TradePanelProps) {
   const ctaLabel = (): ReactNode => {
     if (submitting) return <Loader2 className="h-5 w-5 animate-spin" />;
     if (!user) return t("trade.loginToTrade");
-    if (!walletLinked || !connected) return t("trade.connectWallet");
+    // The account has its own wallet; the only wait is while it is being set up.
+    if (!connected) return t("wallet.preparing");
     if (exceedsBalance) return t("trade.insufficient");
     if (exceedsOwned) return t("trade.notEnoughTokens");
     return side === "buy" ? t("trade.placeBuy", { ticker: coin.ticker }) : t("trade.placeSell", { ticker: coin.ticker });

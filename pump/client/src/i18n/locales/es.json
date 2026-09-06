@@ -562,5 +562,6 @@
   "wallet.importFailed": "Esa frase de recuperación no es válida.",
   "wallet.imported": "Cartera importada",
   "wallet.builtIn": "Cartera integrada",
-  "wallet.builtInHint": "Tu cuenta creó esta cartera en este navegador. Nada salió del dispositivo."
+  "wallet.builtInHint": "Tu cuenta creó esta cartera en este navegador. Nada salió del dispositivo.",
+  "wallet.preparing": "Preparando tu cartera…"
 }

@@ -460,8 +460,8 @@ export default function CreatePage() {
                   <div className="text-xs text-muted-foreground">{t("create.loginHint")}</div>
                 </div>
               </div>
-              <Button type="button" onClick={openLogin} className="rounded-lg font-semibold">
-                {!user ? t("nav.login") : t("trade.connectWallet")}
+              <Button type="button" onClick={openLogin} disabled={!!user} className="rounded-lg font-semibold">
+                {!user ? t("nav.login") : t("wallet.preparing")}
               </Button>
             </div>
           )}
@@ -663,9 +663,15 @@ export default function CreatePage() {
                   {submitting ? phaseLabel() : t("create.submit")}
                 </Button>
               ) : (
-                <Button type="button" size="lg" onClick={openLogin} disabled={authLoading} className="h-12 rounded-xl px-6 text-base font-bold">
-                  <Lock className="h-4 w-4" />
-                  {!user ? t("create.loginRequired") : t("trade.connectWallet")}
+                <Button
+                  type="button"
+                  size="lg"
+                  onClick={openLogin}
+                  disabled={authLoading || !!user}
+                  className="h-12 rounded-xl px-6 text-base font-bold"
+                >
+                  {user ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                  {!user ? t("create.loginRequired") : t("wallet.preparing")}
                 </Button>
               )}
             </div>

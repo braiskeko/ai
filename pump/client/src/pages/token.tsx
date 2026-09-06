@@ -473,7 +473,8 @@ function ExternalTradePanel({ token, className }: { token: ExternalTokenDetail; 
   const ctaLabel = (): ReactNode => {
     if (submitting) return <Loader2 className="h-5 w-5 animate-spin" />;
     if (!user) return t("trade.loginToTrade");
-    if (!walletLinked || !connected) return t("trade.connectWallet");
+    // The account has its own wallet; the only wait is while it is being set up.
+    if (!connected) return t("wallet.preparing");
     if (exceedsBalance) return t("trade.insufficient");
     if (exceedsOwned) return t("trade.notEnoughTokens");
     return isBuy ? t("trade.placeBuy", { ticker: token.symbol }) : t("trade.placeSell", { ticker: token.symbol });

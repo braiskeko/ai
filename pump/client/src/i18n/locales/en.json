@@ -627,5 +627,6 @@
   "wallet.importFailed": "That recovery phrase is not valid.",
   "wallet.imported": "Wallet imported",
   "wallet.builtIn": "Built-in wallet",
-  "wallet.builtInHint": "Your account created this wallet in this browser. Nothing left the device."
+  "wallet.builtInHint": "Your account created this wallet in this browser. Nothing left the device.",
+  "wallet.preparing": "Setting up your wallet…"
 }

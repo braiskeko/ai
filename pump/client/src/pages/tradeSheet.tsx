@@ -266,7 +266,8 @@ export default function TradeSheetPage() {
     if (submitting) return <Loader2 className="h-5 w-5 animate-spin" />;
     if (!target) return t("common.loading");
     if (!user) return t("trade.loginToTrade");
-    if (!walletLinked || !connected) return t("trade.connectWallet");
+    // The account has its own wallet; the only wait is while it is being set up.
+    if (!connected) return t("wallet.preparing");
     if (target.disabled) return t("trade.migrated");
     if (exceedsBalance) return t("trade.insufficient");
     if (exceedsOwned) return t("trade.notEnoughTokens");
