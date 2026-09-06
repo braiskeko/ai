@@ -549,5 +549,18 @@
   "thesis.needPosition": "Abre una posición para publicar una tesis.",
   "thesis.cooldown": "Podrás publicar otra tesis en {minutes} min.",
   "thesis.badge": "Tesis",
-  "thesis.empty": "Todavía no hay tesis. Los holders pueden publicar una cada 10 minutos."
+  "thesis.empty": "Todavía no hay tesis. Los holders pueden publicar una cada 10 minutos.",
+  "wallet.recovery": "Frase de recuperación",
+  "wallet.recoveryHint": "Estas 12 palabras son tu cartera. Quien las tenga puede gastar tus fondos: apúntalas y no las compartas nunca.",
+  "wallet.reveal": "Mostrar frase",
+  "wallet.hide": "Ocultar",
+  "wallet.copyPhrase": "Copiar frase",
+  "wallet.phraseCopied": "Frase copiada",
+  "wallet.import": "Importar una frase",
+  "wallet.importHint": "Pega una frase de 12 o 24 palabras para usar esa cartera aquí.",
+  "wallet.importAction": "Importar",
+  "wallet.importFailed": "Esa frase de recuperación no es válida.",
+  "wallet.imported": "Cartera importada",
+  "wallet.builtIn": "Cartera integrada",
+  "wallet.builtInHint": "Tu cuenta creó esta cartera en este navegador. Nada salió del dispositivo."
 }

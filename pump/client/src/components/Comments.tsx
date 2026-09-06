@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, ImagePlus, Loader2, MessageSquare, X } from "lucide-react";
+import { Heart, ImagePlus, Loader2, MessageSquare, PenLine, X } from "lucide-react";
 import { Link } from "wouter";
 import type { CoinDetail, CommentView } from "@shared/schema";
+import { THESIS_COOLDOWN_MS, THESIS_MAX_BODY } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -121,7 +122,8 @@ export function Comments({ coin, defaultTab = "comments", className }: CommentsP
       <TabsContent value="trades" className="mt-4">
         <TradesTable trades={coin.recentTrades} ticker={coin.ticker} />
       </TabsContent>
-      <TabsContent value="holders" className="mt-4">
+      <TabsContent value="holders" className="mt-4 space-y-4">
+        <ThesisComposer coin={coin} />
         <HoldersTable coin={coin} />
       </TabsContent>
     </Tabs>
@@ -141,6 +143,99 @@ function UnderlineTab({ value, children }: { value: string; children: ReactNode 
     >
       {children}
     </TabsTrigger>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Thesis: the case a holder makes for the position they hold
+// ---------------------------------------------------------------------------
+
+/**
+ * Only holders can publish one, and only once every ten minutes — the same rule
+ * the server enforces (routes.ts), repeated here so the button explains itself
+ * instead of failing.
+ */
+function ThesisComposer({ coin }: { coin: CoinDetail }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { user, openLogin } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [body, setBody] = useState("");
+
+  const holds = (coin.myHolding?.tokens ?? 0) > 1e-9;
+  const mine = coin.commentsList.filter((c) => c.kind === "thesis" && c.userId === user?.id);
+  const lastAt = mine.reduce((max, c) => Math.max(max, Date.parse(c.createdAt) || 0), 0);
+  const waitMs = lastAt + THESIS_COOLDOWN_MS - Date.now();
+  const cooling = waitMs > 0;
+
+  const post = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/coins/${coin.ca}/comments`, { body: body.trim(), kind: "thesis" });
+      return (await res.json()) as CommentView;
+    },
+    onSuccess: (comment) => {
+      upsertCoinComment(qc, coin.ca, comment);
+      setBody("");
+      setOpen(false);
+    },
+    onError: (err) => toast({ variant: "destructive", title: t("common.error"), description: apiErrorMessage(err) }),
+  });
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-muted/30 px-4 py-3">
+        <span className="text-sm text-muted-foreground">{t("thesis.needPosition")}</span>
+        <Button size="sm" onClick={openLogin}>
+          {t("nav.login")}
+        </Button>
+      </div>
+    );
+  }
+  if (!holds) {
+    return <p className="px-1 text-sm text-muted-foreground">{t("thesis.needPosition")}</p>;
+  }
+
+  if (!open) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        disabled={cooling}
+        onClick={() => setOpen(true)}
+        className="tap h-11 w-full rounded-2xl font-bold"
+      >
+        <PenLine className="h-4 w-4" />
+        {cooling ? t("thesis.cooldown", { minutes: String(Math.ceil(waitMs / 60_000)) }) : t("thesis.write")}
+      </Button>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3">
+      <Textarea
+        value={body}
+        maxLength={THESIS_MAX_BODY}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder={t("thesis.placeholder")}
+        rows={4}
+        autoFocus
+        className="min-h-[96px] resize-none rounded-xl bg-background"
+      />
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] tabular text-muted-foreground">
+          {body.length > THESIS_MAX_BODY * 0.7 ? `${body.length}/${THESIS_MAX_BODY}` : ""}
+        </span>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            {t("common.close")}
+          </Button>
+          <Button size="sm" disabled={!body.trim() || post.isPending} onClick={() => post.mutate()} className="min-w-[88px] font-bold">
+            {post.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("thesis.post")}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

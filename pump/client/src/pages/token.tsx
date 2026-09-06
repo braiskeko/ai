@@ -385,7 +385,8 @@ function ExternalTradePanel({ token, className }: { token: ExternalTokenDetail; 
   const { publicKey, connected, signAndSend } = useWalletTx();
 
   const walletLinked = !!user?.walletAddress;
-  const canTrade = walletLinked && connected && !!publicKey;
+  // Signing in is enough: the account's own wallet can sign (see lib/embeddedWallet.ts).
+  const canTrade = !!user && connected && !!publicKey;
 
   const [side, setSide] = useState<Side>("buy");
   const [raw, setRaw] = useState("");

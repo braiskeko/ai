@@ -6,19 +6,27 @@ import {
   Check,
   Copy,
   CreditCard,
+  Download,
   ExternalLink,
+  Eye,
+  EyeOff,
   Info,
+  KeyRound,
+  Loader2,
   LogIn,
   LogOut,
+  Plus,
   RefreshCw,
   ShieldCheck,
   Wallet as WalletIcon,
 } from "lucide-react";
 import type { WalletView } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
+import { useDepositSheet } from "@/components/DepositSheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
+import { useEmbeddedWallet } from "@/hooks/useEmbeddedWallet";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { shortAddress, sol, usd } from "@/lib/format";
@@ -123,6 +131,116 @@ function WalletSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
+// The built-in wallet: its recovery phrase, and importing another one
+// ---------------------------------------------------------------------------
+
+/**
+ * The phrase is the wallet. It is shown only on demand, never sent anywhere, and
+ * carries the warning it deserves — losing it (clearing site data, a new device)
+ * loses the funds, and sharing it hands them over.
+ */
+function RecoveryCard() {
+  const t = useT();
+  const { toast } = useToast();
+  const { vault, restore } = useEmbeddedWallet();
+  const [revealed, setRevealed] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  if (!vault) return null;
+  const words = vault.mnemonic.split(" ");
+
+  const submitImport = async () => {
+    setImporting(true);
+    try {
+      await restore(phrase);
+      setPhrase("");
+      setRevealed(false);
+      toast({ title: t("wallet.imported") });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("wallet.importFailed"), description: apiErrorMessage(err, "") });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <section className="surface p-4 sm:p-5">
+      <div className="flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gold/10 text-gold">
+          <KeyRound className="h-4 w-4" />
+        </span>
+        <h2 className="text-base font-bold">{t("wallet.recovery")}</h2>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{t("wallet.recoveryHint")}</p>
+
+      {revealed ? (
+        <>
+          <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {words.map((word, i) => (
+              <li key={`${word}-${i}`} className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium">
+                <span className="mr-2 text-xs tabular text-muted-foreground">{i + 1}</span>
+                {word}
+              </li>
+            ))}
+          </ol>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-lg font-semibold"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(vault.mnemonic);
+                  toast({ title: t("wallet.phraseCopied") });
+                } catch {
+                  toast({ variant: "destructive", title: t("wallet.copyFailed") });
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              {t("wallet.copyPhrase")}
+            </Button>
+            <Button type="button" variant="ghost" className="rounded-lg font-semibold" onClick={() => setRevealed(false)}>
+              <EyeOff className="h-4 w-4" />
+              {t("wallet.hide")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Button type="button" variant="outline" className="mt-4 rounded-lg font-semibold" onClick={() => setRevealed(true)}>
+          <Eye className="h-4 w-4" />
+          {t("wallet.reveal")}
+        </Button>
+      )}
+
+      <div className="mt-5 border-t border-border/70 pt-4">
+        <h3 className="text-sm font-bold">{t("wallet.import")}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{t("wallet.importHint")}</p>
+        <textarea
+          value={phrase}
+          onChange={(e) => setPhrase(e.target.value)}
+          rows={2}
+          spellCheck={false}
+          autoComplete="off"
+          placeholder="word word word…"
+          className="mt-2 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <Button
+          type="button"
+          className="mt-2 rounded-lg font-semibold"
+          disabled={importing || phrase.trim().split(/\s+/).length < 12}
+          onClick={() => void submitImport()}
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {t("wallet.importAction")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -131,6 +249,8 @@ export default function WalletPage() {
   const { toast } = useToast();
   const { user, isLoading: authLoading, openLogin, logout } = useAuth();
   const walletAdapter = useWallet();
+  const { vault } = useEmbeddedWallet();
+  const deposit = useDepositSheet();
 
   const wallet = useQuery<WalletView>({
     queryKey: ["/api/wallet"],
@@ -146,7 +266,8 @@ export default function WalletPage() {
   }
 
   const data = wallet.data;
-  const address = data?.wallet ?? user?.walletAddress ?? null;
+  // The account's own wallet counts even before the link round-trip finishes.
+  const address = data?.wallet ?? user?.walletAddress ?? vault?.solana ?? null;
 
   if (!address) {
     return (
@@ -213,8 +334,15 @@ export default function WalletPage() {
               </span>
             )}
           </div>
-          <ShieldCheck className="hidden h-10 w-10 shrink-0 text-primary/40 sm:block" />
+          <div className="flex items-center gap-3">
+            <Button size="lg" className="tap h-12 rounded-2xl px-6 text-base font-bold" onClick={deposit.open}>
+              <Plus className="h-4 w-4" />
+              {t("wallet.deposit")}
+            </Button>
+            <ShieldCheck className="hidden h-10 w-10 shrink-0 text-primary/40 sm:block" />
+          </div>
         </section>
+        {deposit.sheet}
 
         <Notice tone="info">{t("wallet.nonCustodialNotice")}</Notice>
 
@@ -274,6 +402,8 @@ export default function WalletPage() {
             </div>
             <p className="mt-4 text-xs text-muted-foreground">{t("wallet.buySolFooter")}</p>
           </section>
+
+          <RecoveryCard />
         </div>
       </div>
     </PageShell>

@@ -7,6 +7,7 @@ import { useLiveUpdates } from "@/lib/useLive";
 import { I18nProvider } from "@/i18n";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useEmbeddedWallet } from "@/hooks/useEmbeddedWallet";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import Home from "@/pages/home";
@@ -37,6 +38,15 @@ function ScrollToTop() {
 /** Subscribes to the realtime feed once for the whole app. */
 function LiveUpdates() {
   useLiveUpdates();
+  return null;
+}
+
+/**
+ * Gives every signed-in account its own wallet (created in the browser, linked with
+ * a signed challenge) so nobody has to install an extension to trade or launch.
+ */
+function WalletProvisioner() {
+  useEmbeddedWallet();
   return null;
 }
 
@@ -98,6 +108,7 @@ export default function App() {
             <TooltipProvider delayDuration={200}>
               <AuthProvider>
                 <LiveUpdates />
+                <WalletProvisioner />
                 <ScrollToTop />
                 <Router />
                 <Toaster />

@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Transaction, VersionedTransaction } from "@solana/web3.js";
+import { Transaction, VersionedTransaction, type Keypair } from "@solana/web3.js";
 import type { SendTxInput, SentTx, UnsignedTx } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { loadVault, solanaKeypair } from "@/lib/embeddedWallet";
 
 export type TxKind = SendTxInput["kind"];
 
@@ -61,16 +62,27 @@ export interface WalletTx {
  * RPC directly — signing happens locally, everything else is relayed by the
  * server (see shared/schema.ts UnsignedTx / SendTxInput / SentTx).
  */
+/** Applies the account's own key to a transaction of either shape. */
+function signLocally(tx: Transaction | VersionedTransaction, keypair: Keypair): Transaction | VersionedTransaction {
+  if (tx instanceof VersionedTransaction) tx.sign([keypair]);
+  // partialSign, not sign: signatures already applied server-side (a launch's mint) must survive.
+  else tx.partialSign(keypair);
+  return tx;
+}
+
 export function useWalletTx(): WalletTx {
   const { publicKey, connected, connecting, signTransaction } = useWallet();
+  // The account's built-in wallet, used whenever no extension is connected.
+  const vault = loadVault();
 
   const signAndSend = useCallback(
     async (unsigned: UnsignedTx, kind: TxKind, ca?: string, onSigned?: () => void): Promise<SentTx> => {
-      if (!signTransaction) {
-        throw new Error("Connect a Solana wallet that supports transaction signing.");
+      const local = !connected || !signTransaction ? loadVault() : null;
+      if (!signTransaction && !local) {
+        throw new Error("Sign in to trade — your account comes with its own wallet.");
       }
       const tx = decodeTx(Buffer.from(unsigned.tx, "base64"));
-      const signed = await signTransaction(tx);
+      const signed = local ? signLocally(tx, solanaKeypair(local.mnemonic)) : await signTransaction!(tx);
       onSigned?.();
       const body: SendTxInput = {
         tx: serializeSigned(signed),
@@ -80,12 +92,13 @@ export function useWalletTx(): WalletTx {
       const res = await apiRequest("POST", "/api/tx/send", body);
       return (await res.json()) as SentTx;
     },
-    [signTransaction],
+    [signTransaction, connected],
   );
 
   return {
-    publicKey: publicKey ? publicKey.toBase58() : null,
-    connected,
+    publicKey: publicKey ? publicKey.toBase58() : (vault?.solana ?? null),
+    // "Connected" now means "able to sign", which an account with its own wallet always is.
+    connected: connected || !!vault,
     connecting,
     signAndSend,
   };

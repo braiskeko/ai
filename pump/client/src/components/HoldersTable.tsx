@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "wouter";
-import { Users } from "lucide-react";
-import type { CoinDetail, HolderRow } from "@shared/schema";
+import { Heart, Users } from "lucide-react";
+import type { CoinDetail, CommentView, HolderRow } from "@shared/schema";
 import { EmptyBox, PublicAvatar, TraderName } from "@/components/TradesTable";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 export interface HoldersTableProps {
   /** Only the fields the table needs from a CoinDetail. */
-  coin: Pick<CoinDetail, "topHolders" | "ticker">;
+  coin: Pick<CoinDetail, "topHolders" | "ticker" | "commentsList">;
   className?: string;
 }
 
@@ -24,6 +24,17 @@ const sharePct = (share: number) => {
 export function HoldersTable({ coin, className }: HoldersTableProps) {
   const t = useT();
   const { user } = useAuth();
+
+  // Each holder's most recent thesis, shown under their row the way a reply is.
+  const thesisByWallet = useMemo(() => {
+    const map = new Map<string, CommentView>();
+    for (const c of coin.commentsList) {
+      if (c.kind !== "thesis" || !c.wallet) continue;
+      const current = map.get(c.wallet);
+      if (!current || Date.parse(c.createdAt) > Date.parse(current.createdAt)) map.set(c.wallet, c);
+    }
+    return map;
+  }, [coin.commentsList]);
 
   const holders = useMemo<HolderRow[]>(
     () =>
@@ -45,7 +56,8 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
         {holders.map((h, i) => {
           const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
           return (
-            <li key={h.wallet} className={cn("flex items-center gap-3 px-4 py-3", h.isCurve ? "bg-muted/30" : mine && "bg-primary/5")}>
+            <li key={h.wallet} className={cn("px-4 py-3", h.isCurve ? "bg-muted/30" : mine && "bg-primary/5")}>
+              <div className="flex items-center gap-3">
               <span className="w-5 shrink-0 text-xs text-muted-foreground">{h.isCurve ? "—" : i + 1}</span>
               {h.isCurve ? (
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -85,7 +97,9 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                   {fmtTokens(h.tokens)} {coin.ticker}
                 </div>
               </div>
-              <div className="shrink-0 text-right text-sm font-semibold">{sharePct(h.share)}</div>
+                <div className="shrink-0 text-right text-sm font-semibold">{sharePct(h.share)}</div>
+              </div>
+              <Thesis comment={thesisByWallet.get(h.wallet)} />
             </li>
           );
         })}
@@ -161,6 +175,20 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** A holder's thesis, hanging off their row by the same L-connector the feed uses. */
+function Thesis({ comment }: { comment: CommentView | undefined }) {
+  if (!comment) return null;
+  return (
+    <div className="ml-4 mt-1.5 border-l border-dotted border-border pl-4">
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{comment.body}</p>
+      <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Heart className="h-3.5 w-3.5" />
+        <span className="tabular">{comment.likes.length}</span>
+      </div>
     </div>
   );
 }

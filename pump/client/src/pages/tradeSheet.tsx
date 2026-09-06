@@ -149,7 +149,8 @@ export default function TradeSheetPage() {
   const amountUsd = Number(raw) || 0;
 
   const walletLinked = !!user?.walletAddress;
-  const canTrade = walletLinked && connected && !!publicKey;
+  // Signing in is enough: the account's own wallet can sign (see lib/embeddedWallet.ts).
+  const canTrade = !!user && connected && !!publicKey;
   const wallet = useQuery<WalletView | null>({
     queryKey: ["/api/wallet"],
     queryFn: getQueryFn<WalletView | null>({ on401: "returnNull" }),

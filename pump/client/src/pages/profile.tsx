@@ -9,14 +9,17 @@ import {
   Coins,
   DollarSign,
   Loader2,
+  MoreHorizontal,
   Pencil,
   PieChart,
+  Plus,
   Repeat,
   Settings,
 } from "lucide-react";
 import type { Portfolio, PublicProfile, SafeUser } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
+import { useDepositSheet } from "@/components/DepositSheet";
 import { EmptyBox, PublicAvatar } from "@/components/TradesTable";
 import { FollowButton } from "@/components/TraderCard";
 import { Button } from "@/components/ui/button";
@@ -559,25 +562,44 @@ export default function ProfilePage({ username: explicit }: { username?: string 
   );
 }
 
-/** The signed-in wallet's cash balance — private, so only ever shown on your own profile. */
+/**
+ * The signed-in wallet's cash balance — private, so only ever shown on your own
+ * profile. The square "+" beside it is the deposit entry point.
+ */
 function MyCash() {
   const t = useT();
   const solUsd = useSolUsd();
+  const deposit = useDepositSheet();
   const wallet = useQuery<{ balanceSol: number }>({ queryKey: ["/api/wallet"], staleTime: 15_000 });
   return (
     <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">
-          <DollarSign className="h-4 w-4" />
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
+          <DollarSign className="h-5 w-5" />
         </span>
         <div>
-          <div className="text-xs text-muted-foreground">{t("profile.totalCash")}</div>
-          <div className="font-bold tabular">{usd(wallet.data?.balanceSol ?? 0, solUsd)}</div>
+          <div className="text-[15px] text-muted-foreground">{t("profile.totalCash")}</div>
+          <div className="text-[19px] font-bold tabular leading-tight">{usd(wallet.data?.balanceSol ?? 0, solUsd)}</div>
         </div>
       </div>
-      <Button asChild size="sm" variant="outline" className="rounded-full">
-        <Link href="/wallet">{t("home.addFunds")}</Link>
-      </Button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={deposit.open}
+          aria-label={t("home.deposit")}
+          className="tap grid h-12 w-12 place-items-center rounded-2xl bg-card text-foreground"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+        <Link
+          href="/wallet"
+          aria-label={t("nav.wallet")}
+          className="tap grid h-12 w-12 place-items-center rounded-2xl bg-card text-foreground"
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </Link>
+      </div>
+      {deposit.sheet}
     </div>
   );
 }

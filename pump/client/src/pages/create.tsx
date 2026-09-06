@@ -332,7 +332,8 @@ export default function CreatePage() {
   const [phase, setPhase] = useState<Phase>("idle");
 
   const walletLinked = !!user?.walletAddress;
-  const canLaunch = walletLinked && connected && !!publicKey;
+  // Signing in is enough: the account's own wallet can sign (see lib/embeddedWallet.ts).
+  const canLaunch = !!user && connected && !!publicKey;
 
   const { data: walletView } = useQuery<WalletView | null>({
     queryKey: ["/api/wallet"],

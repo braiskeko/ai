@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Share2, Users } from "lucide-react";
 import type { LeaderboardRange, MyRank, TraderRank } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
-import { TraderRow } from "@/components/TraderCard";
+import { ActivityFeed } from "@/pages/feed";
 import { PublicAvatar } from "@/components/TradesTable";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -107,7 +107,8 @@ function LeaderboardRow({ trader }: { trader: TraderRank }) {
 export default function PeoplePage() {
   const t = useT();
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("leaderboard");
+  // Following opens first: what the people you follow are doing beats a ranking.
+  const [tab, setTab] = useState<Tab>("following");
   const [range, setRange] = useState<LeaderboardRange>("24h");
 
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function PeoplePage() {
   const following = useQuery<TraderRank[]>({
     queryKey: [`/api/traders?range=all&scope=following&limit=200`],
     staleTime: 20_000,
-    enabled: tab === "following" && !!user?.walletAddress,
+    enabled: tab === "following" && !!user,
   });
 
   return (
@@ -192,7 +193,7 @@ export default function PeoplePage() {
               </ul>
             )}
           </div>
-        ) : !user?.walletAddress ? (
+        ) : !user ? (
           <div className="surface flex flex-col items-center px-6 py-16 text-center">
             <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
               <Users className="h-5 w-5" />
@@ -223,13 +224,24 @@ export default function PeoplePage() {
             </Link>
           </div>
         ) : (
-          <ul className="feed-divide">
-            {(following.data ?? []).map((trader) => (
-              <li key={trader.wallet}>
-                <TraderRow trader={trader} />
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-5">
+            {/* Who you follow, then what they have been doing — buys, sells and theses. */}
+            <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4">
+              {(following.data ?? []).map((trader) => (
+                <Link
+                  key={trader.wallet}
+                  href={trader.user ? `/u/${encodeURIComponent(trader.user.username)}` : "/people"}
+                  className="tap flex w-20 shrink-0 flex-col items-center gap-1.5"
+                >
+                  <PublicAvatar user={trader.user} wallet={trader.wallet} size={52} />
+                  <span className="w-full truncate text-center text-xs font-semibold">
+                    {trader.user?.username ?? t("people.anonymousTrader")}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <ActivityFeed scope="following" />
+          </div>
         )}
       </div>
     </PageShell>

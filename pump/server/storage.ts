@@ -1370,6 +1370,26 @@ export class Storage {
         coin: coinRef(c),
       });
     }
+    // A thesis is an action too: it is the argument behind a position someone holds.
+    for (const c of this.state.comments) {
+      if (c.kind !== "thesis") continue;
+      const author = this.usersById.get(c.userId);
+      const wallet = author?.walletAddress;
+      if (!wallet || !passes(wallet)) continue;
+      const coin = this.coinsById.get(c.coinId);
+      if (!coin) continue;
+      items.push({
+        kind: "thesis",
+        key: `h${c.id}`,
+        at: c.createdAt,
+        user: this.toPublicUser(c.userId),
+        wallet,
+        coin: coinRef(coin),
+        body: c.body,
+        likes: c.likes.length,
+        marketCapSol: coin.curve.priceSol * TOTAL_SUPPLY,
+      });
+    }
     items.sort((a, b) => ts(b.at) - ts(a.at));
     return items.slice(0, limit);
   }

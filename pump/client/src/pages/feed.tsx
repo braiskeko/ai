@@ -51,9 +51,22 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedEntry; isNew: boolean; sol
   const active = likes.isLiked(item.key);
 
   const tagTone =
-    item.kind === "created" ? "bg-violet/15 text-violet" : item.side === "buy" ? "bg-up/15 text-up" : "bg-down/15 text-down";
-  const tagLabel = item.kind === "created" ? t("feed.launched") : item.side === "buy" ? t("trade.buy") : t("trade.sell");
-  const amount = item.kind === "created" ? null : compactUsd((item.sol ?? 0) * solUsd);
+    item.kind === "created"
+      ? "bg-violet/15 text-violet"
+      : item.kind === "thesis"
+        ? "bg-primary/15 text-primary"
+        : item.side === "buy"
+          ? "bg-up/15 text-up"
+          : "bg-down/15 text-down";
+  const tagLabel =
+    item.kind === "created"
+      ? t("feed.launched")
+      : item.kind === "thesis"
+        ? t("thesis.badge")
+        : item.side === "buy"
+          ? t("trade.buy")
+          : t("trade.sell");
+  const amount = item.kind === "created" || item.kind === "thesis" ? null : compactUsd((item.sol ?? 0) * solUsd);
   const mcap = compactUsd((item.marketCapSol ?? 0) * solUsd);
 
   return (
@@ -102,6 +115,12 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedEntry; isNew: boolean; sol
         </Link>
       </div>
 
+      {item.kind === "thesis" && item.body && (
+        <p className="ml-4 mt-1 whitespace-pre-wrap break-words border-l border-dotted border-border pl-4 text-sm leading-relaxed">
+          {item.body}
+        </p>
+      )}
+
       <div className="ml-4 mt-1.5 pl-4">
         <button
           type="button"
@@ -141,6 +160,69 @@ function FeedSkeleton() {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The activity list itself — every buy, sell, launch and thesis in `scope`, newest
+ * first. Exported so the People screen can show the same thing under "Following".
+ */
+export function ActivityFeed({ scope }: { scope: FeedScope }) {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const { user } = useAuth();
+  const likesStore = useLocalLikes();
+
+  const feedKey = `/api/feed?scope=${scope}&limit=${FEED_LIMIT}`;
+  const feed = useQuery<FeedEntry[]>({ queryKey: [feedKey], staleTime: 10_000 });
+  useLiveEvent("trade", () => void feed.refetch());
+  useLiveEvent("coin:created", () => void feed.refetch());
+
+  const items = feed.data ?? [];
+  const seenRef = useRef<Set<string> | null>(null);
+  const isNewSet = useMemo(() => {
+    const seen = seenRef.current;
+    if (!seen) return new Set<string>();
+    return new Set(items.filter((i) => !seen.has(i.key)).map((i) => i.key));
+  }, [items]);
+  useEffect(() => {
+    if (feed.isLoading) return;
+    seenRef.current = new Set(items.map((i) => i.key));
+    // Only the identities matter across renders, not the list contents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, feed.isLoading]);
+
+  if (feed.isLoading) return <FeedSkeleton />;
+  if (scope === "following" && !user) {
+    return (
+      <div className="surface flex flex-col items-center px-6 py-16 text-center">
+        <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <Rss className="h-5 w-5" />
+        </div>
+        <h3 className="font-semibold">{t("feed.followingLoginTitle")}</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("feed.followingLoginHint")}</p>
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="surface flex flex-col items-center px-6 py-16 text-center">
+        <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <Rss className="h-5 w-5" />
+        </div>
+        <h3 className="font-semibold">{scope === "following" ? t("feed.emptyFollowing") : t("activity.empty")}</h3>
+        {scope === "following" && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("feed.emptyFollowingHint")}</p>}
+      </div>
+    );
+  }
+  return (
+    <LocalLikesContext.Provider value={likesStore}>
+      <ul className="surface feed-divide overflow-hidden">
+        {items.map((item) => (
+          <FeedRow key={item.key} item={item} isNew={isNewSet.has(item.key)} solUsd={solUsd} />
+        ))}
+      </ul>
+    </LocalLikesContext.Provider>
   );
 }
 

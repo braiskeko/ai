@@ -510,7 +510,7 @@ export interface MyRank {
 }
 
 export interface FeedEntry {
-  kind: "trade" | "created";
+  kind: "trade" | "created" | "thesis";
   key: string;
   at: string;
   user: PublicUser | null;
@@ -520,6 +520,9 @@ export interface FeedEntry {
   sol?: number;
   tokens?: number;
   marketCapSol?: number;
+  /** thesis only: what the holder wrote, and how many people backed it */
+  body?: string;
+  likes?: number;
 }
 
 export interface PlatformStats {

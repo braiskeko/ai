@@ -1,8 +1,8 @@
-import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import type { Portfolio, WalletView } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { useDepositSheet } from "@/components/DepositSheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 export function BalanceHeader({ className }: { className?: string }) {
   const t = useT();
   const { user, openLogin } = useAuth();
+  const deposit = useDepositSheet();
   // Signed in is enough to deposit: the account carries its own wallet.
   const signedIn = Boolean(user);
   const connected = Boolean(user?.walletAddress);
@@ -54,12 +55,13 @@ export function BalanceHeader({ className }: { className?: string }) {
       </div>
 
       {signedIn ? (
-        <Button asChild size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold">
-          <Link href="/wallet">
+        <>
+          <Button size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold" onClick={deposit.open}>
             <Plus className="h-4 w-4" />
             {t("home.deposit")}
-          </Link>
-        </Button>
+          </Button>
+          {deposit.sheet}
+        </>
       ) : (
         <Button size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold" onClick={openLogin}>
           {t("nav.login")}

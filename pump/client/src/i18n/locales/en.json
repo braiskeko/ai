@@ -614,5 +614,18 @@
   "thesis.needPosition": "Open a position to publish a thesis.",
   "thesis.cooldown": "You can publish another thesis in {minutes} min.",
   "thesis.badge": "Thesis",
-  "thesis.empty": "No theses yet. Holders can publish one every 10 minutes."
+  "thesis.empty": "No theses yet. Holders can publish one every 10 minutes.",
+  "wallet.recovery": "Recovery phrase",
+  "wallet.recoveryHint": "These 12 words are your wallet. Anyone who has them can spend your funds — write them down and never share them.",
+  "wallet.reveal": "Reveal phrase",
+  "wallet.hide": "Hide",
+  "wallet.copyPhrase": "Copy phrase",
+  "wallet.phraseCopied": "Recovery phrase copied",
+  "wallet.import": "Import a phrase",
+  "wallet.importHint": "Paste an existing 12 or 24 word phrase to use that wallet here instead.",
+  "wallet.importAction": "Import",
+  "wallet.importFailed": "That recovery phrase is not valid.",
+  "wallet.imported": "Wallet imported",
+  "wallet.builtIn": "Built-in wallet",
+  "wallet.builtInHint": "Your account created this wallet in this browser. Nothing left the device."
 }
