@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import {
+  ArrowUpRight,
   Check,
   Copy,
   CreditCard,
@@ -20,21 +21,145 @@ import {
   ShieldCheck,
   Wallet as WalletIcon,
 } from "lucide-react";
-import type { WalletView } from "@shared/schema";
+import type { UnsignedTx, WalletView } from "@shared/schema";
+import { SOLANA_ADDRESS_RE } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { useDepositSheet } from "@/components/DepositSheet";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useEmbeddedWallet } from "@/hooks/useEmbeddedWallet";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
+import { apiRequest } from "@/lib/queryClient";
+import { useWalletTx } from "@/lib/solana";
 import { shortAddress, sol, usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Left behind so the wallet can still pay for its next transaction. */
+const WITHDRAW_RESERVE_SOL = 0.003;
 
 // ---------------------------------------------------------------------------
 // Small pieces
 // ---------------------------------------------------------------------------
+
+/**
+ * Withdraw: move SOL out of this wallet to any Solana address.
+ *
+ * The server assembles the transfer, the account's own key signs it here and the
+ * signed bytes go back through /api/tx/send — Next never holds the funds and
+ * never signs for them.
+ */
+function WithdrawSheet({
+  open,
+  onOpenChange,
+  balanceSol,
+  solUsd,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  balanceSol: number;
+  solUsd: number;
+}) {
+  const t = useT();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { signAndSend } = useWalletTx();
+  const [to, setTo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const spendable = Math.max(0, balanceSol - WITHDRAW_RESERVE_SOL);
+  const amountSol = Number(amount) || 0;
+  const invalid = !SOLANA_ADDRESS_RE.test(to.trim()) || amountSol <= 0 || amountSol > spendable + 1e-9;
+
+  const submit = async () => {
+    if (invalid || sending) return;
+    setSending(true);
+    try {
+      const res = await apiRequest("POST", "/api/wallet/withdraw-tx", { to: to.trim(), amountSol });
+      const unsigned = (await res.json()) as UnsignedTx;
+      const sent = await signAndSend(unsigned, "withdraw");
+      toast({
+        title: t("wallet.sent"),
+        description: (
+          <a href={sent.explorerUrl} target="_blank" rel="noreferrer" className="font-medium underline">
+            {t("trade.viewOnSolscan")}
+          </a>
+        ),
+      });
+      setTo("");
+      setAmount("");
+      onOpenChange(false);
+      void qc.invalidateQueries({ queryKey: ["/api/wallet"] });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("common.error"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="rounded-t-[28px] border-t-0 bg-card/95 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl"
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" aria-hidden />
+        <SheetTitle className="mb-1 text-center text-[22px] font-bold">{t("wallet.withdraw")}</SheetTitle>
+        <p className="mb-5 text-center text-[15px] text-muted-foreground">{t("wallet.withdrawSheetHint")}</p>
+
+        <label className="block text-sm font-semibold" htmlFor="withdraw-to">
+          {t("wallet.destination")}
+        </label>
+        <input
+          id="withdraw-to"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="So1…"
+          spellCheck={false}
+          className="mt-1.5 h-12 w-full rounded-2xl bg-secondary px-4 text-[15px] outline-none"
+        />
+
+        <div className="mt-4 flex items-baseline justify-between">
+          <label className="text-sm font-semibold" htmlFor="withdraw-amount">
+            {t("wallet.amount")}
+          </label>
+          <button
+            type="button"
+            onClick={() => setAmount(String(Number(spendable.toFixed(6))))}
+            className="tap text-xs font-bold text-primary"
+          >
+            {t("wallet.available", { amount: `${sol(spendable)} SOL` })}
+          </button>
+        </div>
+        <div className="relative mt-1.5">
+          <input
+            id="withdraw-amount"
+            value={amount}
+            inputMode="decimal"
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+            placeholder="0.0"
+            className="h-12 w-full rounded-2xl bg-secondary px-4 pr-16 text-[15px] tabular outline-none"
+          />
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">SOL</span>
+        </div>
+        {amountSol > 0 && <p className="mt-1.5 text-xs text-muted-foreground tabular">≈ {usd(amountSol, solUsd)}</p>}
+
+        <Button
+          size="lg"
+          disabled={invalid || sending}
+          onClick={() => void submit()}
+          className="tap mt-6 h-14 w-full rounded-2xl text-base font-bold"
+        >
+          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : t("wallet.withdrawSubmit")}
+        </Button>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 
 function CopyButton({ text }: { text: string }) {
   const t = useT();
@@ -251,6 +376,7 @@ export default function WalletPage() {
   const walletAdapter = useWallet();
   const { vault } = useEmbeddedWallet();
   const deposit = useDepositSheet();
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const wallet = useQuery<WalletView>({
     queryKey: ["/api/wallet"],
@@ -339,10 +465,20 @@ export default function WalletPage() {
               <Plus className="h-4 w-4" />
               {t("wallet.deposit")}
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="tap h-12 rounded-2xl px-6 text-base font-bold"
+              onClick={() => setWithdrawOpen(true)}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              {t("wallet.withdraw")}
+            </Button>
             <ShieldCheck className="hidden h-10 w-10 shrink-0 text-primary/40 sm:block" />
           </div>
         </section>
         {deposit.sheet}
+        <WithdrawSheet open={withdrawOpen} onOpenChange={setWithdrawOpen} balanceSol={data.balanceSol} solUsd={data.solUsd} />
 
         <Notice tone="info">{t("wallet.nonCustodialNotice")}</Notice>
 

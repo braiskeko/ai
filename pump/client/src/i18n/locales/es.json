@@ -655,5 +655,6 @@
   "admin.demoHint": "Solo visual: el PnL del ranking y el saldo que muestra una wallet. No cambia ninguna operación, posición ni saldo real; 0 lo borra.",
   "admin.demoPnl": "PnL (USD)",
   "admin.demoCash": "Saldo (USD)",
-  "admin.demoSaved": "@{username} actualizado"
+  "admin.demoSaved": "@{username} actualizado",
+  "wallet.withdrawSheetHint": "Envía SOL desde tu wallet a cualquier dirección de Solana."
 }

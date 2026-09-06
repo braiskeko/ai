@@ -720,5 +720,6 @@
   "admin.demoHint": "Display only: the leaderboard PnL and the cash a wallet reports. No trade, holding or on-chain balance changes; 0 clears a field.",
   "admin.demoPnl": "PnL (USD)",
   "admin.demoCash": "Cash (USD)",
-  "admin.demoSaved": "Updated @{username}"
+  "admin.demoSaved": "Updated @{username}",
+  "wallet.withdrawSheetHint": "Send SOL from your wallet to any Solana address."
 }

@@ -176,6 +176,14 @@ export interface PreparedCoin {
 }
 
 /** Step 2: build the create-pool transaction for the connected wallet to sign. */
+/** A withdrawal: move SOL out of the account's own wallet. */
+export const withdrawTxSchema = z.object({
+  to: z.string().regex(SOLANA_ADDRESS_RE),
+  /** amount in SOL; the fee reserve is enforced server-side */
+  amountSol: z.number().positive().finite(),
+});
+export type WithdrawTxInput = z.infer<typeof withdrawTxSchema>;
+
 export const createTxSchema = z.object({
   prepareId: z.string().min(8).max(64),
   /** creator's wallet (base58); must match the session's wallet */
@@ -282,7 +290,7 @@ export const sendTxSchema = z.object({
    * Jupiter route through an external token: it is relayed and confirmed like
    * the rest but never indexed as a bonding-curve trade.
    */
-  kind: z.enum(["create", "swap", "claim", "jupswap"]),
+  kind: z.enum(["create", "swap", "claim", "jupswap", "withdraw"]),
   ca: z.string().regex(SOLANA_ADDRESS_RE).optional(),
 });
 export type SendTxInput = z.infer<typeof sendTxSchema>;

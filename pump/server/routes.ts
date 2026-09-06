@@ -35,6 +35,7 @@ import {
   sendTxSchema,
   swapTxSchema,
   updateProfileSchema,
+  withdrawTxSchema,
   vanityUploadSchema,
   walletLoginSchema,
   type ActivityItem,
@@ -86,6 +87,7 @@ import {
   buildClaimPartnerFeeTx,
   buildCreateTx,
   buildSwapTx,
+  buildTransferTx,
   clusterInfo,
   explorerUrl,
   getPoolFees,
@@ -258,6 +260,8 @@ const avatarSchema = z.object({
 });
 
 const claimSchema = z.object({ ca: z.string().regex(SOLANA_ADDRESS_RE) });
+/** Left behind on a withdrawal so the wallet can still pay for its next transaction. */
+const WITHDRAW_FEE_RESERVE_SOL = 0.003;
 
 /** Fixed-window-per-key limiter kept in memory; plenty for a single-process deployment. */
 class RateLimiter {
@@ -950,6 +954,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const address = verifyWalletLogin(input);
       const user = storage.linkWallet(me.id, address);
       res.json(storage.toSafeUser(user));
+    }),
+  );
+
+  /**
+   * The unsigned transfer that moves SOL out of the account's wallet.
+   *
+   * Non-custodial all the way: the server assembles it, the browser signs it with
+   * the account's own key and posts it to /api/tx/send. A little SOL is kept back
+   * so the wallet can still pay for the next transaction it makes.
+   */
+  app.post(
+    "/api/wallet/withdraw-tx",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { user, wallet } = currentWallet(req);
+      txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
+      txLimiter.record(`user:${user.id}`);
+      const input = withdrawTxSchema.parse(req.body);
+      if (input.to === wallet) throw new HttpError(400, "That is this wallet's own address");
+
+      const balance = await getSolBalance(wallet).catch(() => 0);
+      const spendable = Math.max(0, balance - WITHDRAW_FEE_RESERVE_SOL);
+      if (input.amountSol > spendable + 1e-9) {
+        throw new HttpError(400, `You can withdraw at most ${spendable.toFixed(4)} SOL right now.`);
+      }
+
+      const built = await buildTransferTx({
+        owner: new PublicKey(wallet),
+        to: new PublicKey(input.to),
+        amountSol: input.amountSol,
+      });
+      const response: UnsignedTx = { tx: built.tx, lastValidBlockHeight: built.lastValidBlockHeight };
+      res.json(response);
     }),
   );
 

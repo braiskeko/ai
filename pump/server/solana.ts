@@ -11,7 +11,7 @@
  * in whole tokens. On-chain math uses BN in lamports (9 dp) / token base units
  * (6 dp); the conversions live at the bottom of this file and are unit-tested.
  */
-import { Connection, Keypair, PublicKey, Transaction, type ParsedAccountData } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, type ParsedAccountData } from "@solana/web3.js";
 import BN from "bn.js";
 import {
   ActivationType,
@@ -388,6 +388,23 @@ async function finalize(tx: Transaction, feePayer: PublicKey, extraSigners: Keyp
     tx: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64"),
     lastValidBlockHeight,
   };
+}
+
+/**
+ * A plain SOL transfer out of `owner`'s wallet.
+ *
+ * Withdrawing is not a platform action: the server only assembles the transaction,
+ * the account's own key signs it in the browser, and the network does the rest.
+ */
+export async function buildTransferTx(params: { owner: PublicKey; to: PublicKey; amountSol: number }): Promise<BuiltTx> {
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: params.owner,
+      toPubkey: params.to,
+      lamports: BigInt(solToLamports(params.amountSol).toString()),
+    }),
+  );
+  return finalize(tx, params.owner);
 }
 
 /** Buy/sell transaction for `owner` against `pool`. Amounts are SOL (buy) / tokens (sell). */

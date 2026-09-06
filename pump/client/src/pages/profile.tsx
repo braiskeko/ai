@@ -532,7 +532,10 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("profile.avgHold", { time: formatHold(data.avgHoldMinutes) })}</span>
+            {/* Nobody's average hold is zero: it just means they have not traded. */}
+            {data.avgHoldMinutes > 0 && (
+              <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("profile.avgHold", { time: formatHold(data.avgHoldMinutes) })}</span>
+            )}
             <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{t("profile.tradeCount", { n: count(data.tradeCount) })}</span>
             <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{t("profile.joined", { date: joinedLabel(data.joinedAt) })}</span>
           </div>
