@@ -511,6 +511,8 @@ export interface ExternalTokenDetail extends ExternalToken {
   links: { website: string | null; twitter: string | null; telegram: string | null };
   /** first (usually deepest) pool this token trades in */
   pool: { id: string | null; dex: string | null; createdAt: string | null } | null;
+  /** whole tokens held by the session's wallet (0 when disconnected or unreadable) */
+  myTokens: number;
   /** solscan.io link for the mint */
   explorerUrl: string;
   /** jup.ag swap link for the mint */

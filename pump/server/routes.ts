@@ -392,16 +392,30 @@ async function buildCoinDetail(ca: string, viewerWallet: string | null): Promise
 // ---------------------------------------------------------------------------
 
 /**
+ * A mint the aggregator did not return is either unknown (404) or unreachable
+ * (503) — the client shows a "not found" page for the first and a retry for the
+ * second, so the two must not be conflated.
+ */
+function externalMiss(): [number, string] {
+  return jupiter.jupiterStatus().available
+    ? [404, "Token not found"]
+    : [503, "Token discovery is unavailable right now. Please try again shortly."];
+}
+
+/**
  * The detail payload for any Solana mint. Every fetch also samples the price
  * into the in-memory ring buffer, which is where the chart's candles come from
  * (the free Jupiter tier has no OHLC endpoint).
  */
-async function buildExternalDetail(mint: string): Promise<ExternalTokenDetail> {
+async function buildExternalDetail(mint: string, viewerWallet: string | null): Promise<ExternalTokenDetail> {
   if (!isMint(mint)) throw new HttpError(404, "Token not found");
   const found = await jupiter.getToken(mint);
-  if (!found) throw new HttpError(404, "Token not found");
+  if (!found) throw new HttpError(...externalMiss());
 
   jupiter.recordPrice(mint, found.token.priceUsd);
+  const balances = viewerWallet
+    ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
+    : null;
   const { extras } = found;
   return {
     ...found.token,
@@ -413,6 +427,7 @@ async function buildExternalDetail(mint: string): Promise<ExternalTokenDetail> {
     audit: extras.audit,
     links: extras.links,
     pool: extras.pool,
+    myTokens: balances?.get(mint) ?? 0,
     explorerUrl: explorerUrl("token", mint),
     jupiterUrl: jupiter.jupiterSwapUrl(mint),
   };
@@ -431,7 +446,7 @@ async function routeExternalTrade(input: {
   slippageBps: number;
 }): Promise<{ quote: ReturnType<typeof jupiter.toExternalTradeQuote>; route: jupiter.JupQuote; token: ExternalToken }> {
   const found = await jupiter.getToken(input.mint);
-  if (!found) throw new HttpError(404, "Token not found");
+  if (!found) throw new HttpError(...externalMiss());
 
   const buy = input.side === "buy";
   const amount = jupiter.toBaseUnits(input.amount, buy ? jupiter.SOL_DECIMALS : found.token.decimals);
@@ -976,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/tokens/:mint",
     wrap(async (req, res) => {
-      res.json(await buildExternalDetail(req.params.mint));
+      res.json(await buildExternalDetail(req.params.mint, req.user?.walletAddress ?? null));
     }),
   );
 

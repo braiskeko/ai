@@ -93,10 +93,17 @@ export function Navbar() {
     e.preventDefault();
     const term = q.trim();
     if (looksLikeCa(term)) {
+      // Our own coins win; the coin page offers the external token when the
+      // mint was not launched here (see pages/coin.tsx).
       navigate(`/${term}`);
       return;
     }
-    navigate(term ? `/?q=${encodeURIComponent(term)}` : "/");
+    // Keep whichever feed the user is browsing (?scope=solana searches all of Solana).
+    const params = new URLSearchParams();
+    if (new URLSearchParams(search).get("scope") === "solana" && location === "/") params.set("scope", "solana");
+    if (term) params.set("q", term);
+    const qs = params.toString();
+    navigate(qs ? `/?${qs}` : "/");
   };
 
   const avatarSeed = user?.avatarUrl ?? user?.avatarSeed ?? "";

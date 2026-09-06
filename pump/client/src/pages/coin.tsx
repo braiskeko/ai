@@ -22,7 +22,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import type { CoinDetail, UnsignedTx } from "@shared/schema";
+import type { CoinDetail, ExternalToken, UnsignedTx } from "@shared/schema";
 import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, SWAP_FEE, TOTAL_SUPPLY } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartInterval, type ChartMode } from "@/components/CandleChart";
@@ -585,6 +585,66 @@ function ErrorState({ message, onRetry, retrying }: { message: string; onRetry: 
 }
 
 // ---------------------------------------------------------------------------
+// Not one of ours: offer the same mint as an external (Jupiter) token
+// ---------------------------------------------------------------------------
+
+/**
+ * Searching a mint address lands here. When the mint was not launched on Next,
+ * it may still be a perfectly tradable Solana token — look it up through
+ * `/api/tokens/:mint` and point the user at `/t/:mint` instead of a bare 404.
+ */
+function ExternalTokenOffer({ mint }: { mint: string }) {
+  const t = useT();
+  const token = useQuery<ExternalToken>({
+    queryKey: [`/api/tokens/${mint}`],
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  if (token.isLoading) {
+    return (
+      <PageShell className="flex items-center justify-center">
+        <Skeleton className="h-56 w-full max-w-md rounded-2xl" />
+      </PageShell>
+    );
+  }
+  if (!token.data) {
+    return <NotFound title={t("coin.notFound")} hint={t("coin.notFoundHint", { app: t("app.name") })} />;
+  }
+
+  const found = token.data;
+  return (
+    <PageShell className="flex items-center justify-center">
+      <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+        {found.icon ? (
+          <img src={found.icon} alt="" className="h-16 w-16 rounded-2xl bg-muted object-cover" />
+        ) : (
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-muted text-xl font-black text-muted-foreground">
+            {found.symbol.slice(0, 2)}
+          </div>
+        )}
+        <h1 className="mt-4 text-xl font-bold tracking-tight">
+          {found.name} <span className="text-muted-foreground">${found.symbol}</span>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("coin.externalFoundHint", { app: t("app.name") })}</p>
+        <div className="mt-4 flex items-center gap-4 text-sm">
+          <span className="font-semibold tabular">{compactUsd(found.marketCapUsd)}</span>
+          <span className={cn("font-semibold tabular", found.change24h >= 0 ? "text-up" : "text-down")}>
+            {signedPct(found.change24h)}
+          </span>
+        </div>
+        <Button asChild className="mt-6 w-full rounded-lg font-semibold">
+          <Link href={`/t/${found.mint}`}>{t("coin.openExternal", { symbol: found.symbol })}</Link>
+        </Button>
+        <Button asChild variant="outline" className="mt-2 w-full rounded-lg font-semibold">
+          <Link href="/">{t("common.goHome")}</Link>
+        </Button>
+      </div>
+    </PageShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -626,7 +686,8 @@ export default function CoinPage() {
     return <NotFound title={t("coin.notFound")} hint={t("coin.notFoundHint", { app: t("app.name") })} />;
   }
   if (coin.isError && isNotFoundError(coin.error)) {
-    return <NotFound title={t("coin.notFound")} hint={t("coin.notFoundHint", { app: t("app.name") })} />;
+    // Unknown here, but it may still be a tradable Solana token.
+    return <ExternalTokenOffer mint={ca} />;
   }
 
   return (

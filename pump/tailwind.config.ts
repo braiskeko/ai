@@ -6,6 +6,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        /** Wordmark and headline face; falls back to the body font when it cannot load. */
+        display: ["Space Grotesk", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         sans: [
           "Inter",
           "ui-sans-serif",

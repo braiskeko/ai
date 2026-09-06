@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import Home from "@/pages/home";
 import Coin from "@/pages/coin";
+import Token from "@/pages/token";
 import Create from "@/pages/create";
 import Portfolio from "@/pages/portfolio";
 import Wallet from "@/pages/wallet";
@@ -57,6 +58,8 @@ function Router() {
       <Route path="/activity" component={Activity} />
       <Route path="/admin" component={Admin} />
       <Route path="/u/:username" component={Profile} />
+      {/* Any Solana token that was NOT launched here (traded through Jupiter). Must stay above "/:ca". */}
+      <Route path="/t/:mint" component={Token} />
       {/* Coin page: the component validates the CA shape (44 base58 chars ending in "next") and renders NotFound otherwise. */}
       <Route path="/:ca" component={Coin} />
       <Route component={NotFound} />

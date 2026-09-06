@@ -242,8 +242,9 @@ test("buffers that are not metadata decode to null", () => {
 test("explorer links point at solscan and carry the cluster off mainnet", () => {
   const url = explorerUrl("tx", "5j7s6NiJS3JAkvgkoc18WVAsiSaci2pxB2A6ueCJP4tprA2TFg9wSyTLeYouxPBJEMzJinENTkpA52YStRW5Dia7");
   assert.ok(url.startsWith("https://solscan.io/tx/"));
-  // The tests run on the default cluster (devnet).
-  assert.ok(url.includes("?cluster=devnet"));
+  // Solscan defaults to mainnet, so only the other clusters carry a ?cluster=.
+  const cluster = process.env.SOLANA_CLUSTER?.trim() === "devnet" ? "devnet" : "mainnet-beta";
+  assert.equal(url.includes("?cluster=devnet"), cluster === "devnet");
   assert.ok(explorerUrl("token", "mint").startsWith("https://solscan.io/token/"));
   assert.ok(explorerUrl("account", "acct").startsWith("https://solscan.io/account/"));
 });

@@ -234,6 +234,35 @@
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Opening logo: rises into place, then breathes while the splash holds. */
+  .splash-mark {
+    animation: splash-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both, splash-breathe 2.6s 620ms ease-in-out infinite;
+    text-shadow: 0 18px 60px hsl(var(--primary) / 0.45);
+  }
+  /* The wordmark: lowercase, tight, with the accent dot carrying the brand colour. */
+  .wordmark {
+    @apply font-display font-bold lowercase tracking-tight;
+  }
+  @keyframes splash-rise {
+    from {
+      opacity: 0;
+      transform: scale(0.82) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  @keyframes splash-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
   /* Horizontal marquee used by the LiveTicker (content is rendered twice for a seamless loop) */
   .marquee-track {
     display: flex;
@@ -265,6 +294,9 @@
     .card-hover:hover,
     .tap:active {
       transform: none;
+    }
+    .splash-mark {
+      animation: none;
     }
   }
 }
