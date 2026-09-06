@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocation, useParams, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronsUpDown, Delete, Info, Plus } from "lucide-react";
@@ -53,87 +53,91 @@ export function liquidationPrice(entry: number, leverage: number, side: "long" |
   return side === "long" ? Math.max(0, entry - move) : entry + move;
 }
 
-/** The leverage ruler: drag sideways, the middle value is the one you get. */
+/**
+ * The leverage ruler: drag it sideways, the value under the bracket is the one
+ * you get.
+ *
+ * The track is moved by hand rather than by the browser's scrolling: native
+ * scroll-snap kept pulling the strip back mid-drag, so a push to the right could
+ * land on the value you started from. Here the finger owns the position until it
+ * lifts, and only then does the strip settle onto the nearest step.
+ */
 function LeverageRuler({ max, value, onChange }: { max: number; value: number; onChange: (v: number) => void }) {
   const t = useT();
-  const ref = useRef<HTMLDivElement>(null);
   const steps = useMemo(() => Array.from({ length: Math.max(1, max) }, (_, i) => i + 1), [max]);
-  const settling = useRef<number | null>(null);
-  /** True while the change came from the drag itself, which is already in place. */
-  const fromScroll = useRef(false);
-  const placed = useRef(false);
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef(0);
 
-  // Put the selected step under the bracket — but never while the finger is
-  // doing it, or the correction fights the drag and stops it half a step off.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (fromScroll.current) {
-      fromScroll.current = false;
-      return;
-    }
-    const target = (value - 1) * STEP_W;
-    if (Math.abs(el.scrollLeft - target) > 1) {
-      el.scrollTo({ left: target, behavior: placed.current ? "smooth" : "auto" });
-    }
-    placed.current = true;
-    // Only when the value itself changes: scrolling reports its own value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  // Where the strip sits: 0 centres the first step, one step is STEP_W to the left.
+  const offset = -(value - 1) * STEP_W + dx;
+  const nearest = Math.min(max - 1, Math.max(0, Math.round(-offset / STEP_W)));
+  const previewed = nearest + 1;
 
-  // Read the value once the scroll has come to rest, not on every frame of it.
-  const onScroll = () => {
-    const el = ref.current;
-    if (!el) return;
-    if (settling.current !== null) window.clearTimeout(settling.current);
-    settling.current = window.setTimeout(() => {
-      const next = Math.min(max, Math.max(1, Math.round(el.scrollLeft / STEP_W) + 1));
-      const target = (next - 1) * STEP_W;
-      if (Math.abs(el.scrollLeft - target) > 1) el.scrollTo({ left: target, behavior: "smooth" });
-      if (next !== value) {
-        fromScroll.current = true;
-        onChange(next);
-      }
-    }, 120);
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startX.current = e.clientX;
+    setDragging(true);
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    const raw = e.clientX - startX.current;
+    // A little resistance past either end, so the strip cannot be flung into nothing.
+    const min = -(max - value) * STEP_W - STEP_W / 2;
+    const maxDx = (value - 1) * STEP_W + STEP_W / 2;
+    setDx(Math.min(maxDx, Math.max(min, raw)));
+  };
+
+  const release = () => {
+    if (!dragging) return;
+    setDragging(false);
+    setDx(0);
+    if (previewed !== value) onChange(previewed);
   };
 
   return (
     <div className="select-none">
-      <div className="relative">
+      <div
+        role="slider"
+        aria-label={t("perps.leverage")}
+        aria-valuemin={1}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") onChange(Math.min(max, value + 1));
+          if (e.key === "ArrowLeft") onChange(Math.max(1, value - 1));
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={release}
+        onPointerCancel={release}
+        className="relative h-14 touch-none overflow-hidden"
+      >
         {/* The bracket that marks the chosen step */}
         <div
           aria-hidden
           className="pointer-events-none absolute left-1/2 top-1/2 h-14 w-[86px] -translate-x-1/2 -translate-y-1/2 rounded-lg border-y-2 border-primary/70"
         />
         <div
-          ref={ref}
-          onScroll={onScroll}
-          role="slider"
-          aria-label={t("perps.leverage")}
-          aria-valuemin={1}
-          aria-valuemax={max}
-          aria-valuenow={value}
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowRight") onChange(Math.min(max, value + 1));
-            if (e.key === "ArrowLeft") onChange(Math.max(1, value - 1));
+          className="absolute left-1/2 top-0 flex"
+          style={{
+            transform: `translateX(${offset - STEP_W / 2}px)`,
+            transition: dragging ? "none" : "transform 180ms ease-out",
           }}
-          className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
-          style={{ scrollPaddingLeft: "50%", paddingLeft: `calc(50% - ${STEP_W / 2}px)`, paddingRight: `calc(50% - ${STEP_W / 2}px)` }}
         >
           {steps.map((s) => (
-            <button
+            <span
               key={s}
-              type="button"
-              onClick={() => onChange(s)}
               style={{ width: STEP_W }}
               className={cn(
-                "h-14 shrink-0 snap-center text-center text-2xl font-extrabold tabular transition-colors",
-                s === value ? "text-primary" : "text-muted-foreground/50",
+                "grid h-14 shrink-0 place-items-center text-2xl font-extrabold tabular",
+                s === previewed ? "text-primary" : "text-muted-foreground/50",
               )}
             >
               {s}x
-            </button>
+            </span>
           ))}
         </div>
       </div>
