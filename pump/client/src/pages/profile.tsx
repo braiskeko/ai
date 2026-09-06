@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Clock,
   Coins,
+  History,
   DollarSign,
   Loader2,
   MoreHorizontal,
@@ -23,6 +24,7 @@ import { useDepositSheet } from "@/components/DepositSheet";
 import { EmptyBox, PublicAvatar } from "@/components/TradesTable";
 import { FollowButton } from "@/components/TraderCard";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -416,6 +418,7 @@ export default function ProfilePage({ username: explicit }: { username?: string 
   const username = explicit ?? decodeURIComponent(params.username ?? "");
   const { user: me } = useAuth();
   const [range, setRange] = useState<Range>("24h");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const profile = useQuery<PublicProfile>({
     queryKey: [`/api/users/${encodeURIComponent(username)}`],
@@ -455,19 +458,28 @@ export default function ProfilePage({ username: explicit }: { username?: string 
     <PageShell>
       <div className="space-y-6">
         <section className="surface relative overflow-hidden p-5">
-          {isMe ? (
-            <Link
-              href="/portfolio"
-              aria-label={t("profile.editProfile")}
-              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+          {/* History sits to the left of settings, the way the design has it. */}
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              aria-label={t("profile.history")}
+              className="tap grid h-10 w-10 place-items-center rounded-full bg-muted/60 text-foreground"
             >
-              <Settings className="h-4 w-4" />
-            </Link>
-          ) : (
-            data.user.walletAddress && (
-              <FollowButton wallet={data.user.walletAddress} isFollowing={data.isFollowing} className="absolute right-4 top-4" />
-            )
-          )}
+              <History className="h-[18px] w-[18px]" />
+            </button>
+            {isMe ? (
+              <Link
+                href="/portfolio"
+                aria-label={t("profile.editProfile")}
+                className="tap grid h-10 w-10 place-items-center rounded-full bg-muted/60 text-foreground"
+              >
+                <Settings className="h-[18px] w-[18px]" />
+              </Link>
+            ) : (
+              data.user.walletAddress && <FollowButton wallet={data.user.walletAddress} isFollowing={data.isFollowing} />
+            )}
+          </div>
 
           <div className="flex items-start gap-4">
             {isMe ? <EditableAvatar user={me!} /> : <PublicAvatar user={data.user} size={96} className="ring-4 ring-background shadow-lg" />}
@@ -553,11 +565,20 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           </section>
         )}
 
-        <section>
-          <h2 className="mb-3 text-lg font-bold">{t("profile.recentTrades")}</h2>
-          <RecentTrades userId={data.user.id} history={data.trades} />
-        </section>
       </div>
+
+      {/* The movement list lives behind the history button rather than under the positions. */}
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85vh] overflow-y-auto rounded-t-[28px] border-t-0 bg-secondary/95 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl"
+        >
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" aria-hidden />
+          <SheetTitle className="text-center text-[22px] font-bold">{t("profile.history")}</SheetTitle>
+          <p className="mb-4 text-center text-sm text-muted-foreground">{t("profile.historyHint")}</p>
+          <RecentTrades userId={data.user.id} history={data.trades} />
+        </SheetContent>
+      </Sheet>
     </PageShell>
   );
 }

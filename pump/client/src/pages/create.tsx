@@ -438,7 +438,6 @@ export default function CreatePage() {
         <div className="min-w-0 space-y-6">
           <header>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("create.title")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("create.subtitle")}</p>
             {(config?.vanityAvailable ?? 0) > 0 && (
               <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 <Sparkles className="h-3.5 w-3.5" />

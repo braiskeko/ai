@@ -548,8 +548,8 @@
   "feed.mc": "MC",
   "feed.emptyFollowing": "Nothing here yet",
   "feed.emptyFollowingHint": "Follow some traders and their trades will show up here.",
-  "feed.followingLoginTitle": "Connect a wallet to follow traders",
-  "feed.followingLoginHint": "Sign in with a Solana wallet to follow traders and see their trades here.",
+  "feed.followingLoginTitle": "Sign in to see your feed",
+  "feed.followingLoginHint": "Follow traders and their buys, sells and theses show up here.",
   "people.title": "People",
   "people.following": "Following",
   "people.follow": "Follow",
@@ -562,8 +562,8 @@
   "people.emptyLeaderboard": "No ranked traders yet.",
   "people.emptyFollowing": "You're not following anyone yet",
   "people.emptyFollowingHint": "Follow traders from Search or the Leaderboard to see them here.",
-  "people.followingLoginTitle": "Connect a wallet to follow traders",
-  "people.followingLoginHint": "Sign in with a Solana wallet to follow traders.",
+  "people.followingLoginTitle": "Sign in to follow traders",
+  "people.followingLoginHint": "Follow the people whose calls you want in your feed.",
   "people.findTraders": "Find traders",
   "people.range.24h": "24h",
   "people.range.7d": "7d",
@@ -628,5 +628,7 @@
   "wallet.imported": "Wallet imported",
   "wallet.builtIn": "Built-in wallet",
   "wallet.builtInHint": "Your account created this wallet in this browser. Nothing left the device.",
-  "wallet.preparing": "Setting up your wallet…"
+  "wallet.preparing": "Setting up your wallet…",
+  "profile.history": "History",
+  "profile.historyHint": "Buys, sells and launches, newest first."
 }
