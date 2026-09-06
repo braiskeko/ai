@@ -268,7 +268,7 @@ export default function ActivityPage() {
               onClick={refetch}
               aria-label={t("activity.refresh")}
               title={t("activity.refresh")}
-              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="tap grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", fetching && "animate-spin")} />
             </button>
@@ -286,7 +286,7 @@ export default function ActivityPage() {
                 aria-selected={active}
                 onClick={() => setFilter(key)}
                 className={cn(
-                  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
+                  "tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
                   active
                     ? "border-primary bg-primary/15 text-primary"
                     : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -306,7 +306,7 @@ export default function ActivityPage() {
             title={t("activity.loadError")}
             body={apiErrorMessage(activity.error ?? coins.error, t("common.error"))}
             action={
-              <Button variant="outline" className="rounded-lg" onClick={refetch}>
+              <Button variant="outline" className="rounded-full" onClick={refetch}>
                 <RefreshCw className={cn("h-4 w-4", fetching && "animate-spin")} />
                 {t("common.retry")}
               </Button>
@@ -317,7 +317,7 @@ export default function ActivityPage() {
         ) : visible.length === 0 ? (
           <Empty title={t("activity.emptyFilter")} />
         ) : (
-          <ul className="overflow-hidden rounded-xl border border-border bg-card">
+          <ul className="surface feed-divide overflow-hidden">
             <AnimatePresence initial={false}>
               {visible.map((item) => (
                 <FeedRow key={item.key} item={item} isNew={liveTradeKeys.has(item.key) || freshKeys.has(item.key)} solUsd={solUsd} />

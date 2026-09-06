@@ -26,4 +26,8 @@ jobs:
       - name: Run the devnet flow
         env:
           RPC_URL: ${{ secrets.DEVNET_RPC_URL }}
+          # Devnet-only throwaway wallet committed to the repo. Devnet SOL has no value;
+          # top it up at https://faucet.solana.com when the rehearsal runs dry.
+          PAYER: scripts/solana/devnet-payer.json
+          DBC_CONFIG: ${{ vars.DEVNET_DBC_CONFIG }}
         run: node scripts/solana/devnet-e2e.mjs

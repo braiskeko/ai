@@ -33,7 +33,7 @@ export function PageShell({
       </main>
       {!noFooter && <Footer />}
       {/* Spacer so the fixed mobile tab bar never covers the footer */}
-      <div className="h-14 md:hidden" aria-hidden />
+      <div className="pb-nav md:hidden" aria-hidden />
     </div>
   );
 }

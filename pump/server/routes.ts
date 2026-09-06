@@ -39,7 +39,6 @@ import {
   type Portfolio,
   type PreparedCoin,
   type SentTx,
-  type Trade,
   type UnsignedTx,
   type User,
   type WalletView,
@@ -220,20 +219,6 @@ function coinByCa(ca: string): Coin {
   const coin = isMint(ca) ? storage.findCoinByCa(ca) : undefined;
   if (!coin) throw new HttpError(404, "Coin not found");
   return coin;
-}
-
-/** Strip the detail-only fields so realtime frames carry exactly a CoinSummary. */
-function toSummary(coin: CoinDetail): CoinSummary {
-  const {
-    candles: _candles,
-    recentTrades: _trades,
-    commentsList: _comments,
-    topHolders: _holders,
-    myHolding: _mine,
-    creatorClaimableSol: _claimable,
-    ...summary
-  } = coin;
-  return summary;
 }
 
 const coinListQuerySchema = z.object({
@@ -1138,5 +1123,3 @@ async function claimableForCoins(coins: CoinSummary[]): Promise<number> {
   }
   return total;
 }
-
-export type { Trade };

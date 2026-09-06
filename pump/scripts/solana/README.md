@@ -82,3 +82,17 @@ ADMIN_API_TOKEN=<random secret for the vanity uploader>
 Use a dedicated RPC provider (Helius, QuickNode, Triton). The public
 `api.mainnet-beta.solana.com` endpoint throttles the indexer's `getSignaturesForAddress` and
 log subscriptions.
+
+## The devnet test wallet
+
+`scripts/solana/devnet-payer.json` is a throwaway keypair committed on purpose so the
+GitHub Actions rehearsal can pay for its own transactions. Devnet SOL has no value and this
+key must never hold anything else. Its address is
+
+```
+F4mpVG5Wraotomjn9ZLR58njPC5ZM8QXSzHvJ9K4gxph
+```
+
+Top it up at <https://faucet.solana.com> (paste the address, pick devnet) whenever the
+rehearsal reports an empty balance; the public airdrop endpoint refuses requests coming from
+cloud runners, which is why the wallet is funded by hand.

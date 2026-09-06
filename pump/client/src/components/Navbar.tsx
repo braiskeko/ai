@@ -98,10 +98,10 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-        <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center gap-2 px-4 sm:gap-3">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+        <div className="mx-auto flex h-14 w-full max-w-screen-2xl items-center gap-2 px-4 sm:gap-3">
           <Link href="/" className="flex shrink-0 items-center gap-2" aria-label={t("nav.homeAria", { app: appName })}>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-base font-black text-primary-foreground shadow-[0_0_18px_-4px_hsl(var(--primary)/0.8)]">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-base font-black text-primary-foreground shadow-[0_0_18px_-4px_hsl(var(--primary)/0.8)]">
               N
             </span>
             <span className="hidden text-lg font-bold tracking-tight sm:block">{appName}</span>
@@ -117,7 +117,7 @@ export function Navbar() {
               aria-label={t("nav.search")}
               enterKeyHint="search"
               spellCheck={false}
-              className="h-10 w-full rounded-lg border border-transparent bg-muted pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border focus:bg-background focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:appearance-none"
+              className="h-10 w-full rounded-full border border-transparent bg-muted pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border focus:bg-background focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:appearance-none"
             />
           </form>
 
@@ -280,24 +280,26 @@ export function Navbar() {
       {/* Mobile bottom tab bar */}
       <nav
         aria-label={t("nav.mobile")}
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden"
       >
         {MOBILE_TABS.map(({ href, key, icon: Icon }) => {
           const active = isActive(location, href);
-          const isCreate = href === "/create";
           return (
             <Link
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
+              className="tap flex flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-semibold text-muted-foreground transition-colors"
             >
-              <Icon className={cn("h-5 w-5", isCreate && "text-primary")} />
-              <span className="truncate">{t(key)}</span>
+              <span
+                className={cn(
+                  "grid h-8 w-11 place-items-center rounded-full transition-colors",
+                  active ? "bg-primary/15 text-primary" : "text-muted-foreground",
+                )}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className={cn("truncate", active && "text-primary")}>{t(key)}</span>
             </Link>
           );
         })}

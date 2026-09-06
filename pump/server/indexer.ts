@@ -20,7 +20,7 @@
  * The indexer never throws into the server: RPC failures flip `rpcOk` and are
  * retried with backoff.
  */
-import { PublicKey, type ParsedTransactionWithMeta, type TokenBalance } from "@solana/web3.js";
+import { PublicKey, type ParsedTransactionWithMeta } from "@solana/web3.js";
 import { SWAP_FEE, TOKEN_DECIMALS, type AdminOverview, type Coin, type CoinSummary, type Trade } from "@shared/schema";
 import { coinFieldsFromMetadata, mintFromMetadataUri, readTokenMetadata } from "./meta";
 import {
@@ -151,9 +151,6 @@ export function decodeSwap(
     createdAt: new Date((tx.blockTime ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
   };
 }
-
-/** web3.js types TokenBalance slightly differently from what we need; keep them compatible. */
-export type { TokenBalance };
 
 // ---------------------------------------------------------------------------
 // Indexer state
