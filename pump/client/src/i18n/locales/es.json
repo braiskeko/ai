@@ -540,7 +540,7 @@
   "deposit.copyAddress": "Copiar dirección",
   "deposit.copied": "Dirección copiada",
   "deposit.soon": "Muy pronto",
-  "deposit.soonHint": "Los pagos con tarjeta y desde exchanges aún no están activos: deposita cripto.",
+  "deposit.soonHint": "Los pagos con tarjeta y desde exchanges no están activos",
   "deposit.evmHint": "Una sola dirección para todas las redes EVM de la lista. Se tradea en Solana: deposita ahí para operar.",
   "thesis.title": "Tesis",
   "thesis.write": "Escribe una tesis",

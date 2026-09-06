@@ -605,7 +605,7 @@
   "deposit.copyAddress": "Copy wallet address",
   "deposit.copied": "Address copied",
   "deposit.soon": "Coming soon",
-  "deposit.soonHint": "Card and exchange transfers are not enabled yet — deposit crypto instead.",
+  "deposit.soonHint": "Card and exchange transfers are not enabled",
   "deposit.evmHint": "One address for every EVM network here. Trading happens on Solana — deposit there to trade.",
   "thesis.title": "Thesis",
   "thesis.write": "Write a thesis",
