@@ -1,0 +1,29 @@
+name: Solana devnet rehearsal
+
+# Exercises the real Meteora DBC flow on devnet (config → pool → buy → sell → fees) with the
+# exact parameters Noxia uses. Push a change to this file or run it from the Actions tab.
+on:
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/solana-devnet-e2e.yml", "pump/scripts/solana/**"]
+  workflow_dispatch:
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: pump
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pump/package-lock.json
+      - run: npm ci
+      - name: Run the devnet flow
+        env:
+          RPC_URL: ${{ secrets.DEVNET_RPC_URL }}
+        run: node scripts/solana/devnet-e2e.mjs
