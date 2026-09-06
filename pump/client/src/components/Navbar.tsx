@@ -212,7 +212,7 @@ export function Navbar({ hideTabs = false }: { hideTabs?: boolean } = {}) {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href={`/u/${user.username}`} className="flex cursor-pointer items-center gap-2">
+                      <Link href={`/${user.username}`} className="flex cursor-pointer items-center gap-2">
                         <UserIcon className="h-4 w-4 text-muted-foreground" />
                         {t("nav.profile")}
                       </Link>

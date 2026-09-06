@@ -1375,6 +1375,56 @@ export class Storage {
     return rows.slice(0, limit);
   }
 
+  /**
+   * People matching a query, whether or not they have ever traded.
+   *
+   * The leaderboard only knows wallets that have traded, so searching it for a
+   * handle finds nobody until that person buys something. This searches the
+   * accounts themselves and dresses each one in the same row shape, keeping the
+   * ranked figures for those who do appear on the board.
+   */
+  searchTraders(query: string, limit = 30, viewerWallet: string | null = null): TraderRank[] {
+    const needle = query.trim().replace(/^@/, "").toLowerCase();
+    if (!needle) return [];
+    const ranked = new Map(this.getTraders("all", Number.MAX_SAFE_INTEGER, viewerWallet).map((r) => [r.wallet, r] as const));
+
+    const rows: TraderRank[] = [];
+    const seen = new Set<string>();
+    for (const user of this.state.users) {
+      const matches =
+        user.username.toLowerCase().includes(needle) ||
+        (user.displayName?.toLowerCase().includes(needle) ?? false) ||
+        (user.walletAddress?.toLowerCase().includes(needle) ?? false);
+      if (!matches) continue;
+      const wallet = user.walletAddress ?? "";
+      const existing = wallet ? ranked.get(wallet) : undefined;
+      if (existing) {
+        rows.push(existing);
+      } else {
+        rows.push({
+          wallet,
+          user: this.toPublicUser(user.id),
+          rank: 0,
+          pnlSol: 0,
+          topTokens: [],
+          isFollowing: wallet ? this.isFollowing(viewerWallet, wallet) : false,
+          followers: wallet ? this.followersCount(wallet) : 0,
+        });
+      }
+      if (wallet) seen.add(wallet);
+    }
+
+    // A wallet that traded but never signed up is still a trader people search for.
+    ranked.forEach((row, wallet) => {
+      if (seen.has(wallet) || !wallet.toLowerCase().includes(needle)) return;
+      rows.push(row);
+    });
+
+    // Whoever is actually on the board first, then everyone else by handle.
+    rows.sort((a, b) => b.pnlSol - a.pnlSol || (a.user?.username ?? "").localeCompare(b.user?.username ?? ""));
+    return rows.slice(0, limit);
+  }
+
   /** Where `wallet` sits on the leaderboard; unranked (no trades/holdings yet) sits just past the end. */
   getTraderRankFor(wallet: string, range: LeaderboardRange): MyRank {
     const all = this.getTraders(range, Number.MAX_SAFE_INTEGER);

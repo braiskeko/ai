@@ -46,7 +46,7 @@ function traderName(trader: TraderRank): string {
 }
 
 function traderHref(trader: TraderRank): string | null {
-  return trader.user ? `/u/${encodeURIComponent(trader.user.username)}` : null;
+  return trader.user ? `/${encodeURIComponent(trader.user.username)}` : null;
 }
 
 /** Compact horizontal-strip card: avatar, name, followers + PnL, Follow button, optional × to dismiss. */

@@ -76,7 +76,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                   </svg>
                 </span>
               ) : h.user ? (
-                <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="shrink-0">
+                <Link href={`/${encodeURIComponent(h.user.username)}`} className="shrink-0">
                   <PublicAvatar user={h.user} wallet={h.wallet} size={40} />
                 </Link>
               ) : (
@@ -91,7 +91,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                     {h.isCurve ? (
                       t("holders.curve")
                     ) : h.user ? (
-                      <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="hover:underline">
+                      <Link href={`/${encodeURIComponent(h.user.username)}`} className="hover:underline">
                         <TraderName user={h.user} wallet={h.wallet} mine={mine} />
                       </Link>
                     ) : (

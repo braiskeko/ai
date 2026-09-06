@@ -1,3 +1,4 @@
+import { Redirect } from "wouter";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,9 +7,10 @@ import { useT } from "@/i18n";
 import Profile from "@/pages/profile";
 
 /**
- * `/profile` — the signed-in user's own page. The bottom tab points here rather than at
- * `/u/<username>` so it works before the session has loaded and keeps working if the
- * user renames themselves. Signed out it invites you in rather than sending you
+ * `/profile` — the way to your own page. The bottom tab points here because it
+ * works before the session has loaded and keeps working if you rename yourself;
+ * once the account is known it hands over to `/<handle>`, which is the address a
+ * profile actually has. Signed out it invites you in rather than sending you
  * somewhere else — a tab should land where it says it will.
  */
 export default function MyProfile() {
@@ -39,5 +41,6 @@ export default function MyProfile() {
       </PageShell>
     );
   }
-  return <Profile username={user.username} />;
+  // Someone's page lives at their handle; /profile is only the way in.
+  return <Redirect to={`/${encodeURIComponent(user.username)}`} replace />;
 }

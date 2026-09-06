@@ -109,7 +109,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
               className={cn("flex items-center gap-3 px-4 py-3", mine && "bg-primary/5")}
             >
               {tr.user ? (
-                <Link href={`/u/${encodeURIComponent(tr.user.username)}`} className="shrink-0">
+                <Link href={`/${encodeURIComponent(tr.user.username)}`} className="shrink-0">
                   <PublicAvatar user={tr.user} wallet={tr.wallet} size={32} />
                 </Link>
               ) : (
@@ -129,7 +129,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
                   </span>
                   <span className="truncate font-semibold">
                     {tr.user ? (
-                      <Link href={`/u/${encodeURIComponent(tr.user.username)}`} className="hover:underline">
+                      <Link href={`/${encodeURIComponent(tr.user.username)}`} className="hover:underline">
                         <TraderName user={tr.user} wallet={tr.wallet} mine={mine} />
                       </Link>
                     ) : (
@@ -198,7 +198,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
                 <td className="px-3 py-2">
                   {tr.user ? (
                     <Link
-                      href={`/u/${encodeURIComponent(tr.user.username)}`}
+                      href={`/${encodeURIComponent(tr.user.username)}`}
                       className="inline-flex max-w-[160px] items-center gap-2 hover:underline"
                     >
                       <PublicAvatar user={tr.user} wallet={tr.wallet} size={20} />

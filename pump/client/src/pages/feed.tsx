@@ -45,7 +45,7 @@ function FeedRow({ item, isNew, solUsd }: { item: FeedEntry; isNew: boolean; sol
   const { user: me } = useAuth();
   const likes = useLocalLikesContext();
   const mine = !!me?.walletAddress && me.walletAddress === item.wallet;
-  const profileHref = item.user ? `/u/${encodeURIComponent(item.user.username)}` : null;
+  const profileHref = item.user ? `/${encodeURIComponent(item.user.username)}` : null;
   const seed = seedLikes(item.key);
   const count = likes.countOf(item.key, seed);
   const active = likes.isLiked(item.key);

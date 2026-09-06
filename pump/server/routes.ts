@@ -1526,6 +1526,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/traders",
     wrap((req, res) => {
       const range = leaderboardRangeSchema.parse(queryString(req.query.range));
+      // A search looks through the accounts, not just the board: someone who has
+      // not traded yet is still findable by their handle.
+      const q = (queryString(req.query.q) ?? "").slice(0, 64);
+      if (q.trim()) {
+        res.json(storage.searchTraders(q, parseLimit(req.query.limit, 30, 100), req.user?.walletAddress ?? null));
+        return;
+      }
       const followingOnly = queryString(req.query.scope) === "following";
       const onlyWallets = followingOnly ? new Set(storage.followingWallets(currentWallet(req).wallet)) : null;
       const rows: TraderRank[] = storage.getTraders(

@@ -296,7 +296,7 @@ function UsersTab() {
                 <UserAvatar seed={u.avatarSeed} name={u.username} size={32} className="shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <Link href={`/u/${encodeURIComponent(u.username)}`} className="truncate text-sm font-semibold hover:underline">
+                    <Link href={`/${encodeURIComponent(u.username)}`} className="truncate text-sm font-semibold hover:underline">
                       @{u.username}
                     </Link>
                     {u.isAdmin && (
@@ -308,7 +308,7 @@ function UsersTab() {
                   </div>
                 </div>
                 <Button asChild size="sm" variant="ghost" className="shrink-0 rounded-full">
-                  <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
+                  <Link href={`/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
                 </Button>
               </li>
             ))}
@@ -330,7 +330,7 @@ function UsersTab() {
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-2">
                         <UserAvatar seed={u.avatarSeed} name={u.username} size={24} />
-                        <Link href={`/u/${encodeURIComponent(u.username)}`} className="hover:underline">
+                        <Link href={`/${encodeURIComponent(u.username)}`} className="hover:underline">
                           @{u.username}
                         </Link>
                         {u.isAdmin && (
@@ -344,7 +344,7 @@ function UsersTab() {
                     <TableCell className="whitespace-nowrap text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm" variant="ghost" className="rounded-lg">
-                        <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
+                        <Link href={`/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
                       </Button>
                     </TableCell>
                   </TableRow>

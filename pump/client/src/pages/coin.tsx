@@ -200,7 +200,7 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
         </div>
         <WatchButton id={`next:${coin.ca}`} />
         <Link
-          href={`/u/${encodeURIComponent(coin.creator.username)}`}
+          href={`/${encodeURIComponent(coin.creator.username)}`}
           aria-label={`@${coin.creator.username}`}
           className="tap shrink-0"
         >

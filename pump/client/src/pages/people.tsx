@@ -73,7 +73,7 @@ function LeaderboardRow({ trader }: { trader: TraderRank }) {
   const t = useT();
   const solUsd = useSolUsd();
   const badge = medal(trader.rank);
-  const href = trader.user ? `/u/${encodeURIComponent(trader.user.username)}` : null;
+  const href = trader.user ? `/${encodeURIComponent(trader.user.username)}` : null;
   const name = trader.user?.username ?? t("people.anonymousTrader");
 
   const body = (
@@ -230,7 +230,7 @@ export default function PeoplePage() {
               {(following.data ?? []).map((trader) => (
                 <Link
                   key={trader.wallet}
-                  href={trader.user ? `/u/${encodeURIComponent(trader.user.username)}` : "/people"}
+                  href={trader.user ? `/${encodeURIComponent(trader.user.username)}` : "/people"}
                   className="tap flex w-20 shrink-0 flex-col items-center gap-1.5"
                 >
                   <PublicAvatar user={trader.user} wallet={trader.wallet} size={52} />

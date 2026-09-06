@@ -269,7 +269,7 @@ function ProfileCard({ user }: { user: SafeUser }) {
 
       <div className="flex shrink-0 flex-wrap justify-center gap-2 sm:flex-col sm:items-end">
         <Button asChild variant="outline" size="sm" className="rounded-lg">
-          <Link href={`/u/${encodeURIComponent(user.username)}`}>
+          <Link href={`/${encodeURIComponent(user.username)}`}>
             {t("portfolio.viewProfile")}
             <ArrowRight className="h-4 w-4" />
           </Link>

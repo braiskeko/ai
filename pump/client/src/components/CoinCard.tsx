@@ -206,13 +206,13 @@ function CardBody({ coin, highlight, className, progress, graduated, solUsd, t }
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  navigate(`/u/${coin.creator.username}`);
+                  navigate(`/${coin.creator.username}`);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     e.stopPropagation();
-                    navigate(`/u/${coin.creator.username}`);
+                    navigate(`/${coin.creator.username}`);
                   }
                 }}
                 className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-foreground/80 hover:text-primary hover:underline"

@@ -471,13 +471,13 @@ function CommentItem({ coin, comment }: { coin: CoinDetail; comment: CommentView
 
   return (
     <div className="flex gap-3">
-      <Link href={`/u/${encodeURIComponent(comment.user.username)}`} className="shrink-0">
+      <Link href={`/${encodeURIComponent(comment.user.username)}`} className="shrink-0">
         <PublicAvatar user={comment.user} size={32} />
       </Link>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <Link
-            href={`/u/${encodeURIComponent(comment.user.username)}`}
+            href={`/${encodeURIComponent(comment.user.username)}`}
             className={cn("font-semibold hover:underline", isDev && "text-gold")}
           >
             {mine ? t("chart.you") : `@${comment.user.username}`}

@@ -819,11 +819,11 @@ function AppHolders({ token }: { token: ExternalTokenDetail }) {
           {holders.map((h, i) => (
             <li key={h.wallet} className="flex items-center gap-3 py-3">
               <span className="w-4 shrink-0 text-xs tabular text-muted-foreground">{i + 1}</span>
-              <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="shrink-0">
+              <Link href={`/${encodeURIComponent(h.user.username)}`} className="shrink-0">
                 <PublicAvatar user={h.user} wallet={h.wallet} size={40} />
               </Link>
               <div className="min-w-0 flex-1">
-                <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="block truncate text-[15px] font-bold hover:underline">
+                <Link href={`/${encodeURIComponent(h.user.username)}`} className="block truncate text-[15px] font-bold hover:underline">
                   {h.user.displayName || h.user.username}
                 </Link>
                 <div className="truncate text-[13px] text-muted-foreground tabular">

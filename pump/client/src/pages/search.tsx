@@ -262,21 +262,17 @@ export default function SearchPage() {
     refetchInterval: 12_000,
     enabled: chip !== "traders",
   });
-  const traders = useQuery<TraderRank[]>({ queryKey: ["/api/traders?range=all&limit=150"], staleTime: 30_000 });
+  // With a query the server searches the accounts themselves; without one it is
+  // the leaderboard, which is what the empty state should show.
+  const tradersKey = trimmed ? `/api/traders?q=${encodeURIComponent(trimmed)}&limit=60` : "/api/traders?range=all&limit=150";
+  const traders = useQuery<TraderRank[]>({ queryKey: [tradersKey], staleTime: 30_000 });
 
   const rows = useMemo<Row[]>(
     () => [...(coins.data ?? []).map((c) => fromCoin(c, solUsd)), ...(tokens.data ?? []).map(fromToken)],
     [coins.data, tokens.data, solUsd],
   );
 
-  const filteredTraders = useMemo<TraderRank[]>(() => {
-    const list = traders.data ?? [];
-    if (!trimmed) return list;
-    const needle = trimmed.toLowerCase();
-    return list.filter(
-      (r) => (r.user?.username.toLowerCase().includes(needle) ?? false) || r.wallet.toLowerCase().includes(needle),
-    );
-  }, [traders.data, trimmed]);
+  const filteredTraders = traders.data ?? [];
 
   const recentTraders = useMemo(() => {
     const byWallet = new Map((traders.data ?? []).map((r) => [r.wallet, r] as const));

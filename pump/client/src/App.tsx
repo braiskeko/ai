@@ -27,6 +27,7 @@ import MyProfile from "@/pages/my-profile";
 import Settings from "@/pages/settings";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
+import { looksLikeCa } from "@/lib/format";
 
 /** Scrolls to the top whenever the pathname changes (browser back/forward keeps its own position). */
 function ScrollToTop() {
@@ -101,8 +102,12 @@ function Routes() {
       <Route path="/sell/:mint" component={TradeSheet} />
       {/* Any Solana token that was NOT launched here (traded through Jupiter). Must stay above "/:ca". */}
       <Route path="/t/:mint" component={Token} />
-      {/* Coin page: the component validates the CA shape (44 base58 chars ending in "next") and renders NotFound otherwise. */}
-      <Route path="/:ca" component={Coin} />
+      {/*
+        The last segment is either a coin's address or somebody's handle: an
+        address is 32-44 base58 characters and a handle is at most 24, so the two
+        can never be mistaken for each other.
+      */}
+      <Route path="/:slug">{(params) => (looksLikeCa(params.slug ?? "") ? <Coin /> : <Profile username={params.slug} />)}</Route>
       <Route component={NotFound} />
     </Switch>
   );
