@@ -1,0 +1,147 @@
+# deploy marker 20260906T073638Z
+name: Deploy Noxia (pump) to cPanel
+
+# Builds the Next app (pump/) and deploys it to app.noxia.work through the cPanel API
+# (no SSH needed) — the same mechanism as deploy-cpanel.yml for Foresight. Trigger it
+# manually from the Actions tab (Run workflow). Store credentials as repository secrets
+# (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
+on:
+  # One-off: pushing this file to the deploy branch runs the deployment with the
+  # temporary credentials below (removed right after the deploy).
+  push:
+    branches: [claude/polymarket-platform-w64s54]
+    paths: [".github/workflows/deploy-pump.yml"]
+  workflow_dispatch:
+    inputs:
+      cpanel_host:
+        description: "cPanel host (e.g. noxia.work)"
+        required: false
+        default: ""
+      cpanel_user:
+        description: "cPanel username"
+        required: false
+        default: ""
+      cpanel_token:
+        description: "cPanel API token (Manage API Tokens). Prefer the CPANEL_TOKEN secret."
+        required: false
+        default: ""
+      app_root:
+        description: "Application root folder inside the cPanel home (Node.js Selector app-root)"
+        required: true
+        default: "noxia-pump"
+      domain:
+        description: "Domain the app is served on (created as a subdomain if missing)"
+        required: true
+        default: "app.noxia.work"
+      app_url:
+        description: "Public URL (APP_URL)"
+        required: true
+        default: "https://app.noxia.work"
+      admin_emails:
+        description: "Comma-separated admin emails"
+        required: false
+        default: ""
+      solana_cluster:
+        description: "mainnet-beta | devnet"
+        required: true
+        default: "mainnet-beta"
+      rpc_url:
+        description: "Solana RPC endpoint (leave empty for the public cluster URL)"
+        required: false
+        default: ""
+      dbc_config:
+        description: "Meteora Dynamic Bonding Curve config address (empty disables coin creation)"
+        required: false
+        default: ""
+      treasury_wallet:
+        description: "Wallet that receives the platform share of the swap fees"
+        required: false
+        default: ""
+      origin_ip:
+        description: "Public IP of the cPanel server (lets the deploy verify the app before DNS exists)"
+        required: false
+        default: "66.29.141.35"
+      wipe_data:
+        description: "Start from an empty database (deletes the coins and users stored on the server, after a backup)"
+        type: boolean
+        default: false
+      wipe_public_html:
+        description: "Move the main domain's public_html contents to a backup folder (not needed for a subdomain)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-pump-cpanel
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: pump
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pump/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Build release package
+        env:
+          APP_ROOT: ${{ inputs.app_root || 'noxia-pump' }}
+          SKIP_BUILD: "1"
+        run: bash scripts/package-cpanel.sh
+
+      - name: Deploy through the cPanel API
+        working-directory: ${{ github.workspace }}
+        env:
+          IN_HOST: ${{ inputs.cpanel_host }}
+          IN_USER: ${{ inputs.cpanel_user }}
+          IN_TOKEN: ${{ inputs.cpanel_token }}
+          SECRET_HOST: ${{ secrets.CPANEL_HOST }}
+          SECRET_USER: ${{ secrets.CPANEL_USER }}
+          SECRET_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          APP_ROOT: ${{ inputs.app_root || 'noxia-pump' }}
+          DOMAIN: ${{ inputs.domain || 'app.noxia.work' }}
+          APP_URL: ${{ inputs.app_url || 'https://app.noxia.work' }}
+          ADMIN_EMAILS: ${{ inputs.admin_emails || 'braiskeko@gmail.com' }}
+          SOLANA_CLUSTER: ${{ inputs.solana_cluster || 'mainnet-beta' }}
+          TREASURY_FALLBACK: Aso3VE2WZgomkjkh2HBPfDvghrvMqJaSXfUnfPyaMd9x
+          RPC_URL: ${{ inputs.rpc_url || secrets.SOLANA_RPC_URL }}
+          DBC_CONFIG: ${{ inputs.dbc_config || vars.DBC_CONFIG }}
+          TREASURY_WALLET: ${{ inputs.treasury_wallet || vars.TREASURY_WALLET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          # Display-only figures for the demo account (see server/config.ts).
+          DEMO_FIGURES: '{"brais":{"pnlUsd":152420,"cashUsd":152520},"napako":{"cashUsd":0.62}}'
+          # A fixed SESSION_SECRET keeps people signed in across deploys (a random one is
+          # generated when unset).
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
+          WIPE_DATA: ${{ inputs.wipe_data && '1' || '0' }}
+          ORIGIN_IP: ${{ inputs.origin_ip || '66.29.141.35' }}
+        run: |
+          set -euo pipefail
+          # Temporary one-off fallbacks (removed as soon as this deploy succeeds).
+          export CPANEL_HOST="${IN_HOST:-${SECRET_HOST:-noxia.work}}"
+          export CPANEL_USER="${IN_USER:-${SECRET_USER:-noxihwge}}"
+          export CPANEL_TOKEN="${IN_TOKEN:-${SECRET_TOKEN:-EBB633ICCZSJMAJK91VZZ67CWCISB1W6}}"
+          echo "::add-mask::$CPANEL_TOKEN"
+          if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
+            echo "cPanel host/user/token missing (set repository secrets or pass inputs)"; exit 2
+          fi
+          # Use the generated treasury until a wallet is configured in the repository
+          # variables. The database is NEVER wiped by an ordinary deploy: doing so
+          # deleted every account, which is what signed people out on each release.
+          export TREASURY_WALLET="${TREASURY_WALLET:-$TREASURY_FALLBACK}"
+          export ZIP_PATH="pump/${APP_ROOT}-cpanel.zip"
+          node pump/scripts/cpanel-remote-deploy.mjs
