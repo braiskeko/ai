@@ -20,7 +20,9 @@ jobs:
           getent ahostsv4 app.noxia.work || true
           curl -sS -m 30 -o /dev/null -w "http  %{http_code} -> %{redirect_url}\n" http://app.noxia.work/ || true
           curl -sS -m 30 -o /dev/null -w "https %{http_code} %{time_total}s\n" https://app.noxia.work/
-          curl -sS -m 30 https://app.noxia.work/api/config | head -c 400; echo
+          curl -sS -m 30 https://app.noxia.work/api/config | head -c 700; echo
+          curl -sS -m 30 -o /dev/null -w "coins %{http_code}\n" https://app.noxia.work/api/coins
+          curl -sS -m 30 https://app.noxia.work/api/coins | head -c 200; echo
           # every asset referenced by the html must load
           html=$(curl -sS -m 30 https://app.noxia.work/)
           for a in $(echo "$html" | grep -oE '(src|href)="/[^"]+"' | cut -d'"' -f2 | sort -u); do
@@ -43,7 +45,7 @@ jobs:
           await page.waitForTimeout(4000);
           const text = (await page.textContent("body"))?.replace(/\s+/g, " ").trim() ?? "";
           console.log("body text (600):", text.slice(0, 600));
-          console.log("coin cards:", await page.locator("a[href*='noxia']").count());
+          console.log("links to coins:", await page.locator("a[href^='/']").count());
           console.log("errors:", JSON.stringify(errors, null, 1));
           await page.screenshot({ path: "home.png", fullPage: false });
           await browser.close();
