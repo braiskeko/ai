@@ -324,7 +324,7 @@ export default function SearchPage() {
       </div>
 
       {/* Floating pill search field, mobile only — sits just above the bottom tab bar. */}
-      <div className="fixed inset-x-0 bottom-[4.75rem] z-30 px-4 md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(6.25rem+env(safe-area-inset-bottom,0px))] z-30 px-4 md:hidden">
         <SearchField className="mx-auto max-w-md" />
       </div>
     </PageShell>
