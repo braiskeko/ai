@@ -425,7 +425,7 @@ export default function CreatePage() {
   };
 
   return (
-    <PageShell>
+    <PageShell className="pb-40 sm:pb-10">
       <div className="mx-auto w-full max-w-2xl space-y-6">
           <header>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("create.title")}</h1>
@@ -571,13 +571,18 @@ export default function CreatePage() {
               </p>
             </section>
 
-            <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {/*
+              On a phone the button rides above the tab bar rather than waiting at
+              the end of the form: it is the only action here, and it should be in
+              reach however far down the page you are.
+            */}
+            <div className="fixed inset-x-0 bottom-[calc(5.4rem+env(safe-area-inset-bottom,0px))] z-30 flex flex-col-reverse items-stretch gap-3 px-4 sm:static sm:flex-row sm:items-center sm:justify-end sm:px-0">
               {canLaunch ? (
                 <Button
                   type="submit"
                   size="lg"
                   disabled={submitting}
-                  className="h-12 rounded-xl px-6 text-base font-bold shadow-[0_0_24px_-6px_hsl(var(--primary)/0.9)]"
+                  className="h-12 w-full rounded-xl px-6 text-base font-bold sm:w-auto"
                 >
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
                   {submitting ? phaseLabel() : t("create.submit")}
@@ -588,7 +593,7 @@ export default function CreatePage() {
                   size="lg"
                   onClick={openLogin}
                   disabled={authLoading || !!user}
-                  className="h-12 rounded-xl px-6 text-base font-bold"
+                  className="h-12 w-full rounded-xl px-6 text-base font-bold sm:w-auto"
                 >
                   {user ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
                   {!user ? t("create.loginRequired") : t("wallet.preparing")}
