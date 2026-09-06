@@ -181,7 +181,7 @@ export function LaunchKeypad({
       {/* The buy that creates the coin is a swipe, like every other buy. */}
       <div className="safe-bottom px-4 pb-4">
         {!belowMin && !exceedsBalance ? (
-          <SwipeConfirm label={labelText()} busy={busy} onConfirm={() => onConfirm(amountUsd)} />
+          <SwipeConfirm label={t("swipe.create", { ticker: `$${ticker}` })} busy={busy} onConfirm={() => onConfirm(amountUsd)} />
         ) : (
           <button
             type="button"

@@ -428,7 +428,7 @@ export default function TradeSheetPage() {
       <div className="safe-bottom px-4 pb-4">
         {readyToTrade ? (
           <SwipeConfirm
-            label={ctaLabel()}
+            label={isBuy ? t("swipe.buy", { amount: compactUsd(amountUsd) }) : t("swipe.sell", { amount: compactUsd(amountUsd) })}
             tone={isBuy ? "up" : "down"}
             busy={submitting}
             onConfirm={() => void onCta()}

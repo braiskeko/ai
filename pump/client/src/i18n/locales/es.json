@@ -656,5 +656,10 @@
   "admin.demoPnl": "PnL (USD)",
   "admin.demoCash": "Saldo (USD)",
   "admin.demoSaved": "@{username} actualizado",
-  "wallet.withdrawSheetHint": "Envía SOL desde tu wallet a cualquier dirección de Solana."
+  "wallet.withdrawSheetHint": "Envía SOL desde tu wallet a cualquier dirección de Solana.",
+  "swipe.buy": "Desliza para comprar {amount}",
+  "swipe.sell": "Desliza para vender {amount}",
+  "swipe.long": "Desliza para hacer long {amount}",
+  "swipe.short": "Desliza para hacer short {amount}",
+  "swipe.create": "Desliza para crear {ticker}"
 }

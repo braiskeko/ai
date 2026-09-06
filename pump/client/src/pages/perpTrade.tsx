@@ -349,7 +349,11 @@ export default function PerpTradePage() {
       {/* A real order is a swipe; signing in or adding cash stays a tap. */}
       <div className="safe-bottom px-4 pb-4">
         {ready ? (
-          <SwipeConfirm label={ctaLabel()} tone={side === "long" ? "up" : "down"} onConfirm={submit} />
+          <SwipeConfirm
+            label={side === "long" ? t("swipe.long", { amount: `$${raw}` }) : t("swipe.short", { amount: `$${raw}` })}
+            tone={side === "long" ? "up" : "down"}
+            onConfirm={submit}
+          />
         ) : (
           <button
             type="button"
