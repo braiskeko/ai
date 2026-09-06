@@ -922,6 +922,7 @@ export default function TokenPage() {
                 supply={data.supply}
                 range={range}
                 onRangeChange={onRangeChange}
+                emptyMessage={data.chartSource === "none" ? t("chart.waitingCandles") : undefined}
                 className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
             </section>

@@ -658,7 +658,11 @@ export interface ExternalTokenAudit {
   topHoldersPercent: number | null;
 }
 
+/** Where a token's candles came from — shown when there are none, so the reason is visible. */
+export type ChartSource = "market" | "samples" | "none";
+
 export interface ExternalTokenDetail extends ExternalToken {
+  chartSource: ChartSource;
   /**
    * OHLC in USD per token (not SOL), derived from the price samples the server
    * records while the token is being viewed — the free aggregator tier has no

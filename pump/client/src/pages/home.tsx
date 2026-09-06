@@ -246,18 +246,34 @@ function rowFromToken(token: ExternalToken): Row {
 }
 
 /**
- * What "trending" means here: traded a lot in the last 24h, and going up.
+ * Assets that are never "trending": stablecoins sit at a dollar by design, and
+ * the majors (and their wrapped and staked forms) are always the busiest thing
+ * on the chain — leaving them in means the board never shows a memecoin.
+ */
+const NOT_TRENDING = new Set([
+  "USDC", "USDT", "USDS", "USDE", "USDG", "PYUSD", "DAI", "FDUSD", "EURC", "USDY", "USD1",
+  "SOL", "WSOL", "MSOL", "JITOSOL", "BSOL", "JUPSOL", "INF",
+  "ETH", "WETH", "STETH", "WSTETH", "CBETH",
+  "BTC", "WBTC", "CBBTC", "TBTC",
+  "BNB", "WBNB", "HYPE", "USDH",
+]);
+
+/**
+ * What "trending" means here: traded a lot in the last 24h, moving, and small
+ * enough to be moving because of demand rather than because it is the chain's
+ * reserve asset.
  *
- * Volume dominates (on a log scale, so a $10M day beats a $100K one without a
- * hundredfold gap), size is a mild tiebreak so dust with one wash trade cannot
- * top the list, and the 24h move adds the momentum — bounded, because a +900%
- * on no volume is noise, not a trend.
+ * Volume dominates on a log scale (a $10M day beats a $100K one without a
+ * hundredfold gap), turnover — volume against size — rewards a coin whose whole
+ * float is changing hands, and the 24h move adds momentum, bounded, because
+ * +900% on no volume is noise rather than a trend.
  */
 function trendingScore(row: Row): number {
   const volume = Math.log10(1 + Math.max(0, row.volumeUsd));
-  const size = 0.4 * Math.log10(1 + Math.max(0, row.marketCapUsd));
+  const turnover = row.marketCapUsd > 0 ? row.volumeUsd / row.marketCapUsd : 0;
+  const churn = 0.6 * Math.log10(1 + Math.min(20, turnover));
   const momentum = Math.max(-0.5, Math.min(3, row.change24h));
-  return volume + size + momentum;
+  return volume + churn + momentum;
 }
 
 /** Rank the merged list the way the active chip asks for. */
@@ -271,7 +287,9 @@ function rankRows(rows: Row[], sort: Sort): Row[] {
     case "volume":
       return rows.slice().sort((a, b) => b.volumeUsd - a.volumeUsd);
     case "trending":
-      return rows.slice().sort((a, b) => trendingScore(b) - trendingScore(a));
+      return rows
+        .filter((r) => !NOT_TRENDING.has(r.fallback.toUpperCase()))
+        .sort((a, b) => trendingScore(b) - trendingScore(a));
     case "graduated":
       return rows.slice().sort((a, b) => b.marketCapUsd - a.marketCapUsd);
   }

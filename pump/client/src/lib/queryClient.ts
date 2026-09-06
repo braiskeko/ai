@@ -1,10 +1,31 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+/**
+ * Turns a failed response into an error worth reading.
+ *
+ * A web server in front of the app answers with its own HTML error page, and
+ * dumping that into a toast is unreadable — so anything that is not our own
+ * JSON/text becomes "404 at /api/…", which says where the request actually
+ * failed. The status prefix is preserved because callers match on it (a 404 is
+ * "not found" rather than an error, in several places).
+ */
 async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+  if (res.ok) return;
+  const raw = (await res.text().catch(() => "")).trim();
+  const looksLikeHtml = raw.startsWith("<!DOCTYPE") || raw.startsWith("<html") || raw.includes("<body");
+  const path = (() => {
+    try {
+      return new URL(res.url).pathname;
+    } catch {
+      return res.url;
+    }
+  })();
+  const detail = !raw || looksLikeHtml ? `${res.statusText || "Request failed"} at ${path}` : raw;
+  if (looksLikeHtml) {
+    // eslint-disable-next-line no-console
+    console.error(`Non-JSON ${res.status} from ${res.url}`);
   }
+  throw new Error(`${res.status}: ${detail}`);
 }
 
 export async function apiRequest(

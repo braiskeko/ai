@@ -431,20 +431,21 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
   // Real OHLCV for the token's deepest pool. The aggregator does not always name
   // a pool, so fall back to asking the chart source which pool it charts, and to
   // the sampled ring buffer when neither knows one.
-  let poolId = found.extras.pool?.id ?? null;
+  const poolId = found.extras.pool?.id ?? null;
   let charted = poolId ? await markets.getCandles("solana", poolId) : [];
   if (charted.length === 0) {
     const viaMarkets = await markets.getToken("solana", mint);
-    poolId = viaMarkets?.pool?.address ?? poolId;
-    if (viaMarkets?.pool?.address) charted = await markets.getCandles("solana", viaMarkets.pool.address);
+    if (viaMarkets) charted = await markets.firstCandles("solana", viaMarkets.pools);
   }
   const balances = viewerWallet
     ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
     : null;
   const { extras } = found;
+  const sampled = charted.length > 0 ? [] : jupiter.candlesFor(mint);
   return {
     ...found.token,
-    candles: charted.length > 0 ? charted : jupiter.candlesFor(mint),
+    chartSource: charted.length > 0 ? "market" : sampled.length > 0 ? "samples" : "none",
+    candles: charted.length > 0 ? charted : sampled,
     supply: extras.supply,
     organicScore: extras.organicScore,
     buys24h: extras.buys24h,
@@ -466,10 +467,11 @@ async function buildExternalDetail(rawId: string, viewerWallet: string | null): 
 async function buildEvmDetail(chain: Chain, address: string): Promise<ExternalTokenDetail> {
   const found = await markets.getToken(chain, address);
   if (!found) throw new HttpError(...externalMiss());
-  const candles = found.pool ? await markets.getCandles(chain, found.pool.address) : [];
+  const candles = await markets.firstCandles(chain, found.pools);
   const supply = found.token.priceUsd > 0 ? found.token.marketCapUsd / found.token.priceUsd : 0;
   return {
     ...found.token,
+    chartSource: candles.length > 0 ? "market" : "none",
     candles,
     supply,
     organicScore: 0,
@@ -1111,7 +1113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return q ? markets.searchTokens(chain, q, limit) : markets.listTokens(chain, list, limit);
         }),
       );
-      res.json(interleave(perChain).slice(0, limit));
+      const merged = interleave(perChain).slice(0, limit);
+      // Sampling here means a token already has some history the first time
+      // somebody opens it, not only from that moment on.
+      for (const token of merged) {
+        if (token.chain === "solana" && token.priceUsd > 0) jupiter.recordPrice(token.mint, token.priceUsd);
+      }
+      res.json(merged);
     }),
   );
 

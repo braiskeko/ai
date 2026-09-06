@@ -58,6 +58,8 @@ export interface CandleChartProps {
   range?: ChartRange;
   onRangeChange?: (range: ChartRange) => void;
   className?: string;
+  /** Shown instead of "no trades yet" when the caller knows why the chart is empty. */
+  emptyMessage?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +356,7 @@ export function CandleChart({
   range: rangeProp,
   onRangeChange,
   className,
+  emptyMessage,
 }: CandleChartProps) {
   const t = useT();
   const { user } = useAuth();
@@ -729,7 +732,7 @@ export function CandleChart({
         {!hasData ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
             <BarChart3 className="h-6 w-6 opacity-60" />
-            <span>{t("chart.noTrades")}</span>
+            <span className="max-w-[80%] text-center">{emptyMessage ?? t("chart.noTrades")}</span>
           </div>
         ) : (
           <>

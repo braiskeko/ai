@@ -326,7 +326,7 @@ export async function searchTokens(chain: Chain, query: string, limit = 20): Pro
 export async function getToken(
   chain: Chain,
   address: string,
-): Promise<{ token: ExternalToken; pool: { address: string; dex: string | null } | null } | null> {
+): Promise<{ token: ExternalToken; pool: { address: string; dex: string | null } | null; pools: string[] } | null> {
   if (!supportsChain(chain)) return null;
   const net = NETWORK_IDS[chain];
   const json = await getJson(
@@ -343,15 +343,20 @@ export async function getToken(
     ? toToken(chain, pool, parsed.data.data)
     : toToken(chain, { id: "", attributes: {} }, parsed.data.data);
   if (!token) return null;
-  const poolAddress = pool?.attributes.address ?? pool?.id.split("_").slice(1).join("_") ?? null;
+  // Every pool the token trades in, deepest first: the top one is sometimes dry.
+  const pools = (parsed.data.included ?? [])
+    .map((p) => p.attributes.address ?? p.id.split("_").slice(1).join("_"))
+    .filter((a): a is string => !!a);
+  const poolAddress = pools[0] ?? null;
   return {
     token,
     pool: poolAddress ? { address: poolAddress, dex: pool?.relationships?.dex?.data?.id ?? null } : null,
+    pools,
   };
 }
 
 /** Real OHLCV for a pool, newest last, in USD per token. */
-export async function getCandles(chain: Chain, poolAddress: string, minutes = 1, limit = 1000): Promise<Candle[]> {
+export async function getCandles(chain: Chain, poolAddress: string, minutes = 1, limit = 300): Promise<Candle[]> {
   if (!supportsChain(chain)) return [];
   const net = NETWORK_IDS[chain];
   // The API exposes minute/hour/day buckets with an aggregate multiplier.
@@ -375,4 +380,13 @@ export async function getCandles(chain: Chain, poolAddress: string, minutes = 1,
     candles.push({ t, o: finite(o, close), h: finite(h, close), l: finite(l, close), c: close, v: finite(v) });
   }
   return candles.sort((a, b) => a.t - b.t);
+}
+
+/** Candles from the first of `pools` that has any — a token's top pool is sometimes dry. */
+export async function firstCandles(chain: Chain, pools: string[], max = 3): Promise<Candle[]> {
+  for (const pool of pools.slice(0, max)) {
+    const candles = await getCandles(chain, pool);
+    if (candles.length > 0) return candles;
+  }
+  return [];
 }

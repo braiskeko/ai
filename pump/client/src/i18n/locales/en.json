@@ -702,5 +702,6 @@
   "settings.exportCsv": "Export trades (CSV)",
   "settings.helpWallet": "Your account carries its own wallet. Keep the recovery phrase from Security somewhere safe: clearing this browser's data without it loses the funds.",
   "settings.helpFees": "Swaps on coins launched here pay 2.7%, of which 10% goes to the coin's creator.",
-  "settings.helpContact": "Something wrong? Reply where you found Next and describe what you did and what happened."
+  "settings.helpContact": "Something wrong? Reply where you found Next and describe what you did and what happened.",
+  "chart.waitingCandles": "No candles for this pool yet — prices are being sampled and the chart fills in as they arrive."
 }

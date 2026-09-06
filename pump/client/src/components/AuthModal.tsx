@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, Loader2, Mail, Sparkles, Wallet } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Sparkles } from "lucide-react";
 import type { SafeUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useConfig } from "@/hooks/useConfig";
@@ -319,9 +319,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
         <TooltipProvider delayDuration={150}>
           <div className="p-6 sm:p-7">
             <DialogHeader className="items-center text-center sm:text-center">
-              <div className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-primary text-2xl font-black text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)]">
-                N
-              </div>
+              <div className="wordmark mb-3 text-4xl leading-none">{appName.toLowerCase()}</div>
               <DialogTitle className="text-xl font-bold tracking-tight">
                 {sentTo
                   ? t("auth.checkEmail")
@@ -492,23 +490,9 @@ function WalletList({
   disabled: boolean;
   onPick: (name: string) => void;
 }) {
-  const t = useT();
-  if (wallets.length === 0) {
-    return (
-      <div className="space-y-2.5 rounded-xl border border-dashed border-border p-4 text-center">
-        <Wallet className="mx-auto h-5 w-5 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">{t("auth.walletNoneDetected")}</p>
-        <a
-          href="https://phantom.app/download"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {t("auth.getWallet")}
-        </a>
-      </div>
-    );
-  }
+  // Nothing installed? Then say nothing: signing in creates the account's own
+  // wallet, so an install prompt would only be a detour.
+  if (wallets.length === 0) return null;
   return (
     <div className="space-y-2">
       {wallets.map((w) => (
