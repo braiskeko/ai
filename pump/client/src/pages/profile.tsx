@@ -561,7 +561,9 @@ function MyCash() {
   return (
     <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">$</span>
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">
+          <DollarSign className="h-4 w-4" />
+        </span>
         <div>
           <div className="text-xs text-muted-foreground">{t("profile.totalCash")}</div>
           <div className="font-bold tabular">{usd(wallet.data?.balanceSol ?? 0, solUsd)}</div>

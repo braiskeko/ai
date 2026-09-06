@@ -120,7 +120,7 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
             {row.source === "next" ? t("search.badgeNext") : t("search.badgeSolana")}
           </span>
         </div>
-        <div className="truncate text-xs text-muted-foreground">{compactUsd(row.marketCapUsd)} {t("coin.mcap").toUpperCase()}</div>
+        <div className="truncate text-xs uppercase text-muted-foreground">{compactUsd(row.marketCapUsd)} {t("coin.mcap")}</div>
       </div>
       <div className="relative shrink-0 text-right">
         <div className="stat text-sm leading-tight">{priceUsd(row.priceUsd)}</div>
