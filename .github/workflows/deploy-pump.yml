@@ -1,4 +1,4 @@
-# deploy marker 20260906T055510Z
+# deploy marker 20260906T055917Z
 name: Deploy Noxia (pump) to cPanel
 
 # Builds the Next app (pump/) and deploys it to app.noxia.work through the cPanel API
