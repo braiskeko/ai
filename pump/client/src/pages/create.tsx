@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -572,9 +572,6 @@ export default function CreatePage() {
             </section>
 
             <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <Button asChild type="button" variant="ghost" className="rounded-lg">
-                <Link href="/">{t("common.cancel")}</Link>
-              </Button>
               {canLaunch ? (
                 <Button
                   type="submit"
