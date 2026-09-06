@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -28,7 +28,6 @@ import { CandleChart, type ChartInterval } from "@/components/CandleChart";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import NotFound from "@/pages/not-found";
 import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -856,6 +855,7 @@ function TokenSkeleton() {
 
 export default function TokenPage() {
   const t = useT();
+  const [, navigate] = useLocation();
   const { mint = "" } = useParams<{ mint: string }>();
   const valid = looksLikeCa(mint);
 
@@ -877,7 +877,6 @@ export default function TokenPage() {
       /* storage unavailable */
     }
   }, []);
-  const [tradeOpen, setTradeOpen] = useState(false);
 
   const data = token.data;
   const title = useMemo(() => (data ? `${data.name} ($${data.symbol}) · ${t("app.name")}` : t("app.name")), [data, t]);
@@ -944,40 +943,27 @@ export default function TokenPage() {
         </div>
       )}
 
-      {/* Mobile: trading collapses into a fixed bottom bar that opens the panel as a sheet */}
+      {/* Mobile: Buy/Sell push the full-screen keypad (pages/tradeSheet.tsx) instead of a form. */}
       {data && (
-        <>
-          <div className="fixed inset-x-0 bottom-[4.5rem] z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
-            <div className="mx-auto flex max-w-7xl gap-2.5">
-              <Button
-                type="button"
-                onClick={() => setTradeOpen(true)}
-                className="tap h-12 flex-1 rounded-full bg-up text-base font-bold text-white hover:bg-up/90"
-              >
-                {t("trade.buy")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setTradeOpen(true)}
-                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
-              >
-                {t("trade.sell")}
-              </Button>
-            </div>
+        <div className="fixed inset-x-0 bottom-[4.5rem] z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
+          <div className="mx-auto flex max-w-7xl gap-2.5">
+            <Button
+              type="button"
+              onClick={() => navigate(`/buy/${data.mint}`)}
+              className="tap h-12 flex-1 rounded-full bg-up text-base font-bold text-white hover:bg-up/90"
+            >
+              {t("trade.buy")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`/sell/${data.mint}`)}
+              className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+            >
+              {t("trade.sell")}
+            </Button>
           </div>
-
-          <Drawer open={tradeOpen} onOpenChange={setTradeOpen}>
-            <DrawerContent className="max-h-[88vh] rounded-t-3xl lg:hidden">
-              <DrawerTitle className="sr-only">
-                {t("trade.placeBuy", { ticker: data.symbol })} / {t("trade.placeSell", { ticker: data.symbol })}
-              </DrawerTitle>
-              <div className="safe-bottom overflow-y-auto px-4 pb-4">
-                <ExternalTradePanel token={data} className="border-0 bg-transparent p-0 shadow-none" />
-              </div>
-            </DrawerContent>
-          </Drawer>
-        </>
+        </div>
       )}
     </PageShell>
   );

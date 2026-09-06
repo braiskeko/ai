@@ -439,3 +439,154 @@ test("shortAddress abbreviates long base58 addresses only", () => {
   assert.equal(shortAddress("7xKXtgyAnext"), "7xKX…next");
   assert.equal(shortAddress("short"), "short");
 });
+
+// ---------------------------------------------------------------------------
+// Follows
+// ---------------------------------------------------------------------------
+
+test("follow/unfollow is idempotent and tracked both ways", () => {
+  const storage = new Storage();
+  const alice = address("alic");
+  const bob = address("bobb");
+
+  assert.equal(storage.isFollowing(alice, bob), false);
+  storage.follow(alice, bob);
+  storage.follow(alice, bob); // idempotent
+  assert.equal(storage.isFollowing(alice, bob), true);
+  assert.equal(storage.followersCount(bob), 1);
+  assert.equal(storage.followingCount(alice), 1);
+  assert.deepEqual(storage.followingWallets(alice), [bob]);
+
+  storage.unfollow(alice, bob);
+  storage.unfollow(alice, bob); // idempotent
+  assert.equal(storage.isFollowing(alice, bob), false);
+  assert.equal(storage.followersCount(bob), 0);
+  assert.equal(storage.followingCount(alice), 0);
+});
+
+test("follow rejects following yourself or a malformed address", () => {
+  const storage = new Storage();
+  const alice = address("alic");
+  assert.throws(() => storage.follow(alice, alice));
+  assert.throws(() => storage.follow(alice, "not-a-wallet"));
+});
+
+test("follows survive a snapshot round-trip", () => {
+  const storage = new Storage();
+  const alice = address("alic");
+  const bob = address("bobb");
+  storage.follow(alice, bob);
+
+  const restored = new Storage();
+  restored.restore(JSON.stringify(storage.snapshot()));
+  assert.equal(restored.isFollowing(alice, bob), true);
+  assert.equal(restored.followersCount(bob), 1);
+});
+
+test("getFeed scopes 'following' to the wallets the viewer follows", () => {
+  const storage = new Storage();
+  const { coinId } = makeCoin(storage);
+  const alice = address("alic");
+  const bob = address("bobb");
+  const carol = address("caro");
+  trade(storage, coinId, { wallet: alice, side: "buy", sol: 1, tokens: 10, priceSol: 0.01 });
+  trade(storage, coinId, { wallet: bob, side: "buy", sol: 1, tokens: 10, priceSol: 0.01 });
+  trade(storage, coinId, { wallet: carol, side: "buy", sol: 1, tokens: 10, priceSol: 0.01 });
+
+  const global = storage.getFeed("global", null);
+  // 3 trades + 1 coin-creation event.
+  assert.equal(global.length, 4);
+
+  assert.deepEqual(storage.getFeed("following", alice), []);
+
+  storage.follow(alice, bob);
+  const following = storage.getFeed("following", alice);
+  assert.equal(following.length, 1);
+  assert.equal(following[0].wallet, bob);
+});
+
+// ---------------------------------------------------------------------------
+// Leaderboard
+// ---------------------------------------------------------------------------
+
+test("getTraders ranks wallets by realised + unrealised PnL, best first", () => {
+  const storage = new Storage();
+  const { coinId } = makeCoin(storage);
+  const winner = address("winn");
+  const loser = address("lose");
+
+  // Winner buys low, sells high: realised profit.
+  trade(storage, coinId, { wallet: winner, side: "buy", sol: 1, tokens: 100, priceSol: 0.01 });
+  trade(storage, coinId, { wallet: winner, side: "sell", sol: 5, tokens: 100, priceSol: 0.05 });
+
+  // Loser buys and still holds, but the price has since dropped (recorded via a second coin trade).
+  trade(storage, coinId, { wallet: loser, side: "buy", sol: 2, tokens: 100, priceSol: 0.02 });
+  // Push the market price down so the loser's open position is underwater.
+  storage.setCurve(storage.getCoin(coinId)!, curve({ priceSol: 0.001 }));
+
+  const ranked = storage.getTraders("all");
+  const winnerRow = ranked.find((r) => r.wallet === winner)!;
+  const loserRow = ranked.find((r) => r.wallet === loser)!;
+  assert.ok(winnerRow.pnlSol > 0, "winner should show a positive PnL");
+  assert.ok(loserRow.pnlSol < 0, "loser should show a negative PnL");
+  assert.ok(ranked.indexOf(winnerRow) < ranked.indexOf(loserRow), "winner ranks above loser");
+  assert.equal(winnerRow.rank, ranked.indexOf(winnerRow) + 1);
+});
+
+test("getTraders(range) only counts realised PnL from sells inside the window", () => {
+  const storage = new Storage();
+  const { coinId } = makeCoin(storage);
+  const wallet = address("wall");
+  const old = new Date(Date.now() - 10 * 86_400_000).toISOString();
+
+  trade(storage, coinId, { wallet, side: "buy", sol: 1, tokens: 100, priceSol: 0.01, at: old });
+  trade(storage, coinId, { wallet, side: "sell", sol: 5, tokens: 100, priceSol: 0.05, at: old });
+
+  // The realised gain happened 10 days ago: invisible to a 24h window, visible to "all".
+  const recent = storage.getTraders("24h").find((r) => r.wallet === wallet);
+  const allTime = storage.getTraders("all").find((r) => r.wallet === wallet);
+  assert.equal(recent, undefined);
+  assert.ok(allTime && allTime.pnlSol > 0);
+});
+
+test("getTraderRankFor reports an unranked wallet past the end of the list", () => {
+  const storage = new Storage();
+  const { coinId } = makeCoin(storage);
+  const trader = address("trad");
+  trade(storage, coinId, { wallet: trader, side: "buy", sol: 1, tokens: 10, priceSol: 0.01 });
+  trade(storage, coinId, { wallet: trader, side: "sell", sol: 2, tokens: 10, priceSol: 0.02 });
+
+  const me = storage.getTraderRankFor(trader, "all");
+  assert.equal(me.rank, 1);
+  assert.ok(me.pnlSol > 0);
+
+  const stranger = storage.getTraderRankFor(address("ghos"), "all");
+  assert.equal(stranger.rank, 2);
+  assert.equal(stranger.pnlSol, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Public profile extensions
+// ---------------------------------------------------------------------------
+
+test("getPublicProfile reports follow counts, volume and PnL", () => {
+  const storage = new Storage();
+  const { coinId } = makeCoin(storage);
+  const wallet = address("wall");
+  const { user } = storage.findOrCreateWalletUser(wallet);
+  const viewer = address("view");
+  trade(storage, coinId, { wallet, side: "buy", sol: 1, tokens: 100, priceSol: 0.01 });
+  trade(storage, coinId, { wallet, side: "sell", sol: 2, tokens: 100, priceSol: 0.02 });
+  storage.follow(viewer, wallet);
+
+  const profile = storage.getPublicProfile(user.username, viewer)!;
+  assert.equal(profile.followers, 1);
+  assert.equal(profile.following, 0);
+  assert.equal(profile.isFollowing, true);
+  assert.equal(profile.tradeCount, 2);
+  assert.ok(profile.volumeSol > 0);
+  assert.ok(profile.pnlSol > 0);
+
+  const strangerView = storage.getPublicProfile(user.username, address("stra"))!;
+  assert.equal(strangerView.isFollowing, false);
+});

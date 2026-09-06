@@ -428,6 +428,73 @@ export interface PublicProfile {
   joinedAt: string;
   /** distinct coins the user's wallet still holds */
   holdingsCount: number;
+  /** wallets following this profile's wallet (0 when no wallet is linked) */
+  followers: number;
+  /** wallets this profile's wallet follows */
+  following: number;
+  /** whether the viewer (if any) follows this profile's wallet */
+  isFollowing: boolean;
+  /** lifetime SOL volume traded by this wallet */
+  volumeSol: number;
+  /** number of trades this wallet has made */
+  tradeCount: number;
+  /** average time between a position's first and last trade, in minutes */
+  avgHoldMinutes: number;
+  /** realised + unrealised PnL across every coin, in SOL */
+  pnlSol: number;
+}
+
+// ---------------------------------------------------------------------------
+// Follows & leaderboard (any trader is followable, keyed by wallet address)
+// ---------------------------------------------------------------------------
+
+export interface Follow {
+  followerWallet: string;
+  targetWallet: string;
+  createdAt: string;
+}
+
+export const followSchema = z.object({ wallet: z.string().regex(SOLANA_ADDRESS_RE) });
+
+export type LeaderboardRange = "24h" | "7d" | "30d" | "all";
+export type FeedScope = "global" | "following";
+
+export interface TraderToken {
+  ca: string;
+  ticker: string;
+  imageUrl: string;
+}
+
+export interface TraderRank {
+  wallet: string;
+  user: PublicUser | null;
+  rank: number;
+  /** realised + unrealised PnL in SOL over the selected range */
+  pnlSol: number;
+  /** the wallet's largest current holdings, most valuable first */
+  topTokens: TraderToken[];
+  /** whether the viewer (if any) follows this wallet */
+  isFollowing: boolean;
+  /** wallets following this wallet */
+  followers: number;
+}
+
+export interface MyRank {
+  rank: number;
+  pnlSol: number;
+}
+
+export interface FeedEntry {
+  kind: "trade" | "created";
+  key: string;
+  at: string;
+  user: PublicUser | null;
+  wallet: string;
+  coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl">;
+  side?: "buy" | "sell";
+  sol?: number;
+  tokens?: number;
+  marketCapSol?: number;
 }
 
 export interface PlatformStats {

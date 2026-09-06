@@ -19,6 +19,7 @@ import {
   createTxSchema,
   externalQuoteSchema,
   externalSwapTxSchema,
+  followSchema,
   idTokenSchema,
   magicLinkRequestSchema,
   prepareCoinSchema,
@@ -38,11 +39,14 @@ import {
   type CommentView,
   type ExternalToken,
   type ExternalTokenDetail,
+  type FeedEntry,
   type Holding,
   type HolderRow,
+  type MyRank,
   type Portfolio,
   type PreparedCoin,
   type SentTx,
+  type TraderRank,
   type UnsignedTx,
   type User,
   type WalletView,
@@ -1134,9 +1138,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/users/:username",
     wrap((req, res) => {
-      const profile = storage.getPublicProfile(req.params.username);
+      const profile = storage.getPublicProfile(req.params.username, req.user?.walletAddress ?? null);
       if (!profile) throw new HttpError(404, "User not found");
       res.json(profile);
+    }),
+  );
+
+  // ---- Follows, leaderboard & feed -----------------------------------------
+  //
+  // Anyone who has traded is followable, whether or not they have an account —
+  // follows are keyed by wallet address, not by user id.
+
+  const leaderboardRangeSchema = z.enum(["24h", "7d", "30d", "all"]).catch("all");
+  const feedScopeSchema = z.enum(["global", "following"]).catch("global");
+
+  app.post(
+    "/api/follow",
+    requireAuth,
+    wrap((req, res) => {
+      const { wallet } = currentWallet(req);
+      const { wallet: target } = followSchema.parse(req.body);
+      storage.follow(wallet, target);
+      res.status(201).json({ isFollowing: true });
+    }),
+  );
+
+  app.delete(
+    "/api/follow/:wallet",
+    requireAuth,
+    wrap((req, res) => {
+      const { wallet } = currentWallet(req);
+      const target = req.params.wallet;
+      if (!SOLANA_ADDRESS_RE.test(target)) throw new HttpError(400, "Invalid wallet address");
+      storage.unfollow(wallet, target);
+      res.json({ isFollowing: false });
+    }),
+  );
+
+  app.get(
+    "/api/traders",
+    wrap((req, res) => {
+      const range = leaderboardRangeSchema.parse(queryString(req.query.range));
+      const followingOnly = queryString(req.query.scope) === "following";
+      const onlyWallets = followingOnly ? new Set(storage.followingWallets(currentWallet(req).wallet)) : null;
+      const rows: TraderRank[] = storage.getTraders(
+        range,
+        parseLimit(req.query.limit, 100, 200),
+        req.user?.walletAddress ?? null,
+        onlyWallets,
+      );
+      res.json(rows);
+    }),
+  );
+
+  /** Where the signed-in wallet sits on the leaderboard (the "Your rank" card). */
+  app.get(
+    "/api/traders/me",
+    requireAuth,
+    wrap((req, res) => {
+      const { wallet } = currentWallet(req);
+      const range = leaderboardRangeSchema.parse(queryString(req.query.range));
+      const rank: MyRank = storage.getTraderRankFor(wallet, range);
+      res.json(rank);
+    }),
+  );
+
+  app.get(
+    "/api/feed",
+    wrap((req, res) => {
+      const scope = feedScopeSchema.parse(queryString(req.query.scope));
+      const items: FeedEntry[] = storage.getFeed(scope, req.user?.walletAddress ?? null, parseLimit(req.query.limit, 60, 200));
+      res.json(items);
     }),
   );
 

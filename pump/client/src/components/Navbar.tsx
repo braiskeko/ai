@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   Briefcase,
   ChevronDown,
   Home,
@@ -34,18 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
-
-/**
- * Mobile navigation: five icon-only slots in a floating pill, the way the reference
- * trading apps do it. The last slot shows the signed-in user's avatar rather than an icon.
- */
-const MOBILE_TABS = [
-  { href: "/", key: "nav.home", icon: Home },
-  { href: "/activity", key: "nav.activity", icon: Search },
-  { href: "/create", key: "nav.create", icon: PlusCircle, brand: true },
-  { href: "/portfolio", key: "nav.portfolio", icon: Users },
-  { href: "/wallet", key: "nav.wallet", icon: UserIcon, avatar: true },
-] as const;
 
 /** A search term that looks like a mint address (shared/schema.ts SOLANA_ADDRESS_RE). */
 export const looksLikeCa = (s: string) => SOLANA_ADDRESS_RE.test(s);
@@ -107,11 +94,20 @@ export function Navbar() {
   };
 
   const avatarSeed = user?.avatarUrl ?? user?.avatarSeed ?? "";
+  const profileHref = user ? `/u/${encodeURIComponent(user.username)}` : "/wallet";
+
+  const mobileTabs = [
+    { href: "/", key: "nav.home", icon: Home },
+    { href: "/search", key: "nav.search", icon: Search },
+    { href: "/create", key: "nav.create", icon: PlusCircle, brand: true },
+    { href: "/people", key: "nav.people", icon: Users },
+    { href: profileHref, key: "nav.profile", icon: UserIcon, avatar: true },
+  ] as const;
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-        <div className="mx-auto flex h-14 w-full max-w-screen-2xl items-center gap-2 px-4 sm:gap-3">
+        <div className="mx-auto flex h-12 w-full max-w-screen-2xl items-center gap-2 px-4 sm:h-14 sm:gap-3">
           <Link href="/" className="flex shrink-0 items-center gap-2" aria-label={t("nav.homeAria", { app: appName })}>
             <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-base font-black text-primary-foreground shadow-[0_0_18px_-4px_hsl(var(--primary)/0.8)]">
               N
@@ -119,7 +115,8 @@ export function Navbar() {
             <span className="hidden text-lg font-bold tracking-tight sm:block">{appName}</span>
           </Link>
 
-          <form onSubmit={submitSearch} role="search" className="relative min-w-0 flex-1 md:mx-2 md:max-w-sm lg:max-w-md">
+          {/* Search stays in the header on desktop; mobile reaches it via the bottom-bar Search tab (pages/search.tsx). */}
+          <form onSubmit={submitSearch} role="search" className="relative hidden min-w-0 md:mx-2 md:block md:max-w-sm lg:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
@@ -295,7 +292,7 @@ export function Navbar() {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
       >
         <div className="pointer-events-auto flex w-full max-w-md items-center justify-around rounded-full border border-white/5 bg-secondary/80 px-1.5 py-1.5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-          {MOBILE_TABS.map((tab) => {
+          {mobileTabs.map((tab) => {
             const active = isActive(location, tab.href);
             const Icon = tab.icon;
             const showAvatar = "avatar" in tab && tab.avatar && user;

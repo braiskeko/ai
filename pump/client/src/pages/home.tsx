@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { CoinSummary, ExternalToken, PlatformStats } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
+import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { LiveTicker } from "@/components/LiveTicker";
 import { Button } from "@/components/ui/button";
@@ -400,6 +401,8 @@ export default function Home() {
   return (
     <PageShell wide>
       <div className="space-y-5">
+        <BalanceHeader />
+
         <LiveTicker />
 
         <StatsStrip />

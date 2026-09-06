@@ -1,43 +1,219 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity as ActivityIcon, CalendarDays, Coins, Pencil, PieChart, RefreshCw } from "lucide-react";
-import type { PublicProfile } from "@shared/schema";
+import {
+  Activity as ActivityIcon,
+  CalendarDays,
+  Clock,
+  Coins,
+  DollarSign,
+  Loader2,
+  Pencil,
+  PieChart,
+  Repeat,
+  Settings,
+} from "lucide-react";
+import type { Portfolio, PublicProfile, SafeUser } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { EmptyBox, PublicAvatar } from "@/components/TradesTable";
+import { FollowButton } from "@/components/TraderCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveTrades } from "@/lib/useLive";
-import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, useSolUsd, usd } from "@/lib/format";
+import { apiRequest } from "@/lib/queryClient";
+import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, usd, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import NotFound from "@/pages/not-found";
 
+type Range = "24h" | "7d" | "30d" | "all";
+const RANGES: Range[] = ["24h", "7d", "30d", "all"];
+const RANGE_MS: Record<Range, number> = { "24h": 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000, all: 0 };
+const AVATAR_PX = 256;
+const AVATAR_MAX_DATA_URL = 1_500_000;
 const RECENT_TRADES = 30;
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
+const compact = (n: number) => new Intl.NumberFormat("en-US", { notation: "compact" }).format(n);
 
 function isNotFound(err: unknown): boolean {
   return err instanceof Error && /^404:/.test(err.message);
 }
 
-function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+/** "4h 48m" / "32m" — average time between a position's first and last trade. */
+function formatHold(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "—";
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (h <= 0) return `${m}m`;
+  return `${h}h ${m}m`;
+}
+
+// ---------------------------------------------------------------------------
+// Avatar upload (isMe only) — same encode/resize as portfolio.tsx's ProfileCard
+// ---------------------------------------------------------------------------
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("decode failed"));
+    img.src = src;
+  });
+}
+async function resizeAvatar(file: File): Promise<string> {
+  const img = await loadImage(await readAsDataUrl(file));
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const side = Math.min(w, h);
+  const sx = Math.floor((w - side) / 2);
+  const sy = Math.floor((h - side) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = AVATAR_PX;
+  canvas.height = AVATAR_PX;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas unavailable");
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_PX, AVATAR_PX);
+  const encode = (quality: number) => {
+    const webp = canvas.toDataURL("image/webp", quality);
+    return webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", quality);
+  };
+  let out = encode(0.9);
+  if (out.length > AVATAR_MAX_DATA_URL) out = encode(0.7);
+  return out;
+}
+
+function EditableAvatar({ user }: { user: SafeUser }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const image = await resizeAvatar(file);
+      setPreview(image);
+      const res = await apiRequest("POST", "/api/me/avatar", { image });
+      return (await res.json()) as SafeUser;
+    },
+    onSuccess: (next) => {
+      qc.setQueryData(["/api/me"], next);
+      void qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/users/") });
+      setPreview(null);
+    },
+    onError: (err) => {
+      setPreview(null);
+      toast({ variant: "destructive", title: t("portfolio.saveFailed"), description: apiErrorMessage(err, t("common.error")) });
+    },
+  });
+
   return (
-    <div className="flex items-center gap-3 surface px-4 py-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
-      <div className="min-w-0">
-        <div className="truncate label">{label}</div>
-        <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>
-      </div>
+    <div className="relative shrink-0">
+      {preview ? (
+        <img src={preview} alt="" className="h-24 w-24 rounded-full object-cover opacity-70" />
+      ) : (
+        <PublicAvatar user={user} size={96} className="ring-4 ring-background shadow-lg" />
+      )}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={upload.isPending}
+        aria-label={t("portfolio.avatar")}
+        title={t("portfolio.avatar")}
+        className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-background bg-foreground text-background shadow-md disabled:opacity-60"
+      >
+        {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) upload.mutate(file);
+        }}
+      />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Recent trades by this user (derived from the global feed + live socket)
+// Equity curve — cumulative realised PnL replayed from the public trade list
+// ---------------------------------------------------------------------------
+
+function buildEquityCurve(trades: PublicProfile["trades"], rangeMs: number): number[] {
+  const cutoff = rangeMs > 0 ? Date.now() - rangeMs : 0;
+  const chronological = trades
+    .filter((tr) => Date.parse(tr.createdAt) >= cutoff)
+    .slice()
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id - b.id);
+
+  const perCoin = new Map<number, { tokens: number; costBasisSol: number }>();
+  const points: number[] = [0];
+  let cumulative = 0;
+  for (const tr of chronological) {
+    let st = perCoin.get(tr.coinId);
+    if (!st) {
+      st = { tokens: 0, costBasisSol: 0 };
+      perCoin.set(tr.coinId, st);
+    }
+    if (tr.side === "buy") {
+      st.tokens += tr.tokens;
+      st.costBasisSol += tr.sol;
+    } else {
+      const fraction = st.tokens > 0 ? Math.min(1, tr.tokens / st.tokens) : 1;
+      const costOfSold = st.costBasisSol * fraction;
+      cumulative += tr.sol - costOfSold;
+      st.costBasisSol = Math.max(0, st.costBasisSol - costOfSold);
+      st.tokens = Math.max(0, st.tokens - tr.tokens);
+    }
+    points.push(cumulative);
+  }
+  return points;
+}
+
+function EquityChart({ points }: { points: number[] }) {
+  const width = 320;
+  const height = 96;
+  const min = Math.min(0, ...points);
+  const max = Math.max(0, ...points);
+  const span = max - min || 1;
+  const step = points.length > 1 ? width / (points.length - 1) : width;
+  const coords = points.map((p, i) => [i * step, height - ((p - min) / span) * height] as const);
+  const up = (points[points.length - 1] ?? 0) >= (points[0] ?? 0);
+  const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const areaPath = `M0,${height} L${line} L${width},${height} Z`;
+  const stroke = up ? "hsl(var(--up))" : "hsl(var(--down))";
+
+  if (points.length <= 1) {
+    return <div className="grid h-24 place-items-center text-xs text-muted-foreground">—</div>;
+  }
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-24 w-full" preserveAspectRatio="none" aria-hidden>
+      <path d={areaPath} fill={stroke} opacity={0.12} />
+      <polyline points={line} fill="none" stroke={stroke} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={coords[coords.length - 1][0]} cy={coords[coords.length - 1][1]} r={4} fill={stroke} />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent trades (own trades, merged with the live socket)
 // ---------------------------------------------------------------------------
 
 interface UserTrade {
@@ -50,11 +226,6 @@ interface UserTrade {
   coin: { ca: string; name: string; ticker: string; imageUrl: string };
 }
 
-/**
- * The profile endpoint already returns this user's own trades (the global activity feed
- * only carries the most recent ones, so quiet users looked like they had never traded).
- * Live trades are merged on top so the list updates while the page is open.
- */
 function RecentTrades({ userId, history }: { userId: number; history: PublicProfile["trades"] }) {
   const t = useT();
   const solUsd = useSolUsd();
@@ -115,6 +286,97 @@ function RecentTrades({ userId, history }: { userId: number; history: PublicProf
 }
 
 // ---------------------------------------------------------------------------
+// Positions (isMe only — needs the private wallet-backed portfolio)
+// ---------------------------------------------------------------------------
+
+function MyPositions() {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const [tab, setTab] = useState<"open" | "closed">("open");
+  const portfolio = useQuery<Portfolio>({ queryKey: ["/api/portfolio"], staleTime: 15_000 });
+
+  if (portfolio.isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+  const data = portfolio.data;
+  const open = (data?.holdings ?? []).filter((h) => h.tokens > 1e-9);
+  const closedCoinIds = new Set(
+    (data?.trades ?? []).map((tr) => tr.coin.id).filter((id) => !open.some((h) => h.coin.id === id)),
+  );
+  const closed = Array.from(closedCoinIds)
+    .map((id) => data?.trades.find((tr) => tr.coin.id === id)?.coin)
+    .filter((c): c is NonNullable<typeof c> => !!c);
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-bold">{t("profile.positions")}</h2>
+        <div className="inline-flex rounded-full border border-border bg-card p-1">
+          {(["open", "closed"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              className={cn(
+                "h-8 rounded-full px-3 text-xs font-bold transition-colors",
+                tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              {k === "open" ? t("profile.open") : t("profile.closed")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "open" ? (
+        open.length === 0 ? (
+          <EmptyBox icon={<PieChart className="h-5 w-5" />}>{t("profile.noOpenPositions")}</EmptyBox>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {open.map((h) => (
+              <Link
+                key={h.coinId}
+                href={`/${h.coin.ca}`}
+                className="surface card-hover flex items-center gap-3 p-3"
+              >
+                <img src={h.coin.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-2xl bg-muted object-cover" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold">{h.coin.name}</div>
+                  <div className="truncate text-xs text-muted-foreground tabular">{fmtTokens(h.tokens)} {h.coin.ticker}</div>
+                </div>
+                <div className={cn("shrink-0 text-sm font-bold tabular", h.unrealizedPnlSol >= 0 ? "text-up" : "text-down")}>
+                  {h.unrealizedPnlSol >= 0 ? "+" : "-"}
+                  {compactUsd(Math.abs(h.unrealizedPnlSol) * solUsd)}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )
+      ) : closed.length === 0 ? (
+        <EmptyBox icon={<PieChart className="h-5 w-5" />}>{t("profile.noClosedPositions")}</EmptyBox>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {closed.map((c) => (
+            <Link key={c.id} href={`/${c.ca}`} className="surface card-hover flex items-center gap-3 p-3">
+              <img src={c.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-2xl bg-muted object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold">{c.name}</div>
+                <div className="truncate text-xs text-muted-foreground">${c.ticker}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -128,11 +390,7 @@ function ProfileSkeleton() {
           <Skeleton className="h-4 w-32" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 rounded-xl" />
-        ))}
-      </div>
+      <Skeleton className="h-24 w-full rounded-2xl" />
       <div className="grid gap-3 sm:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
           <CoinCardSkeleton key={i} />
@@ -148,6 +406,7 @@ export default function ProfilePage() {
   const params = useParams<{ username: string }>();
   const username = decodeURIComponent(params.username ?? "");
   const { user: me } = useAuth();
+  const [range, setRange] = useState<Range>("24h");
 
   const profile = useQuery<PublicProfile>({
     queryKey: [`/api/users/${encodeURIComponent(username)}`],
@@ -174,69 +433,116 @@ export default function ProfilePage() {
         <div className="mx-auto w-full max-w-md surface p-8 text-center">
           <h1 className="text-lg font-bold">{t("profile.loadError")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{apiErrorMessage(profile.error, t("common.error"))}</p>
-          <Button variant="outline" className="mt-5 rounded-lg" onClick={() => void profile.refetch()}>
-            <RefreshCw className={cn("h-4 w-4", profile.isFetching && "animate-spin")} />
-            {t("common.retry")}
-          </Button>
         </div>
       </PageShell>
     );
   }
 
   const isMe = !!me && me.id === data.user.id;
-  const totalMcapSol = data.createdCoins.reduce((sum, c) => sum + c.marketCapSol, 0);
-  const totalVolumeSol = data.createdCoins.reduce((sum, c) => sum + c.volumeSol, 0);
+  const points = buildEquityCurve(data.trades, RANGE_MS[range]);
+  const rangeValueSol = points[points.length - 1] ?? 0;
 
   return (
     <PageShell>
       <div className="space-y-6">
-        <section className="relative overflow-hidden surface">
-          <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-violet/10 blur-3xl" aria-hidden />
-          <div className="relative flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
-            <PublicAvatar user={data.user} wallet={data.user.walletAddress ?? undefined} size={96} className="ring-4 ring-background shadow-lg" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <h1 className="truncate text-2xl font-extrabold tracking-tight">@{data.user.username}</h1>
-                {isMe && (
-                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">{t("profile.you")}</span>
-                )}
-              </div>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {t("profile.joined", { date: format(new Date(data.joinedAt), "MMM d, yyyy") })}
-              </p>
+        <section className="surface relative overflow-hidden p-5">
+          {isMe ? (
+            <Link
+              href="/portfolio"
+              aria-label={t("profile.editProfile")}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          ) : (
+            data.user.walletAddress && (
+              <FollowButton wallet={data.user.walletAddress} isFollowing={data.isFollowing} className="absolute right-4 top-4" />
+            )
+          )}
+
+          <div className="flex items-start gap-4">
+            {isMe ? <EditableAvatar user={me!} /> : <PublicAvatar user={data.user} size={96} className="ring-4 ring-background shadow-lg" />}
+            <div className="min-w-0 flex-1 pt-1">
+              <h1 className="truncate text-xl font-extrabold tracking-tight">{data.user.username}</h1>
+              <p className="truncate text-sm text-muted-foreground">@{data.user.username}</p>
             </div>
-            {isMe && (
-              <Button asChild variant="outline" size="sm" className="rounded-lg">
-                <Link href="/portfolio">
-                  <Pencil className="h-4 w-4" />
-                  {t("profile.editProfile")}
-                </Link>
-              </Button>
-            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+            <span className="tabular"><b className="font-extrabold">{compact(data.following)}</b> <span className="text-muted-foreground">{t("profile.following")}</span></span>
+            <span className="tabular"><b className="font-extrabold">{compact(data.followers)}</b> <span className="text-muted-foreground">{t("profile.followers")}</span></span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("profile.avgHold", { time: formatHold(data.avgHoldMinutes) })}</span>
+            <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{t("profile.tradeCount", { n: count(data.tradeCount) })}</span>
+            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{t("profile.joined", { date: format(new Date(data.joinedAt), "MMM yyyy") })}</span>
           </div>
         </section>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile icon={<Coins className="h-4 w-4" />} label={t("profile.coins")} value={count(data.createdCoins.length)} />
-          <StatTile icon={<PieChart className="h-4 w-4" />} label={t("profile.holdings")} value={count(data.holdingsCount)} />
-          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdMcap")} value={compactUsd(totalMcapSol * solUsd)} />
-          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdVolume")} value={compactUsd(totalVolumeSol * solUsd)} />
-        </div>
-
-        <section>
-          <h2 className="mb-3 text-lg font-bold">{t("profile.coins")}</h2>
-          {data.createdCoins.length === 0 ? (
-            <EmptyBox icon={<Coins className="h-5 w-5" />}>{t("profile.noCoins", { username: data.user.username })}</EmptyBox>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {data.createdCoins.map((coin) => (
-                <CoinCard key={coin.id} coin={coin} />
+        <section className="surface p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={cn("stat text-3xl", rangeValueSol >= 0 ? "text-up" : "text-down")}>
+                {rangeValueSol >= 0 ? "+" : "-"}
+                {compactUsd(Math.abs(rangeValueSol) * solUsd)}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{t("profile.pnlOver", { range: t(`people.range.${range}`) })}</div>
+            </div>
+            <div className="inline-flex shrink-0 rounded-full border border-border bg-card p-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRange(r)}
+                  className={cn(
+                    "h-8 rounded-full px-2.5 text-xs font-bold transition-colors",
+                    range === r ? "bg-foreground text-background" : "text-muted-foreground",
+                  )}
+                >
+                  {t(`people.range.${r}`)}
+                </button>
               ))}
+            </div>
+          </div>
+          <div className="mt-3">
+            <EquityChart points={points} />
+          </div>
+
+          {isMe ? (
+            <MyCash />
+          ) : (
+            <div className="mt-4 flex items-center gap-3 border-t border-border/70 pt-4">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Coins className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="text-xs text-muted-foreground">{t("profile.pnlAllTime")}</div>
+                <div className={cn("font-bold tabular", data.pnlSol >= 0 ? "text-up" : "text-down")}>
+                  {data.pnlSol >= 0 ? "+" : "-"}
+                  {compactUsd(Math.abs(data.pnlSol) * solUsd)}
+                </div>
+              </div>
             </div>
           )}
         </section>
+
+        {isMe ? (
+          <MyPositions />
+        ) : (
+          <section>
+            <h2 className="mb-3 text-lg font-bold">{t("profile.coins")}</h2>
+            {data.createdCoins.length === 0 ? (
+              <EmptyBox icon={<Coins className="h-5 w-5" />}>{t("profile.noCoins", { username: data.user.username })}</EmptyBox>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {data.createdCoins.map((coin) => (
+                  <CoinCard key={coin.id} coin={coin} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section>
           <h2 className="mb-3 text-lg font-bold">{t("profile.recentTrades")}</h2>
@@ -244,5 +550,26 @@ export default function ProfilePage() {
         </section>
       </div>
     </PageShell>
+  );
+}
+
+/** The signed-in wallet's cash balance — private, so only ever shown on your own profile. */
+function MyCash() {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const wallet = useQuery<{ balanceSol: number }>({ queryKey: ["/api/wallet"], staleTime: 15_000 });
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
+      <div className="flex items-center gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">$</span>
+        <div>
+          <div className="text-xs text-muted-foreground">{t("profile.totalCash")}</div>
+          <div className="font-bold tabular">{usd(wallet.data?.balanceSol ?? 0, solUsd)}</div>
+        </div>
+      </div>
+      <Button asChild size="sm" variant="outline" className="rounded-full">
+        <Link href="/wallet">{t("home.addFunds")}</Link>
+      </Button>
+    </div>
   );
 }

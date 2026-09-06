@@ -14,7 +14,10 @@ import Token from "@/pages/token";
 import Create from "@/pages/create";
 import Portfolio from "@/pages/portfolio";
 import Wallet from "@/pages/wallet";
-import Activity from "@/pages/activity";
+import Feed from "@/pages/feed";
+import Search from "@/pages/search";
+import People from "@/pages/people";
+import TradeSheet from "@/pages/tradeSheet";
 import Profile from "@/pages/profile";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
@@ -55,9 +58,16 @@ function Router() {
       <Route path="/create" component={Create} />
       <Route path="/portfolio" component={Portfolio} />
       <Route path="/wallet" component={Wallet} />
-      <Route path="/activity" component={Activity} />
+      <Route path="/search" component={Search} />
+      <Route path="/people" component={People} />
+      <Route path="/feed" component={Feed} />
+      {/* Activity is now the Feed screen; kept as an alias so old links/bookmarks still work. */}
+      <Route path="/activity" component={Feed} />
       <Route path="/admin" component={Admin} />
       <Route path="/u/:username" component={Profile} />
+      {/* Full-screen buy/sell keypad (mobile). Must stay above "/:ca". */}
+      <Route path="/buy/:mint" component={TradeSheet} />
+      <Route path="/sell/:mint" component={TradeSheet} />
       {/* Any Solana token that was NOT launched here (traded through Jupiter). Must stay above "/:ca". */}
       <Route path="/t/:mint" component={Token} />
       {/* Coin page: the component validates the CA shape (44 base58 chars ending in "next") and renders NotFound otherwise. */}

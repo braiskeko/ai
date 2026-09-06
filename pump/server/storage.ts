@@ -33,14 +33,20 @@ import {
   type Comment,
   type CommentView,
   type CurveState,
+  type FeedEntry,
+  type FeedScope,
+  type Follow,
   type Holding,
   type HolderRow,
+  type LeaderboardRange,
+  type MyRank,
   type PlatformStats,
   type Portfolio,
   type PortfolioHolding,
   type PublicUser,
   type SafeUser,
   type Trade,
+  type TraderRank,
   type User,
   PublicProfile,
 } from "@shared/schema";
@@ -125,6 +131,8 @@ export interface State {
   comments: Comment[];
   /** pool address -> newest transaction signature already indexed */
   cursors: Record<string, string>;
+  /** wallet follows wallet — anyone who has traded is followable, account or not */
+  follows: Follow[];
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +207,7 @@ function emptyState(): State {
     holdings: [],
     comments: [],
     cursors: {},
+    follows: [],
   };
 }
 
@@ -216,6 +225,7 @@ interface LooseState {
   holdings?: Partial<Holding>[];
   comments?: Partial<Comment>[];
   cursors?: Record<string, string>;
+  follows?: Partial<Follow>[];
 }
 
 function withDefaults<T extends object>(defaults: T, loaded: Partial<T>): T {
@@ -313,6 +323,10 @@ export function restoreState(json: string): State {
     withDefaults<Comment>({ id: 0, coinId: 0, userId: 0, body: "", imageUrl: null, likes: [], createdAt: now }, c),
   );
 
+  const follows = (loose.follows ?? [])
+    .map((f) => withDefaults<Follow>({ followerWallet: "", targetWallet: "", createdAt: now }, f))
+    .filter((f) => f.followerWallet && f.targetWallet && f.followerWallet !== f.targetWallet);
+
   return {
     version: 2,
     ids: {
@@ -327,6 +341,7 @@ export function restoreState(json: string): State {
     holdings,
     comments,
     cursors: loose.cursors ?? {},
+    follows,
   };
 }
 
@@ -353,6 +368,12 @@ export class Storage {
   private commentsByCoin = new Map<number, Comment[]>();
   private commentsById = new Map<number, Comment>();
   private signatures = new Set<string>();
+  /** `${follower}:${target}` -> follow */
+  private followsByKey = new Map<string, Follow>();
+  /** wallet -> set of wallets it follows */
+  private followingByFollower = new Map<string, Set<string>>();
+  /** wallet -> set of wallets that follow it */
+  private followersByTarget = new Map<string, Set<string>>();
 
   /** coin id -> derived 1-minute candles; dropped whenever the coin trades. */
   private candleCache = new Map<number, Candle[]>();
@@ -402,11 +423,15 @@ export class Storage {
     this.commentsById.clear();
     this.signatures.clear();
     this.candleCache.clear();
+    this.followsByKey.clear();
+    this.followingByFollower.clear();
+    this.followersByTarget.clear();
     for (const u of this.state.users) this.indexUser(u);
     for (const c of this.state.coins) this.indexCoin(c);
     for (const h of this.state.holdings) this.indexHolding(h);
     for (const t of this.state.trades.slice().sort(oldestFirst)) this.indexTrade(t);
     for (const c of this.state.comments) this.indexComment(c);
+    for (const f of this.state.follows) this.indexFollow(f);
   }
 
   private indexUser(u: User): void {
@@ -449,6 +474,22 @@ export class Storage {
       this.commentsByCoin.set(c.coinId, list);
     }
     list.push(c);
+  }
+
+  private indexFollow(f: Follow): void {
+    this.followsByKey.set(`${f.followerWallet}:${f.targetWallet}`, f);
+    let following = this.followingByFollower.get(f.followerWallet);
+    if (!following) {
+      following = new Set();
+      this.followingByFollower.set(f.followerWallet, following);
+    }
+    following.add(f.targetWallet);
+    let followers = this.followersByTarget.get(f.targetWallet);
+    if (!followers) {
+      followers = new Set();
+      this.followersByTarget.set(f.targetWallet, followers);
+    }
+    followers.add(f.followerWallet);
   }
 
   private coinTrades(coinId: number): Trade[] {
@@ -1131,6 +1172,195 @@ export class Storage {
   }
 
   // -------------------------------------------------------------------------
+  // Follows (keyed by wallet address — anyone who has traded is followable)
+  // -------------------------------------------------------------------------
+
+  follow(followerWallet: string, targetWallet: string): void {
+    if (followerWallet === targetWallet) throw new HttpError(400, "You cannot follow yourself");
+    if (!SOLANA_ADDRESS_RE.test(targetWallet)) throw new HttpError(400, "Invalid wallet address");
+    if (this.followsByKey.has(`${followerWallet}:${targetWallet}`)) return;
+    const follow: Follow = { followerWallet, targetWallet, createdAt: nowIso() };
+    this.state.follows.push(follow);
+    this.indexFollow(follow);
+    this.persist();
+  }
+
+  unfollow(followerWallet: string, targetWallet: string): void {
+    const key = `${followerWallet}:${targetWallet}`;
+    if (!this.followsByKey.has(key)) return;
+    this.followsByKey.delete(key);
+    this.followingByFollower.get(followerWallet)?.delete(targetWallet);
+    this.followersByTarget.get(targetWallet)?.delete(followerWallet);
+    this.state.follows = this.state.follows.filter(
+      (f) => !(f.followerWallet === followerWallet && f.targetWallet === targetWallet),
+    );
+    this.persist();
+  }
+
+  isFollowing(followerWallet: string | null | undefined, targetWallet: string): boolean {
+    if (!followerWallet) return false;
+    return this.followsByKey.has(`${followerWallet}:${targetWallet}`);
+  }
+
+  followersCount(wallet: string): number {
+    return this.followersByTarget.get(wallet)?.size ?? 0;
+  }
+
+  followingCount(wallet: string): number {
+    return this.followingByFollower.get(wallet)?.size ?? 0;
+  }
+
+  followingWallets(wallet: string): string[] {
+    return Array.from(this.followingByFollower.get(wallet) ?? []);
+  }
+
+  // -------------------------------------------------------------------------
+  // Leaderboard & feed
+  // -------------------------------------------------------------------------
+
+  private static RANGE_MS: Record<LeaderboardRange, number> = {
+    "24h": DAY_MS,
+    "7d": 7 * DAY_MS,
+    "30d": 30 * DAY_MS,
+    all: 0,
+  };
+
+  /**
+   * Ranks every wallet that has traded or holds a position by realised (within
+   * the selected range) + unrealised (current, unwindowed — there is no
+   * historical price snapshot to re-price an old position against) PnL.
+   */
+  getTraders(
+    range: LeaderboardRange,
+    limit = 100,
+    viewerWallet: string | null = null,
+    onlyWallets?: ReadonlySet<string> | null,
+  ): TraderRank[] {
+    const now = Date.now();
+    const cutoff = Storage.RANGE_MS[range] ? now - Storage.RANGE_MS[range] : 0;
+
+    // Realised PnL within the window: replay trades chronologically per (wallet, coin),
+    // mirroring recordTrade's cost-basis accounting, and keep only sells inside the window.
+    const realized = new Map<string, number>();
+    const perPair = new Map<string, { tokens: number; costBasisSol: number }>();
+    for (const t of this.state.trades.slice().sort(oldestFirst)) {
+      if (!t.wallet) continue;
+      const key = `${t.wallet}:${t.coinId}`;
+      let st = perPair.get(key);
+      if (!st) {
+        st = { tokens: 0, costBasisSol: 0 };
+        perPair.set(key, st);
+      }
+      if (t.side === "buy") {
+        st.tokens += t.tokens;
+        st.costBasisSol = round9(st.costBasisSol + t.sol);
+      } else {
+        const fraction = st.tokens > 0 ? Math.min(1, t.tokens / st.tokens) : 1;
+        const costOfSold = round9(st.costBasisSol * fraction);
+        st.costBasisSol = round9(Math.max(0, st.costBasisSol - costOfSold));
+        st.tokens = Math.max(0, st.tokens - t.tokens);
+        if (ts(t.createdAt) >= cutoff) {
+          const delta = round9(t.sol - costOfSold);
+          realized.set(t.wallet, round9((realized.get(t.wallet) ?? 0) + delta));
+        }
+      }
+    }
+
+    // Unrealised PnL and top tokens: current open positions, valued at the live curve price.
+    const unrealized = new Map<string, number>();
+    const positions = new Map<string, { coin: Coin; valueSol: number }[]>();
+    for (const h of this.state.holdings) {
+      if (h.tokens <= TOKEN_EPSILON) continue;
+      const coin = this.coinsById.get(h.coinId);
+      if (!coin) continue;
+      const valueSol = coin.curve.priceSol * h.tokens;
+      unrealized.set(h.wallet, round9((unrealized.get(h.wallet) ?? 0) + (valueSol - h.costBasisSol)));
+      let list = positions.get(h.wallet);
+      if (!list) {
+        list = [];
+        positions.set(h.wallet, list);
+      }
+      list.push({ coin, valueSol });
+    }
+
+    const wallets = new Set<string>([...Array.from(realized.keys()), ...Array.from(unrealized.keys())]);
+    // "Following" listings must include every followed wallet, even one with no trades yet.
+    if (onlyWallets) onlyWallets.forEach((w) => wallets.add(w));
+
+    const rows: TraderRank[] = [];
+    wallets.forEach((wallet) => {
+      if (onlyWallets && !onlyWallets.has(wallet)) return;
+      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0));
+      const topTokens = (positions.get(wallet) ?? [])
+        .sort((a, b) => b.valueSol - a.valueSol)
+        .slice(0, 3)
+        .map((p) => ({ ca: p.coin.ca, ticker: p.coin.ticker, imageUrl: p.coin.imageUrl }));
+      rows.push({
+        wallet,
+        user: this.toPublicUser(this.getUserByWallet(wallet)?.id ?? null),
+        rank: 0,
+        pnlSol,
+        topTokens,
+        isFollowing: this.isFollowing(viewerWallet, wallet),
+        followers: this.followersCount(wallet),
+      });
+    });
+    rows.sort((a, b) => b.pnlSol - a.pnlSol || a.wallet.localeCompare(b.wallet));
+    rows.forEach((r, i) => (r.rank = i + 1));
+    return rows.slice(0, limit);
+  }
+
+  /** Where `wallet` sits on the leaderboard; unranked (no trades/holdings yet) sits just past the end. */
+  getTraderRankFor(wallet: string, range: LeaderboardRange): MyRank {
+    const all = this.getTraders(range, Number.MAX_SAFE_INTEGER);
+    const found = all.find((r) => r.wallet === wallet);
+    return found ? { rank: found.rank, pnlSol: found.pnlSol } : { rank: all.length + 1, pnlSol: 0 };
+  }
+
+  /**
+   * Trades + coin launches, newest first. "following" is scoped to the wallets
+   * `viewerWallet` follows (empty when signed out or following no one).
+   */
+  getFeed(scope: FeedScope, viewerWallet: string | null, limit = 60): FeedEntry[] {
+    const following = viewerWallet ? this.followingByFollower.get(viewerWallet) : undefined;
+    if (scope === "following" && (!following || following.size === 0)) return [];
+    const passes = (wallet: string) => scope === "global" || (!!following && following.has(wallet));
+
+    const items: FeedEntry[] = [];
+    for (const t of this.state.trades) {
+      if (!passes(t.wallet)) continue;
+      const coin = this.coinsById.get(t.coinId);
+      if (!coin) continue;
+      items.push({
+        kind: "trade",
+        key: `t${t.id}`,
+        at: t.createdAt,
+        user: this.toPublicUser(t.userId),
+        wallet: t.wallet,
+        side: t.side,
+        sol: t.sol,
+        tokens: t.tokens,
+        marketCapSol: t.priceSol * TOTAL_SUPPLY,
+        coin: coinRef(coin),
+      });
+    }
+    for (const c of this.state.coins) {
+      if (!passes(c.creatorWallet)) continue;
+      items.push({
+        kind: "created",
+        key: `c${c.id}`,
+        at: c.createdAt,
+        user: this.toPublicUser(c.creatorId),
+        wallet: c.creatorWallet,
+        marketCapSol: c.curve.priceSol * TOTAL_SUPPLY,
+        coin: coinRef(c),
+      });
+    }
+    items.sort((a, b) => ts(b.at) - ts(a.at));
+    return items.slice(0, limit);
+  }
+
+  // -------------------------------------------------------------------------
   // Aggregates
   // -------------------------------------------------------------------------
 
@@ -1240,8 +1470,41 @@ export class Storage {
     };
   }
 
+  /** Average minutes between a position's first and last trade, across every coin the wallet has touched. */
+  private avgHoldMinutes(wallet: string): number {
+    const span = new Map<number, { first: number; last: number }>();
+    for (const t of this.state.trades) {
+      if (t.wallet !== wallet) continue;
+      const at = ts(t.createdAt);
+      const e = span.get(t.coinId);
+      if (!e) span.set(t.coinId, { first: at, last: at });
+      else {
+        e.first = Math.min(e.first, at);
+        e.last = Math.max(e.last, at);
+      }
+    }
+    if (span.size === 0) return 0;
+    let total = 0;
+    span.forEach((e) => (total += e.last - e.first));
+    return total / span.size / 60_000;
+  }
+
+  /** Realised + unrealised PnL across every coin the wallet has ever held, all-time. */
+  private allTimePnlSol(wallet: string): number {
+    let pnl = 0;
+    for (const h of this.state.holdings) {
+      if (h.wallet !== wallet) continue;
+      pnl += h.realizedPnlSol;
+      if (h.tokens > TOKEN_EPSILON) {
+        const coin = this.coinsById.get(h.coinId);
+        if (coin) pnl += coin.curve.priceSol * h.tokens - h.costBasisSol;
+      }
+    }
+    return round9(pnl);
+  }
+
   /** Public profile page data, or undefined when no such user exists. */
-  getPublicProfile(username: string): PublicProfile | undefined {
+  getPublicProfile(username: string, viewerWallet: string | null = null): PublicProfile | undefined {
     const user = this.getUserByUsername(username);
     if (!user) return undefined;
     const now = Date.now();
@@ -1252,12 +1515,15 @@ export class Storage {
       .map((c) => this.summarize(c, now));
 
     const trades: (Trade & { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> })[] = [];
+    let volumeSol = 0;
+    let tradeCount = 0;
     for (const t of this.state.trades.slice().sort(newestFirst)) {
       if (t.userId !== user.id && (!wallet || t.wallet !== wallet)) continue;
       const coin = this.coinsById.get(t.coinId);
       if (!coin) continue;
-      trades.push({ ...t, coin: coinRef(coin) });
-      if (trades.length >= 100) break;
+      if (trades.length < 100) trades.push({ ...t, coin: coinRef(coin) });
+      volumeSol += t.sol;
+      tradeCount++;
     }
     const publicUser = this.toPublicUser(user.id);
     if (!publicUser) return undefined;
@@ -1265,7 +1531,20 @@ export class Storage {
     const holdingsCount = wallet
       ? this.state.holdings.filter((h) => h.wallet === wallet && h.tokens > 0).length
       : 0;
-    return { user: publicUser, createdCoins: coins, trades, joinedAt: user.createdAt, holdingsCount };
+    return {
+      user: publicUser,
+      createdCoins: coins,
+      trades,
+      joinedAt: user.createdAt,
+      holdingsCount,
+      followers: wallet ? this.followersCount(wallet) : 0,
+      following: wallet ? this.followingCount(wallet) : 0,
+      isFollowing: wallet ? this.isFollowing(viewerWallet, wallet) : false,
+      volumeSol: round9(volumeSol),
+      tradeCount,
+      avgHoldMinutes: wallet ? this.avgHoldMinutes(wallet) : 0,
+      pnlSol: wallet ? this.allTimePnlSol(wallet) : 0,
+    };
   }
 }
 
