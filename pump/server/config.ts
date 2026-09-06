@@ -29,6 +29,12 @@ function deriveWsUrl(http: string): string | null {
   }
 }
 
+/** Integer within [min, max]; `fallback` for anything unparseable. */
+function clampInt(value: number, fallback: number, min: number, max: number): number {
+  const n = Number.isFinite(value) ? Math.round(value) : fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export const config = {
   appName: env("APP_NAME", "Next"),
   /** Public URL of the deployment: magic-link emails and absolute metadata URLs. */
@@ -84,6 +90,18 @@ export const config = {
     /** Used until the first successful CoinGecko response (and whenever it fails). */
     solUsdFallback: Number(env("SOL_USD_FALLBACK", "150")) || 150,
     explorer: "https://solscan.io",
+  },
+
+  /**
+   * Jupiter aggregator — used to discover and trade tokens that were NOT
+   * launched through Next's bonding curve. The free "lite" host needs no key.
+   * A platform fee is only ever charged when JUP_FEE_ACCOUNT is set (it must be
+   * a token account of the referral program for the fee mint).
+   */
+  jupiter: {
+    apiBase: env("JUPITER_API_BASE", "https://lite-api.jup.ag").replace(/\/+$/, ""),
+    feeAccount: env("JUP_FEE_ACCOUNT") || null,
+    feeBps: clampInt(Number(env("JUP_FEE_BPS", "100")), 100, 0, 1000),
   },
 
   /** Bearer token for the vanity-key uploader (`x-admin-token` header). */

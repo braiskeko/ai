@@ -252,8 +252,12 @@ export interface UnsignedTx {
 export const sendTxSchema = z.object({
   /** base64 fully-signed transaction */
   tx: z.string().min(100).max(20_000),
-  /** what the tx is, so the server can index it right away */
-  kind: z.enum(["create", "swap", "claim"]),
+  /**
+   * What the tx is, so the server can index it right away. "jupswap" is a
+   * Jupiter route through an external token: it is relayed and confirmed like
+   * the rest but never indexed as a bonding-curve trade.
+   */
+  kind: z.enum(["create", "swap", "claim", "jupswap"]),
   ca: z.string().regex(SOLANA_ADDRESS_RE).optional(),
 });
 export type SendTxInput = z.infer<typeof sendTxSchema>;
@@ -442,6 +446,93 @@ export interface AdminOverview {
   /** partner (treasury) fees claimable per pool, in SOL */
   claimable: { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl">; partnerSol: number; creatorSol: number }[];
   indexer: { lastSlot: number; lastSyncAt: string | null; subscribedPools: number; rpcOk: boolean };
+}
+
+// ---------------------------------------------------------------------------
+// External tokens (any Solana memecoin, discovered and traded through Jupiter)
+//
+// These live next to — not inside — the `Coin` model above: they are NOT
+// launched through Next's bonding-curve config, have no pool of ours, no
+// creator, no graduation. Everything here is denominated in USD (prices, caps,
+// liquidity, volume) and in whole tokens, never in lamports or base units.
+// ---------------------------------------------------------------------------
+
+/** Wrapped SOL: the quote side of every external swap (buy = SOL→mint, sell = mint→SOL). */
+export const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+/** Where an external token's data came from. Only Jupiter today. */
+export type ExternalSource = "jupiter";
+
+/** A token discovered through the aggregator, as shown in the "Solana" feed. */
+export interface ExternalToken {
+  /** token mint address (base58) */
+  mint: string;
+  name: string;
+  symbol: string;
+  /** logo URL, or null when the token has none */
+  icon: string | null;
+  decimals: number;
+  priceUsd: number;
+  marketCapUsd: number;
+  liquidityUsd: number;
+  /** 24 h price change as a fraction (0.12 = +12%) */
+  change24h: number;
+  volume24hUsd: number;
+  holders: number;
+  /** listed on a strict/verified token list */
+  verified: boolean;
+  /** ISO timestamp of the first pool, when known */
+  createdAt: string | null;
+  source: ExternalSource;
+}
+
+/** Mint-level safety flags reported by the aggregator (null = unknown). */
+export interface ExternalTokenAudit {
+  mintAuthorityDisabled: boolean | null;
+  freezeAuthorityDisabled: boolean | null;
+  /** share of the supply held by the top holders, as a fraction */
+  topHoldersPercent: number | null;
+}
+
+export interface ExternalTokenDetail extends ExternalToken {
+  /**
+   * OHLC in USD per token (not SOL), derived from the price samples the server
+   * records while the token is being viewed — the free aggregator tier has no
+   * OHLC endpoint. `v` is always 0 (no per-candle volume available).
+   */
+  candles: Candle[];
+  /** circulating supply implied by marketCapUsd / priceUsd (0 when unknown) */
+  supply: number;
+  /** aggregator's organic-activity score (0-100), 0 when unknown */
+  organicScore: number;
+  buys24h: number;
+  sells24h: number;
+  audit: ExternalTokenAudit;
+  links: { website: string | null; twitter: string | null; telegram: string | null };
+  /** first (usually deepest) pool this token trades in */
+  pool: { id: string | null; dex: string | null; createdAt: string | null } | null;
+  /** solscan.io link for the mint */
+  explorerUrl: string;
+  /** jup.ag swap link for the mint */
+  jupiterUrl: string;
+}
+
+/** `side` is relative to the token: buy spends SOL, sell spends tokens. */
+export const externalQuoteSchema = quoteSchema.extend({
+  mint: z.string().regex(SOLANA_ADDRESS_RE),
+});
+export type ExternalQuoteInput = z.infer<typeof externalQuoteSchema>;
+
+export const externalSwapTxSchema = externalQuoteSchema.extend({
+  wallet: z.string().regex(SOLANA_ADDRESS_RE),
+});
+export type ExternalSwapTxInput = z.infer<typeof externalSwapTxSchema>;
+
+/** Whether the aggregator answered recently (drives the "unavailable" UI state). */
+export interface ExternalStatus {
+  available: boolean;
+  lastOkAt: string | null;
+  lastError: string | null;
 }
 
 /** Vanity keypairs pushed by the grinder (admin token protected). */
