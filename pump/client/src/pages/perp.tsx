@@ -33,7 +33,7 @@ export default function PerpPage() {
     retry: (count, err) => !(err instanceof Error && /^404:/.test(err.message)) && count < 2,
   });
 
-  const [range, setRange] = useState<ChartRange>("1H");
+  const [range, setRange] = useState<ChartRange>("4H");
   const [tvDown, setTvDown] = useState(false);
   const tvSymbol = useMemo(() => (symbol ? tradingViewSymbol(symbol) : null), [symbol]);
 

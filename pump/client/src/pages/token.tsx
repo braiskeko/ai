@@ -69,7 +69,7 @@ const SLIPPAGE_PRESETS_BPS = [100, 300, 500, 1000] as const;
 const DEFAULT_SLIPPAGE_BPS = 500;
 const SLIPPAGE_KEY = "nx_slippage_bps";
 const QUOTE_DEBOUNCE_MS = 300;
-const CHART_MODE_KEY = "nx_chart_mode";
+const CHART_MODE_KEY = "nx_chart_mode_v2";
 const CHART_MODES: ReadonlySet<string> = new Set(["price", "mcap"]);
 const CHART_RANGE_KEY = "nx_chart_range";
 const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
@@ -866,7 +866,7 @@ export default function TokenPage() {
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
 
-  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1H"));
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "4H"));
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, CHART_MODES, "mcap"));
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
@@ -926,12 +926,26 @@ export default function TokenPage() {
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
             <section className="min-w-0 lg:col-start-1 lg:row-start-1">
-              {data.chartEmbedUrl ? (
-                <PoolChart
-                  src={data.chartEmbedUrl}
-                  height={420}
-                  className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full sm:rounded-3xl"
-                />
+              {/*
+                Market cap is the default view and our own chart is the one that can
+                draw it (price × supply); TradingView's pool chart is price-only, so
+                it sits behind the price side of the switch.
+              */}
+              {data.chartEmbedUrl && mode === "price" ? (
+                <div>
+                  <PoolChart
+                    src={data.chartEmbedUrl}
+                    height={420}
+                    className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full sm:rounded-3xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onModeChange("mcap")}
+                    className="tap mt-2 h-8 rounded-xl px-2.5 text-[13px] font-bold text-muted-foreground"
+                  >
+                    {t("chart.mcap")}
+                  </button>
+                </div>
               ) : (
               <CandleChart
                 candles={data.candles}

@@ -59,7 +59,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
-const CHART_MODE_KEY = "nx_chart_mode";
+const CHART_MODE_KEY = "nx_chart_mode_v2";
 const CHART_RANGE_KEY = "nx_chart_range";
 const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
 
@@ -641,7 +641,7 @@ export default function CoinPage() {
   });
 
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "mcap"));
-  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1H"));
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "4H"));
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
     savePref(CHART_MODE_KEY, m);
@@ -688,12 +688,22 @@ export default function CoinPage() {
           */}
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
             <section className="min-w-0 lg:col-start-1 lg:row-start-1">
-              {data.chartEmbedUrl ? (
-                <PoolChart
-                  src={data.chartEmbedUrl}
-                  height={420}
-                  className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full sm:rounded-3xl"
-                />
+              {/* Same rule as the token page: market cap is ours to draw, price is TradingView's. */}
+              {data.chartEmbedUrl && mode === "price" ? (
+                <div>
+                  <PoolChart
+                    src={data.chartEmbedUrl}
+                    height={420}
+                    className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full sm:rounded-3xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onModeChange("mcap")}
+                    className="tap mt-2 h-8 rounded-xl px-2.5 text-[13px] font-bold text-muted-foreground"
+                  >
+                    {t("chart.mcap")}
+                  </button>
+                </div>
               ) : (
               <CandleChart
                 candles={data.candles}

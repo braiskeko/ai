@@ -267,6 +267,36 @@
     }
   }
 
+  /* A number that just moved: one soft tint behind it, then gone. */
+  .tick-up,
+  .tick-down {
+    border-radius: 6px;
+    padding: 0 3px;
+    margin: 0 -3px;
+  }
+  .tick-up {
+    animation: tick-up 900ms ease-out;
+  }
+  .tick-down {
+    animation: tick-down 900ms ease-out;
+  }
+  @keyframes tick-up {
+    from {
+      background-color: hsl(var(--up) / 0.22);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes tick-down {
+    from {
+      background-color: hsl(var(--down) / 0.22);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+
   /* Horizontal marquee used by the LiveTicker (content is rendered twice for a seamless loop) */
   .marquee-track {
     display: flex;

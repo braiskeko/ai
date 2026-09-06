@@ -56,7 +56,7 @@ export interface CandleChartProps {
   onModeChange?: (mode: ChartMode) => void;
   /** Hide the price/market-cap switch — a perp has no market cap to show. */
   modeSwitch?: boolean;
-  /** Controlled range; when omitted the chart keeps its own state (default "1H"). */
+  /** Controlled range; when omitted the chart keeps its own state (default "4H"). */
   range?: ChartRange;
   onRangeChange?: (range: ChartRange) => void;
   className?: string;
@@ -370,7 +370,7 @@ export function CandleChart({
   // Controlled-or-uncontrolled mode / interval.
   // Market cap is what a memecoin is read by, so that is what the chart opens on.
   const [modeState, setModeState] = useState<ChartMode>(modeProp ?? "mcap");
-  const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "1H");
+  const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "4H");
   useEffect(() => {
     if (modeProp) setModeState(modeProp);
   }, [modeProp]);
@@ -379,7 +379,7 @@ export function CandleChart({
   }, [rangeProp]);
   const mode = modeProp ?? modeState;
   const range = rangeProp ?? rangeState;
-  const spec = RANGE_BY_KEY.get(range) ?? RANGES[0];
+  const spec = RANGE_BY_KEY.get(range) ?? RANGES[1];
   const interval = spec.interval;
   const setMode = (m: ChartMode) => {
     setModeState(m);
@@ -686,7 +686,7 @@ export function CandleChart({
       // Open on the most recent window rather than the whole history: fitting hundreds of
       // bars into a phone width makes every candle a hairline (see VISIBLE_BARS).
       const last = candleData.length - 1;
-      const window = RANGE_BY_KEY.get(rangeRef.current)?.bars ?? 60;
+      const window = RANGE_BY_KEY.get(rangeRef.current)?.bars ?? 48;
       chart.timeScale().setVisibleLogicalRange({
         from: (Number.isFinite(window) ? Math.max(0, last - window) : 0) as Logical,
         to: (last + 3) as Logical,

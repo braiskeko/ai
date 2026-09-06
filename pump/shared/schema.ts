@@ -617,12 +617,17 @@ export function parseTokenId(raw: string): { chain: Chain; address: string } | n
   const chain = value.slice(0, split) as Chain;
   const address = value.slice(split + 1);
   if (!CHAINS.includes(chain) || !address) return null;
-  if (chain === "solana" ? !SOLANA_ADDRESS_RE.test(address) : !EVM_ADDRESS_RE.test(address)) return null;
+  // Solana mints are base58; everything else is usually an 0x address, but not
+  // every chain we list uses that shape — so anything address-like is accepted
+  // and the upstream decides whether it exists.
+  if (chain === "solana" ? !SOLANA_ADDRESS_RE.test(address) : !TOKEN_ADDRESS_RE.test(address)) return null;
   return { chain, address };
 }
 
 /** EVM contract addresses. */
 export const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+/** Any address-shaped token identifier on a non-Solana chain. */
+export const TOKEN_ADDRESS_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$/;
 
 /** A token discovered through the aggregator, as shown in the "Solana" feed. */
 export interface ExternalToken {

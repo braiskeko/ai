@@ -6,6 +6,7 @@ import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
 import type { Chain } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { ChainBadge } from "@/components/ChainIcon";
+import { LiveNumber } from "@/components/LiveNumber";
 import { TokenImage } from "@/components/TokenImage";
 import { TraderRow, TraderStripCard } from "@/components/TraderCard";
 import { useT } from "@/i18n";
@@ -127,11 +128,16 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
           </span>
         </span>
         <span className="shrink-0 text-right">
-          <span className="stat block text-sm leading-tight">{priceUsd(row.priceUsd)}</span>
+          <LiveNumber value={row.priceUsd} className="stat block text-sm leading-tight">
+            {priceUsd(row.priceUsd)}
+          </LiveNumber>
           {row.change24h !== 0 ? (
-            <span className={cn("block text-[11px] font-semibold tabular", row.change24h >= 0 ? "text-up" : "text-down")}>
+            <LiveNumber
+              value={row.change24h}
+              className={cn("block text-[11px] font-semibold tabular", row.change24h >= 0 ? "text-up" : "text-down")}
+            >
               {signedPct(row.change24h)}
-            </span>
+            </LiveNumber>
           ) : (
             <span className="block text-[11px] text-muted-foreground">·</span>
           )}
@@ -170,8 +176,19 @@ export default function SearchPage() {
   const coinsKey = trimmed ? `/api/coins?q=${encodeURIComponent(trimmed)}&limit=40` : "/api/coins?sort=trending&limit=20";
   const tokensKey = trimmed ? `/api/tokens?q=${encodeURIComponent(trimmed)}&limit=40` : "/api/tokens?list=trending&limit=20";
 
-  const coins = useQuery<CoinSummary[]>({ queryKey: [coinsKey], staleTime: 20_000, enabled: chip !== "traders" });
-  const tokens = useQuery<ExternalToken[]>({ queryKey: [tokensKey], staleTime: 20_000, enabled: chip !== "traders" });
+  // Live, like the home board: prices and percentages move without a reload.
+  const coins = useQuery<CoinSummary[]>({
+    queryKey: [coinsKey],
+    staleTime: 8_000,
+    refetchInterval: 12_000,
+    enabled: chip !== "traders",
+  });
+  const tokens = useQuery<ExternalToken[]>({
+    queryKey: [tokensKey],
+    staleTime: 8_000,
+    refetchInterval: 12_000,
+    enabled: chip !== "traders",
+  });
   const traders = useQuery<TraderRank[]>({ queryKey: ["/api/traders?range=all&limit=150"], staleTime: 30_000 });
 
   const rows = useMemo<Row[]>(() => {

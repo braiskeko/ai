@@ -22,6 +22,7 @@ import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCardSkeleton } from "@/components/CoinCard";
 import { ChainBadge } from "@/components/ChainIcon";
+import { LiveNumber } from "@/components/LiveNumber";
 import { PerpsList } from "@/components/PerpsList";
 import { TokenImage } from "@/components/TokenImage";
 import { Button } from "@/components/ui/button";
@@ -196,12 +197,17 @@ function TokenRow({
       </span>
 
       <span className="shrink-0 text-right">
-        <span className="block text-[17px] font-bold leading-tight tabular">{priceUsd(price)}</span>
+        <LiveNumber value={price} className="block text-[17px] font-bold leading-tight tabular">
+          {priceUsd(price)}
+        </LiveNumber>
         {Number.isFinite(change24h) && change24h !== 0 && (
-          <span className={cn("mt-0.5 block text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
+          <LiveNumber
+            value={change24h}
+            className={cn("mt-0.5 block text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}
+          >
             <span className="mr-0.5 align-[0.15em] text-[8px]">{up ? "▲" : "▼"}</span>
             {signedPct(Math.abs(change24h))}
-          </span>
+          </LiveNumber>
         )}
       </span>
     </Link>
@@ -252,11 +258,17 @@ function rowFromToken(token: ExternalToken): Row {
  * on the chain — leaving them in means the board never shows a memecoin.
  */
 const NOT_TRENDING = new Set([
-  "USDC", "USDT", "USDS", "USDE", "USDG", "PYUSD", "DAI", "FDUSD", "EURC", "USDY", "USD1",
-  "SOL", "WSOL", "MSOL", "JITOSOL", "BSOL", "JUPSOL", "INF",
-  "ETH", "WETH", "STETH", "WSTETH", "CBETH",
-  "BTC", "WBTC", "CBBTC", "TBTC",
-  "BNB", "WBNB", "HYPE", "USDH",
+  // Stablecoins: a dollar is never trending.
+  "USDC", "USDT", "USDS", "USDE", "USDG", "PYUSD", "DAI", "FDUSD", "EURC", "USDY", "USD1", "USDH", "SUSDE",
+  // The chains' own assets and their wrapped or staked forms.
+  "SOL", "WSOL", "MSOL", "JITOSOL", "BSOL", "JUPSOL", "INF", "JSOL", "HSOL",
+  "ETH", "WETH", "STETH", "WSTETH", "CBETH", "RETH", "WEETH",
+  "BTC", "WBTC", "CBBTC", "TBTC", "ZBTC",
+  "BNB", "WBNB", "HYPE", "MON", "WMON", "AVAX", "MATIC", "POL", "ARB", "OP", "S", "SUI", "APT", "TON", "TRX", "XRP", "ADA",
+  // Infrastructure and DeFi: real products, not memecoins.
+  "JUP", "RAY", "ORCA", "PYTH", "JTO", "W", "TNSR", "DRIFT", "KMNO", "MPLX", "RENDER", "RNDR", "HNT", "MOBILE",
+  "IOT", "IO", "GRASS", "ZEUS", "SHDW", "NOS", "PRCL", "STEP", "SBR", "MNGO", "AUDIO", "META", "CLOUD", "DBR",
+  "LINK", "UNI", "AAVE", "CRV", "LDO", "MKR", "ENA", "ONDO", "PENDLE", "AERO", "CBETH", "MORPHO", "EIGEN", "ETHFI",
 ]);
 
 /**
