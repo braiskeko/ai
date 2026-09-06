@@ -74,6 +74,15 @@ if [ -d "$APP_ROOT/data" ]; then
   echo "preserving existing data/ (state.json + uploads)"
   rm -rf "$NEW/$APP_ROOT/data"
   mv "$APP_ROOT/data" "$NEW/$APP_ROOT/data" || fail "PRESERVE_DATA"
+  if [ "${WIPE_DATA:-0}" = "1" ]; then
+    # Deliberate reset: keep a dated copy of the snapshot, then start from an empty database.
+    TS="$(date +%Y%m%d%H%M%S)"
+    if [ -f "$NEW/$APP_ROOT/data/state.json" ]; then
+      cp "$NEW/$APP_ROOT/data/state.json" "$HOME/${APP_ROOT}-state-backup-$TS.json"
+      echo "WIPE_DATA=1: previous state saved to ~/${APP_ROOT}-state-backup-$TS.json and removed"
+    fi
+    rm -f "$NEW/$APP_ROOT/data/state.json"
+  fi
 fi
 mkdir -p "$NEW/$APP_ROOT/data/uploads/coins" "$NEW/$APP_ROOT/data/uploads/comments" "$NEW/$APP_ROOT/data/uploads/avatars"
 if [ -d "$APP_ROOT/node_modules" ]; then

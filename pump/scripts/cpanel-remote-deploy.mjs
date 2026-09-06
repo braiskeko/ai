@@ -44,6 +44,8 @@ const APP_URL = env("APP_URL", `https://${DOMAIN}`).replace(/\/+$/, "");
 const ADMIN_EMAILS = env("ADMIN_EMAILS", "");
 const CHAIN = env("CHAIN", "amoy");
 const WIPE = env("WIPE_PUBLIC_HTML", "0");
+/** 1 = start from an empty database (the old snapshot is backed up on the host first). */
+const WIPE_DATA = env("WIPE_DATA", "0");
 const SESSION_SECRET = env("SESSION_SECRET", randomBytes(32).toString("hex"));
 const ZIP = env("ZIP_PATH", `${APP_ROOT}-cpanel.zip`);
 const ZIP_NAME = path.basename(ZIP);
@@ -417,6 +419,7 @@ async function main() {
     `APP_ROOT=${sq(APP_ROOT)}`,
     `DOMAIN=${sq(DOMAIN)}`,
     `WIPE_PUBLIC_HTML=${sq(WIPE)}`,
+    `WIPE_DATA=${sq(WIPE_DATA)}`,
     `ZIP_NAME=${sq(ZIP_NAME)}`,
     `ENV_JSON=${sq(JSON.stringify(envVars))}`,
     "",

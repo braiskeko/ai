@@ -47,6 +47,10 @@ on:
         description: "Public IP of the cPanel server (lets the deploy verify the app before DNS exists)"
         required: false
         default: "66.29.141.35"
+      wipe_data:
+        description: "Start from an empty database (deletes the coins and users stored on the server, after a backup)"
+        type: boolean
+        default: false
       wipe_public_html:
         description: "Move the main domain's public_html contents to a backup folder (not needed for a subdomain)"
         type: boolean
@@ -105,6 +109,7 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
           WIPE_PUBLIC_HTML: ${{ inputs.wipe_public_html && '1' || '0' }}
+          WIPE_DATA: ${{ inputs.wipe_data && '1' || '0' }}
           ORIGIN_IP: ${{ inputs.origin_ip || '66.29.141.35' }}
         run: |
           set -euo pipefail
