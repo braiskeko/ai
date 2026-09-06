@@ -1,4 +1,6 @@
 import { randomBytes } from "crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 /**
  * All runtime configuration lives here and comes from environment variables.
@@ -35,6 +37,29 @@ function clampInt(value: number, fallback: number, min: number, max: number): nu
   return Math.min(max, Math.max(min, n));
 }
 
+/**
+ * A stable secret without any secret management: generated on first boot and stored
+ * next to the state file (0600). Without this every restart invalidates every
+ * session, which reads as "the app logged me out again".
+ */
+function persistedSessionSecret(): string {
+  const file = path.resolve(path.dirname(env("DATA_FILE", "data/state.json")), "session-secret");
+  try {
+    const existing = fs.readFileSync(file, "utf8").trim();
+    if (existing.length >= 32) return existing;
+  } catch {
+    /* not created yet */
+  }
+  const secret = randomBytes(32).toString("hex");
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, secret, { mode: 0o600 });
+  } catch {
+    // Read-only disk: fall back to a per-boot secret rather than refusing to start.
+  }
+  return secret;
+}
+
 export const config = {
   appName: env("APP_NAME", "Next"),
   /** Public URL of the deployment: magic-link emails and absolute metadata URLs. */
@@ -42,9 +67,12 @@ export const config = {
   port: Number(env("PORT", "5000")),
   isProd: process.env.NODE_ENV === "production",
 
-  /** Secret used to sign session cookies. Random per boot if unset (sessions won't survive restarts). */
-  sessionSecret: env("SESSION_SECRET") || randomBytes(32).toString("hex"),
-  sessionSecretIsEphemeral: !env("SESSION_SECRET"),
+  /**
+   * Secret used to sign session cookies. Configured wins; otherwise one is generated
+   * once and kept beside the data file, so a restart does not sign everybody out.
+   */
+  sessionSecret: env("SESSION_SECRET") || persistedSessionSecret(),
+  sessionSecretIsEphemeral: false,
 
   /** Comma separated list of admin emails. */
   adminEmails: env("ADMIN_EMAILS")

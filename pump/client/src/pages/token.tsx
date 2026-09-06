@@ -3,11 +3,9 @@ import { Link, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   BadgeCheck,
   Check,
-  Clock,
+  ChevronLeft,
   Copy,
   Droplets,
   ExternalLink,
@@ -181,71 +179,57 @@ function CopyMint({ mint, className }: { mint: string; className?: string }) {
   );
 }
 
+/**
+ * Same shape as a coin we launched (pages/coin.tsx): identity row, then the two
+ * numbers that matter — price left, market cap right — so both kinds of token
+ * read identically.
+ */
 function TokenHeader({ token }: { token: ExternalTokenDetail }) {
   const t = useT();
   const up = token.change24h >= 0;
+  // The absolute move behind change24h, in dollars.
+  const changeUsd = token.priceUsd - token.priceUsd / (1 + token.change24h);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="surface relative overflow-hidden p-4 sm:p-6"
-    >
-      <div className="flex items-center gap-4">
-        <TokenIcon token={token} size={80} />
+    <section className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground lg:hidden">
+          <ChevronLeft className="h-6 w-6" />
+        </Link>
+        <span className="relative shrink-0">
+          <TokenImage src={token.icon} name={token.symbol} size={44} />
+          {token.verified && (
+            <BadgeCheck
+              className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background text-primary"
+              aria-label={t("token.verified")}
+            />
+          )}
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{token.name}</h1>
-            <span className="text-sm font-semibold text-muted-foreground">${token.symbol}</span>
-            {token.verified && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary"
-                title={t("token.verifiedHint")}
-              >
-                <BadgeCheck className="h-3 w-3" />
-                {t("token.verified")}
-              </span>
-            )}
-          </div>
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span className="rounded-full bg-muted px-2 py-0.5 font-semibold">{t("token.external")}</span>
-            {token.createdAt && (
-              <span className="inline-flex items-center gap-1" title={new Date(token.createdAt).toLocaleString()}>
-                <Clock className="h-3 w-3" />
-                {t("coin.ago", { time: age(token.createdAt) })}
-              </span>
-            )}
-            <CopyMint mint={token.mint} className="hidden sm:inline-flex" />
+          <h1 className="truncate text-[22px] font-extrabold leading-tight tracking-tight">{token.symbol}</h1>
+          <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="truncate">{token.name}</span>
+            <CopyMint mint={token.mint} className="shrink-0" />
           </div>
         </div>
       </div>
 
-      <CopyMint mint={token.mint} className="mt-3 sm:hidden" />
-
-      <div className="mt-5">
-        <div className="label">{t("coin.price")}</div>
-        <div className="mt-1 flex flex-wrap items-end gap-2">
-          <span className="stat text-4xl leading-none sm:text-5xl">{priceUsd(token.priceUsd)}</span>
-          <span
-            className={cn(
-              "mb-1 inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-sm font-bold tabular",
-              up ? "bg-up/15 text-up" : "bg-down/15 text-down",
-            )}
-          >
-            {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-            {signedPct(token.change24h)}
-          </span>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[40px] font-extrabold leading-none tracking-tight tabular">{priceUsd(token.priceUsd)}</div>
+          <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-1.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
+            <span>{up ? "\u25b2" : "\u25bc"}</span>
+            <span>{priceUsd(Math.abs(changeUsd))}</span>
+            <span>({signedPct(token.change24h)})</span>
+            <span className="font-medium text-muted-foreground">24h</span>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-[26px] font-bold leading-tight tabular">{compactUsd(token.marketCapUsd)}</div>
+          <div className="text-sm text-muted-foreground">{t("coin.mcap")}</div>
         </div>
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-4 sm:grid-cols-4">
-        <HeroStat label={t("coin.mcap")} value={compactUsd(token.marketCapUsd)} className="text-primary" />
-        <HeroStat label={t("token.liquidity")} value={compactUsd(token.liquidityUsd)} icon={Droplets} />
-        <HeroStat label={t("token.volume24h")} value={compactUsd(token.volume24hUsd)} icon={Flame} />
-        <HeroStat label={t("coin.holders")} value={new Intl.NumberFormat("en-US").format(token.holders)} icon={Users} />
-      </div>
-    </motion.section>
+    </section>
   );
 }
 
@@ -875,7 +859,7 @@ export default function TokenPage() {
   }
 
   return (
-    <PageShell wide>
+    <PageShell wide className="pb-nav-actions md:pb-10">
       {token.isLoading || !data ? (
         token.isError ? (
           <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
@@ -909,9 +893,8 @@ export default function TokenPage() {
                 supply={data.supply}
                 range={range}
                 onRangeChange={onRangeChange}
-                className="rounded-3xl border border-border bg-card"
+                className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
-              <p className="mt-2 px-1 text-[11px] leading-snug text-muted-foreground">{t("token.chartHint")}</p>
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">

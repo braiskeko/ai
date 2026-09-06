@@ -630,5 +630,7 @@
   "wallet.builtInHint": "Your account created this wallet in this browser. Nothing left the device.",
   "wallet.preparing": "Setting up your wallet…",
   "profile.history": "History",
-  "profile.historyHint": "Buys, sells and launches, newest first."
+  "profile.historyHint": "Buys, sells and launches, newest first.",
+  "profile.signedOutTitle": "Your profile",
+  "profile.signedOutHint": "Sign in to see your balance, positions and history."
 }
