@@ -1478,7 +1478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wallet = req.user?.walletAddress ?? null;
       const onChain = wallet ? await getSolBalance(wallet).catch(() => 0) : 0;
       // A showcase balance an admin set for this wallet stands in for the real one.
-      const demo = storage.demoFor(wallet);
+      const demo = storage.demoForWallet(wallet);
       const view: WalletView = {
         wallet,
         balanceSol: demo?.balanceSol ?? onChain,
@@ -1493,9 +1493,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get(
     "/api/users/:username",
-    wrap((req, res) => {
+    wrap(async (req, res) => {
       const profile = storage.getPublicProfile(req.params.username, req.user?.walletAddress ?? null);
       if (!profile) throw new HttpError(404, "User not found");
+      // Total cash is public: it is the balance of a wallet anyone can look up.
+      const wallet = profile.user.walletAddress;
+      const demo = storage.demoFor(profile.user.username);
+      profile.cashSol = demo?.balanceSol ?? (wallet ? await getSolBalance(wallet).catch(() => 0) : 0);
       res.json(profile);
     }),
   );
@@ -1635,20 +1639,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .parse(req.body);
 
-      const wallet =
-        input.wallet ??
-        storage.listUsers(input.username ?? "", 5).find((u) => u.username.toLowerCase() === (input.username ?? "").replace(/^@/, "").toLowerCase())
-          ?.walletAddress ??
-        null;
-      if (!wallet) throw new HttpError(404, "That account has no wallet yet");
+      const handle = (input.username ?? "").replace(/^@/, "").trim();
+      if (!handle) throw new HttpError(400, "Which account?");
 
       const solUsd = Math.max(getSolUsd(), 1e-9);
-      const figures = storage.setDemo(wallet, {
-        pnlSol: input.pnlUsd === undefined ? storage.demoFor(wallet)?.pnlSol : input.pnlUsd / solUsd,
-        balanceSol: input.cashUsd === undefined ? storage.demoFor(wallet)?.balanceSol : input.cashUsd / solUsd,
+      const current = storage.demoFor(handle);
+      const figures = storage.setDemo(handle, {
+        pnlSol: input.pnlUsd === undefined ? current?.pnlSol : input.pnlUsd / solUsd,
+        balanceSol: input.cashUsd === undefined ? current?.balanceSol : input.cashUsd / solUsd,
       });
       res.json({
-        wallet,
+        username: handle,
         pnlUsd: (figures?.pnlSol ?? 0) * solUsd,
         cashUsd: (figures?.balanceSol ?? 0) * solUsd,
       });

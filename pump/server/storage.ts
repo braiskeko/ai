@@ -135,11 +135,13 @@ export interface State {
   /** wallet follows wallet — anyone who has traded is followable, account or not */
   follows: Follow[];
   /**
-   * Showcase figures, per wallet, set by an admin.
+   * Showcase figures, per account handle (lowercased), set by an admin.
    *
    * Nothing here is earned: it is a display overlay for demos and screenshots of
    * an app that has barely traded yet. It never touches trades, holdings or the
-   * chain — clearing an entry puts the account back to its real numbers.
+   * chain — clearing an entry puts the account back to its real numbers. Keyed by
+   * handle rather than wallet so it survives an account being given its wallet
+   * later, or renaming its way through one.
    */
   demo?: Record<string, DemoFigures>;
 }
@@ -1368,16 +1370,19 @@ export class Storage {
     const wallets = new Set<string>([...Array.from(realized.keys()), ...Array.from(unrealized.keys())]);
     // "Following" listings must include every followed wallet, even one with no trades yet.
     if (onlyWallets) onlyWallets.forEach((w) => wallets.add(w));
-    // A wallet carrying showcase figures belongs on the board too.
-    const demo = this.state.demo ?? {};
-    Object.keys(demo).forEach((w) => {
-      if (demo[w]?.pnlSol) wallets.add(w);
-    });
+    // An account carrying showcase figures belongs on the board too.
+    const demoByWallet = new Map<string, DemoFigures>();
+    for (const [handle, figures] of Object.entries(this.state.demo ?? {})) {
+      const wallet = this.getUserByUsername(handle)?.walletAddress;
+      if (!wallet) continue;
+      demoByWallet.set(wallet, figures);
+      if (figures.pnlSol) wallets.add(wallet);
+    }
 
     const rows: TraderRank[] = [];
     wallets.forEach((wallet) => {
       if (onlyWallets && !onlyWallets.has(wallet)) return;
-      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0) + (demo[wallet]?.pnlSol ?? 0));
+      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0) + (demoByWallet.get(wallet)?.pnlSol ?? 0));
       const topTokens = (positions.get(wallet) ?? [])
         .sort((a, b) => b.valueSol - a.valueSol)
         .slice(0, 3)
@@ -1447,22 +1452,30 @@ export class Storage {
     return rows.slice(0, limit);
   }
 
-  /** The showcase overlay for a wallet, if an admin set one. */
-  demoFor(wallet: string | null | undefined): DemoFigures | null {
-    if (!wallet) return null;
-    return this.state.demo?.[wallet] ?? null;
+  /** The showcase overlay for a handle, if an admin set one. */
+  demoFor(username: string | null | undefined): DemoFigures | null {
+    if (!username) return null;
+    return this.state.demo?.[username.trim().replace(/^@/, "").toLowerCase()] ?? null;
   }
 
-  /** Sets (or, with an empty object, clears) a wallet's showcase figures. */
-  setDemo(wallet: string, figures: DemoFigures): DemoFigures | null {
+  /** The same, found from the wallet the account is linked to. */
+  demoForWallet(wallet: string | null | undefined): DemoFigures | null {
+    if (!wallet) return null;
+    return this.demoFor(this.getUserByWallet(wallet)?.username ?? null);
+  }
+
+  /** Sets (or, with empty figures, clears) an account's showcase numbers. */
+  setDemo(username: string, figures: DemoFigures): DemoFigures | null {
+    const key = username.trim().replace(/^@/, "").toLowerCase();
+    if (!key) return null;
     if (!this.state.demo) this.state.demo = {};
     const next: DemoFigures = {};
     if (Number.isFinite(figures.pnlSol) && figures.pnlSol !== 0) next.pnlSol = figures.pnlSol;
     if (Number.isFinite(figures.balanceSol) && figures.balanceSol !== 0) next.balanceSol = figures.balanceSol;
-    if (Object.keys(next).length === 0) delete this.state.demo[wallet];
-    else this.state.demo[wallet] = next;
+    if (Object.keys(next).length === 0) delete this.state.demo[key];
+    else this.state.demo[key] = next;
     this.persist();
-    return this.state.demo[wallet] ?? null;
+    return this.state.demo[key] ?? null;
   }
 
   /** Where `wallet` sits on the leaderboard; unranked (no trades/holdings yet) sits just past the end. */
@@ -1718,7 +1731,9 @@ export class Storage {
       volumeSol: round9(volumeSol),
       tradeCount,
       avgHoldMinutes: wallet ? this.avgHoldMinutes(wallet) : 0,
-      pnlSol: wallet ? this.allTimePnlSol(wallet) : 0,
+      pnlSol: round9((wallet ? this.allTimePnlSol(wallet) : 0) + (this.demoFor(user.username)?.pnlSol ?? 0)),
+      // Filled in by the route, which can read the chain.
+      cashSol: 0,
     };
   }
 }

@@ -5,7 +5,7 @@ import { config } from "./config";
 import * as indexer from "./indexer";
 import { ensureMetaDir } from "./meta";
 import { seedDemo } from "./seed";
-import { launchEnabled, startSolUsdRefresh, stopSolUsdRefresh } from "./solana";
+import { getSolUsd, launchEnabled, startSolUsdRefresh, stopSolUsdRefresh } from "./solana";
 import { initStorage, storage } from "./storage";
 import { UPLOADS_ROOT, ensureUploadDirs } from "./uploads";
 import * as vanity from "./vanity";
@@ -31,6 +31,24 @@ app.use((req, res, next) => {
   next();
 });
 
+/** Applies DEMO_FIGURES (see config.ts) over the accounts it names. */
+function applyDemoFigures(): void {
+  if (!config.demoFigures.trim()) return;
+  try {
+    const parsed = JSON.parse(config.demoFigures) as Record<string, { pnlUsd?: number; cashUsd?: number }>;
+    const solUsd = Math.max(getSolUsd(), 1e-9);
+    for (const [handle, figures] of Object.entries(parsed)) {
+      storage.setDemo(handle, {
+        pnlSol: figures.pnlUsd === undefined ? undefined : figures.pnlUsd / solUsd,
+        balanceSol: figures.cashUsd === undefined ? undefined : figures.cashUsd / solUsd,
+      });
+      log(`showcase figures applied to @${handle}`, "config");
+    }
+  } catch (err) {
+    log(`DEMO_FIGURES ignored (${(err as Error).message})`, "config");
+  }
+}
+
 async function main(): Promise<void> {
   if (config.sessionSecretIsEphemeral) log("SESSION_SECRET not set: sessions reset on restart", "config");
   if (!config.databaseUrl) log(`DATABASE_URL not set: persisting to ${config.dataFile}`, "config");
@@ -44,6 +62,7 @@ async function main(): Promise<void> {
 
   // 1. storage (snapshot + persistence), 2. chain indexer, 3. HTTP/WS routes.
   await initStorage();
+  applyDemoFigures();
   await vanity.init();
   startSolUsdRefresh();
 

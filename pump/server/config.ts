@@ -143,6 +143,15 @@ export const config = {
   /** Bearer token for the vanity-key uploader (`x-admin-token` header). */
   adminApiToken: env("ADMIN_API_TOKEN") || null,
 
+  /**
+   * Showcase figures applied at startup, as `{"handle":{"pnlUsd":0,"cashUsd":0}}`.
+   *
+   * Display only, the same overlay the admin screen writes: it lets a deployment
+   * come up with a populated leaderboard for a demo without anyone logging in to
+   * set it. Unset (or `{}`) leaves every account showing its real numbers.
+   */
+  demoFigures: env("DEMO_FIGURES") || "",
+
   /** Postgres connection string (Neon works). Falls back to a JSON file when unset. */
   databaseUrl: env("DATABASE_URL") || null,
   dataFile: env("DATA_FILE", "data/state.json"),

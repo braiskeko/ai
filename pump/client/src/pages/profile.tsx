@@ -472,6 +472,7 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           tradeCount: 0,
           avgHoldMinutes: 0,
           pnlSol: 0,
+          cashSol: 0,
         }
       : undefined);
   if (!data) {
@@ -569,11 +570,17 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           {isMe ? (
             <MyCash />
           ) : (
-            <div className="mt-4 flex items-center gap-3 border-t border-border/70 pt-4">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground">
-                <Coins className="h-4 w-4" />
-              </span>
-              <div>
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <DollarSign className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="text-[15px] text-muted-foreground">{t("profile.totalCash")}</div>
+                  <div className="text-[19px] font-bold tabular leading-tight">{usd(data.cashSol, solUsd)}</div>
+                </div>
+              </div>
+              <div className="text-right">
                 <div className="text-xs text-muted-foreground">{t("profile.pnlAllTime")}</div>
                 <div className={cn("font-bold tabular", data.pnlSol >= 0 ? "text-up" : "text-down")}>
                   {data.pnlSol >= 0 ? "+" : "-"}

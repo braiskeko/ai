@@ -49,6 +49,8 @@ const RPC_URL = env("RPC_URL", "");
 const DBC_CONFIG = env("DBC_CONFIG", "");
 const TREASURY_WALLET = env("TREASURY_WALLET", "");
 const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN", "");
+// Display-only showcase figures, forwarded verbatim (see pump/server/config.ts).
+const DEMO_FIGURES = env("DEMO_FIGURES", "");
 const WIPE = env("WIPE_PUBLIC_HTML", "0");
 /** 1 = start from an empty database (the old snapshot is backed up on the host first). */
 const WIPE_DATA = env("WIPE_DATA", "0");
@@ -445,6 +447,7 @@ async function main() {
     ...(DBC_CONFIG ? { DBC_CONFIG } : {}),
     ...(TREASURY_WALLET ? { TREASURY_WALLET } : {}),
     ...(ADMIN_API_TOKEN ? { ADMIN_API_TOKEN } : {}),
+    ...(DEMO_FIGURES ? { DEMO_FIGURES } : {}),
   };
   const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
   const conf = [

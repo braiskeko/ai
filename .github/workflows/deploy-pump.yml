@@ -121,6 +121,8 @@ jobs:
           DBC_CONFIG: ${{ inputs.dbc_config || vars.DBC_CONFIG }}
           TREASURY_WALLET: ${{ inputs.treasury_wallet || vars.TREASURY_WALLET }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          # Display-only figures for the demo account (see server/config.ts).
+          DEMO_FIGURES: '{"brais":{"pnlUsd":152420,"cashUsd":152520}}'
           # A fixed SESSION_SECRET keeps people signed in across deploys (a random one is
           # generated when unset).
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}

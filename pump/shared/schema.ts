@@ -500,6 +500,8 @@ export interface PublicProfile {
   avgHoldMinutes: number;
   /** realised + unrealised PnL across every coin, in SOL */
   pnlSol: number;
+  /** the wallet's cash, in SOL — what the profile shows as Total cash */
+  cashSol: number;
 }
 
 // ---------------------------------------------------------------------------
