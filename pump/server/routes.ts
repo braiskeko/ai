@@ -4,30 +4,45 @@ import type { Duplex } from "stream";
 import { WebSocket, WebSocketServer } from "ws";
 // @ts-ignore -- @types/cookie-parser is not installed (run `npm i -D @types/cookie-parser`); the runtime package is.
 import cookieParser from "cookie-parser";
-import { nanoid } from "nanoid";
+import { PublicKey } from "@solana/web3.js";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import {
   CREATOR_FEE_SHARE,
-  GRADUATION_MCAP,
+  GRADUATION_MCAP_USD,
+  LAUNCH_MCAP_USD,
+  SOLANA_ADDRESS_RE,
   SWAP_FEE,
+  TOKEN_DECIMALS,
   TOTAL_SUPPLY,
-  adminCreditSchema,
   commentSchema,
-  createCoinSchema,
+  createTxSchema,
   idTokenSchema,
   magicLinkRequestSchema,
-  tradeSchema,
+  prepareCoinSchema,
+  quoteSchema,
+  sendTxSchema,
+  swapTxSchema,
   updateProfileSchema,
+  vanityUploadSchema,
   walletLoginSchema,
-  withdrawSchema,
+  type ActivityItem,
+  type AdminOverview,
   type AppConfig,
   type AuthProvider,
+  type Coin,
   type CoinDetail,
   type CoinSummary,
   type CommentView,
+  type Holding,
+  type HolderRow,
+  type Portfolio,
+  type PreparedCoin,
+  type SentTx,
   type Trade,
+  type UnsignedTx,
   type User,
+  type WalletView,
 } from "@shared/schema";
 import { HttpError, storage } from "./storage";
 import {
@@ -42,11 +57,32 @@ import {
   verifyAppleIdToken,
   verifyGoogleIdToken,
 } from "./auth";
-import { isValidCa } from "./ca";
-import { processWithdrawal, withdrawalsEnabled } from "./chain";
 import { config } from "./config";
 import { magicLinkDevMode, sendMagicLink } from "./email";
+import * as indexer from "./indexer";
+import { buildTokenMetadata, metadataUri, readTokenMetadata, saveTokenMetadata } from "./meta";
+import {
+  buildClaimCreatorFeeTx,
+  buildClaimPartnerFeeTx,
+  buildCreateTx,
+  buildSwapTx,
+  clusterInfo,
+  explorerUrl,
+  getPoolFees,
+  getSolBalance,
+  getSolUsd,
+  getTokenAccountOwners,
+  getTokenBalances,
+  getTopHolders,
+  launchEnabled,
+  poolStateOf,
+  quote as quoteSwap,
+  readPoolState,
+  sendSignedTx,
+  treasuryPubkey,
+} from "./solana";
 import { UPLOADS_ROOT, deleteImage, saveImage } from "./uploads";
+import * as vanity from "./vanity";
 import { log } from "./vite";
 import { issueWalletNonce, verifyWalletLogin } from "./walletAuth";
 
@@ -59,10 +95,14 @@ const WS_HEARTBEAT_MS = 30_000;
 
 let wss: WebSocketServer | null = null;
 
-/** Push `{ event, payload }` to every connected client. No-op until registerRoutes has run. */
-export function broadcast(event: string, payload: unknown): void {
+/**
+ * Push an event to every connected client. Frames carry the payload three ways
+ * so the client can read whichever it prefers:
+ * `{event, type, payload: {...}, ...payload}`.
+ */
+export function broadcast(event: string, payload: Record<string, unknown>): void {
   if (!wss || wss.clients.size === 0) return;
-  const message = JSON.stringify({ event, payload });
+  const message = JSON.stringify({ event, type: event, payload, ...payload });
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) client.send(message);
   });
@@ -132,7 +172,6 @@ const wrap =
       .catch(next);
   };
 
-/** Positive integer route parameter, or 400. */
 function parseId(raw: string): number {
   const id = Number(raw);
   if (!/^\d+$/.test(raw) || !Number.isSafeInteger(id) || id <= 0) throw new HttpError(400, "Invalid id");
@@ -145,14 +184,19 @@ function currentUser(req: Request): User {
   return req.user;
 }
 
-/** First string value of a query parameter (Express may hand us arrays or nested objects). */
+/** The signed-in user together with their linked wallet (402-style guard for trading). */
+function currentWallet(req: Request): { user: User; wallet: string } {
+  const user = currentUser(req);
+  if (!user.walletAddress) throw new HttpError(400, "Connect a Solana wallet first");
+  return { user, wallet: user.walletAddress };
+}
+
 function queryString(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (Array.isArray(value) && typeof value[0] === "string") return value[0];
   return undefined;
 }
 
-/** Clamp a numeric query parameter into [1, max], falling back when absent or unparsable. */
 function parseLimit(raw: unknown, fallback: number, max: number): number {
   const n = Math.floor(Number(queryString(raw)));
   if (!Number.isFinite(n)) return fallback;
@@ -167,45 +211,31 @@ function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }
 
-/**
- * Coin detail records are indexed by CA in storage; the route parameter must look like
- * one before we even ask, so junk paths (and the SPA's own routes) are a cheap 404.
- */
-function coinByCa(ca: string, viewerId?: number): CoinDetail {
-  const coin = isValidCa(ca) ? storage.getCoinByCa(ca, viewerId) : undefined;
+function isMint(value: string): boolean {
+  return SOLANA_ADDRESS_RE.test(value);
+}
+
+/** The stored coin for a `:ca` route parameter, or 404. */
+function coinByCa(ca: string): Coin {
+  const coin = isMint(ca) ? storage.findCoinByCa(ca) : undefined;
   if (!coin) throw new HttpError(404, "Coin not found");
-  rememberCa(coin);
   return coin;
 }
 
 /** Strip the detail-only fields so realtime frames carry exactly a CoinSummary. */
 function toSummary(coin: CoinDetail): CoinSummary {
-  const { candles: _candles, recentTrades: _trades, commentsList: _comments, topHolders: _holders, myHolding: _mine, ...summary } = coin;
+  const {
+    candles: _candles,
+    recentTrades: _trades,
+    commentsList: _comments,
+    topHolders: _holders,
+    myHolding: _mine,
+    creatorClaimableSol: _claimable,
+    ...summary
+  } = coin;
   return summary;
 }
 
-/**
- * Comments only know their coinId, but the client keys everything by CA. We remember every
- * id -> CA pair we see; the rare miss (like on a comment right after a restart) falls back to
- * scanning the coin list, which is small enough for a single-process deployment.
- */
-const caByCoinId = new Map<number, string>();
-
-function rememberCa(coin: Pick<CoinSummary, "id" | "ca">): void {
-  caByCoinId.set(coin.id, coin.ca);
-}
-
-function coinCaById(coinId: number): string {
-  const cached = caByCoinId.get(coinId);
-  if (cached) return cached;
-  const found = storage.listCoins({ sort: "new", limit: Number.MAX_SAFE_INTEGER }).find((c) => c.id === coinId);
-  if (!found) throw new HttpError(404, "Coin not found");
-  rememberCa(found);
-  return found.ca;
-}
-
-// Query-string filters: `.catch(undefined)` makes unknown values act as "not provided"
-// instead of failing the request.
 const coinListQuerySchema = z.object({
   sort: z.enum(["new", "trending", "mcap", "volume", "graduated"]).optional().catch(undefined),
   search: z.string().trim().min(1).max(100).optional().catch(undefined),
@@ -214,6 +244,8 @@ const coinListQuerySchema = z.object({
 const avatarSchema = z.object({
   image: z.string().regex(/^data:image\/(png|jpe?g|webp|gif);base64,/, "Upload an image").max(2_000_000),
 });
+
+const claimSchema = z.object({ ca: z.string().regex(SOLANA_ADDRESS_RE) });
 
 /** Fixed-window-per-key limiter kept in memory; plenty for a single-process deployment. */
 class RateLimiter {
@@ -258,17 +290,107 @@ class RateLimiter {
 }
 
 const MAGIC_LINK_WINDOW_MS = 15 * 60 * 1000;
-const MAGIC_LINK_MAX_REQUESTS = 5;
-const magicLinkLimiter = new RateLimiter(MAGIC_LINK_MAX_REQUESTS, MAGIC_LINK_WINDOW_MS);
-
-/** Wallet challenges are cheap but each one is a Map entry; cap them per IP. */
+const magicLinkLimiter = new RateLimiter(5, MAGIC_LINK_WINDOW_MS);
 const walletNonceLimiter = new RateLimiter(30, 10 * 60 * 1000);
 const walletLoginLimiter = new RateLimiter(20, 15 * 60 * 1000);
-
-/** Coin creation: 5 per user per hour. */
+/** Coin creation: 5 prepares per user per hour. */
 const coinCreateLimiter = new RateLimiter(5, 60 * 60 * 1000);
-/** Comments: 20 per user per minute. */
 const commentLimiter = new RateLimiter(20, 60 * 1000);
+/** Transaction building hits the RPC; keep it civil. */
+const txLimiter = new RateLimiter(60, 60 * 1000);
+
+// ---------------------------------------------------------------------------
+// Pending coin creations
+// ---------------------------------------------------------------------------
+
+interface Prepared {
+  id: string;
+  userId: number;
+  mint: string;
+  vanity: boolean;
+  name: string;
+  ticker: string;
+  description: string;
+  imageUrl: string;
+  metadataUri: string;
+  website: string | null;
+  twitter: string | null;
+  telegram: string | null;
+  expiresAt: number;
+}
+
+/** prepareId -> everything /api/coins/create-tx needs. Mirrors the vanity reservation TTL. */
+const prepared = new Map<string, Prepared>();
+
+function sweepPrepared(now = Date.now()): void {
+  prepared.forEach((entry, id) => {
+    if (entry.expiresAt > now) return;
+    prepared.delete(id);
+    void vanity.release(id);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Chain enrichment (best effort: a dead RPC must never 500 a page)
+// ---------------------------------------------------------------------------
+
+/** Replaces the indexed holder list with the real one from the chain. */
+async function chainHolders(coin: Coin): Promise<{ rows: HolderRow[]; total: number } | null> {
+  try {
+    const { holders, total } = await getTopHolders(coin.ca);
+    if (holders.length === 0) return { rows: [], total: 0 };
+    const owners = await getTokenAccountOwners(holders.map((h) => h.address));
+    const read = await readPoolState(coin.pool).catch(() => null);
+    const baseVault = read ? poolStateOf(read.pool).baseVault.toBase58() : null;
+    const rows = holders.map((h) => {
+      const owner = owners.get(h.address) ?? h.address;
+      return storage.holderRow(coin, owner, h.tokens, h.address === baseVault);
+    });
+    return { rows, total };
+  } catch (err) {
+    log(`holder lookup for ${coin.ca} failed: ${errorMessage(err)}`, "routes");
+    return null;
+  }
+}
+
+/** Unclaimed creator fees on a pool, or 0 when the RPC is unavailable. */
+async function creatorClaimable(coin: Coin): Promise<number> {
+  try {
+    return (await getPoolFees(coin.pool)).creatorSol;
+  } catch {
+    return 0;
+  }
+}
+
+async function buildCoinDetail(ca: string, viewerWallet: string | null): Promise<CoinDetail> {
+  const coin = coinByCa(ca);
+  const detail = storage.getCoinDetail(coin.ca, viewerWallet);
+  if (!detail) throw new HttpError(404, "Coin not found");
+
+  const [holders, balances, claimable] = await Promise.all([
+    chainHolders(coin),
+    viewerWallet ? getTokenBalances(viewerWallet, [coin.ca]).catch(() => new Map<string, number>()) : Promise.resolve(null),
+    viewerWallet && viewerWallet === coin.creatorWallet ? creatorClaimable(coin) : Promise.resolve(0),
+  ]);
+
+  if (holders) {
+    detail.topHolders = holders.rows;
+    detail.holders = holders.total;
+  }
+  if (viewerWallet) {
+    const tokens = balances?.get(coin.ca) ?? 0;
+    const indexed: Holding = detail.myHolding ?? {
+      wallet: viewerWallet,
+      coinId: coin.id,
+      tokens: 0,
+      costBasisSol: 0,
+      realizedPnlSol: 0,
+    };
+    detail.myHolding = tokens > 0 || indexed.costBasisSol > 0 || indexed.realizedPnlSol !== 0 ? { ...indexed, tokens } : null;
+  }
+  detail.creatorClaimableSol = claimable;
+  return detail;
+}
 
 // ---------------------------------------------------------------------------
 // Routes
@@ -277,6 +399,7 @@ const commentLimiter = new RateLimiter(20, 60 * 1000);
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   wss = setupRealtime(httpServer);
+  indexer.setBroadcaster((event, payload) => broadcast(event, payload as Record<string, unknown>));
 
   app.use(cookieParser());
 
@@ -284,12 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // carry a cache-busting query), so a long browser cache is safe.
   app.use(
     "/uploads",
-    express.static(UPLOADS_ROOT, {
-      maxAge: "7d",
-      index: false,
-      dotfiles: "ignore",
-      fallthrough: false,
-    }),
+    express.static(UPLOADS_ROOT, { maxAge: "7d", index: false, dotfiles: "ignore", fallthrough: false }),
   );
 
   // Attach the signed-in user (if any) to every API request. API responses are
@@ -311,16 +429,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       appName: config.appName,
       googleClientId: config.google.clientId,
       appleClientId: config.apple.clientId,
-      walletConnectProjectId: config.walletConnectProjectId,
       instantEmailLogin: config.instantEmailLogin,
       magicLinkDevMode,
-      chain: config.chain,
-      depositsEnabled: config.depositsEnabled,
-      withdrawalsEnabled,
+      chain: clusterInfo(),
+      solUsd: getSolUsd(),
       swapFee: SWAP_FEE,
       creatorFeeShare: CREATOR_FEE_SHARE,
       totalSupply: TOTAL_SUPPLY,
-      graduationMcap: GRADUATION_MCAP,
+      launchMcapUsd: LAUNCH_MCAP_USD,
+      graduationMcapUsd: GRADUATION_MCAP_USD,
+      vanityAvailable: vanity.count(),
+      launchEnabled,
     };
     res.json(appConfig);
   });
@@ -404,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/google", idTokenSignIn("google", verifyGoogleIdToken));
   app.post("/api/auth/apple", idTokenSignIn("apple", verifyAppleIdToken));
 
-  // Sign-In-With-Ethereum style: challenge, then signed challenge. See walletAuth.ts.
+  // Sign-In-With-Solana: challenge, then signed challenge. See walletAuth.ts.
   app.get(
     "/api/auth/wallet/nonce",
     wrap((req, res) => {
@@ -467,6 +586,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }),
   );
 
+  /** Links a Solana wallet to an email/Google/Apple account (same signed challenge). */
+  app.post(
+    "/api/me/wallet",
+    requireAuth,
+    wrap((req, res) => {
+      const ipKey = `ip:${clientIp(req)}`;
+      walletLoginLimiter.check(ipKey, res, "Too many attempts. Please wait a few minutes and try again.");
+      walletLoginLimiter.record(ipKey);
+      const input = walletLoginSchema.parse(req.body);
+      const address = verifyWalletLogin(input);
+      const user = storage.linkWallet(currentUser(req).id, address);
+      res.json(storage.toSafeUser(user));
+    }),
+  );
+
   // ---- Aggregates ---------------------------------------------------------
 
   app.get(
@@ -479,7 +613,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/activity",
     wrap((req, res) => {
-      res.json(storage.getActivity(parseLimit(req.query.limit, 60, 200)));
+      const items: ActivityItem[] = storage.getActivity(parseLimit(req.query.limit, 60, 200));
+      res.json(items);
     }),
   );
 
@@ -490,101 +625,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
     wrap((req, res) => {
       const filters = coinListQuerySchema.parse({
         sort: queryString(req.query.sort),
-        search: queryString(req.query.search),
+        search: queryString(req.query.q) ?? queryString(req.query.search),
       });
-      const coins = storage.listCoins({ ...filters, limit: parseLimit(req.query.limit, 60, 200) });
-      coins.forEach(rememberCa);
-      res.json(coins);
+      res.json(storage.listCoins({ ...filters, limit: parseLimit(req.query.limit, 60, 200) }));
     }),
   );
 
-  // Must be registered before "/api/coins/:ca" or Express would treat "king" as a CA.
-  app.get(
-    "/api/coins/king",
-    wrap((_req, res) => {
-      const king = storage.getKing();
-      if (king) rememberCa(king);
-      res.json(king);
-    }),
-  );
-
+  /**
+   * Step 1 of a launch: store the image and the metadata JSON and reserve a mint.
+   * Nothing touches the chain yet — the reservation expires after 15 minutes.
+   */
   app.post(
-    "/api/coins",
+    "/api/coins/prepare",
     requireAuth,
     wrap(async (req, res) => {
-      const me = currentUser(req);
-      const userKey = `user:${me.id}`;
+      if (!launchEnabled) throw new HttpError(503, "Launching is not configured on this server (DBC_CONFIG)");
+      const { user, wallet } = currentWallet(req);
+      const userKey = `user:${user.id}`;
       coinCreateLimiter.check(userKey, res, "You can launch at most 5 coins per hour. Please try again later.");
-      const input = createCoinSchema.parse(req.body);
+      const input = prepareCoinSchema.parse(req.body);
+      sweepPrepared();
 
-      // The CA is minted inside storage.createCoin, so the file gets a random name instead.
-      const imageUrl = await saveImage(input.image, "coins", nanoid(), 512);
-      let created: { coin: CoinDetail; trade: Trade | null };
+      const reservation = await vanity.reserve();
+      const mint = reservation.keypair.publicKey.toBase58();
+      let imageUrl: string;
       try {
-        created = storage.createCoin(me, input, imageUrl);
+        imageUrl = await saveImage(input.image, "coins", mint, 512);
       } catch (err) {
-        // e.g. insufficient balance for the initial buy: don't leave an orphaned file behind.
-        void deleteImage(imageUrl);
+        await vanity.release(reservation.id);
         throw err;
       }
-      coinCreateLimiter.record(userKey);
 
-      const { coin, trade } = created;
-      rememberCa(coin);
-      const summary = toSummary(coin);
-      broadcast("coin:created", summary);
-      if (trade) {
-        broadcast("trade", { coin: summary, trade: { ...trade, user: storage.toPublicUser(me.id) } });
-        const creator = storage.getUser(me.id);
-        if (creator) broadcast("balance:updated", { userId: creator.id, balance: creator.balance });
+      const uri = metadataUri(mint);
+      const meta = buildTokenMetadata({
+        name: input.name,
+        ticker: input.ticker,
+        description: input.description,
+        imageUrl,
+        website: input.website,
+        twitter: input.twitter,
+        telegram: input.telegram,
+      });
+      try {
+        await saveTokenMetadata(mint, meta);
+      } catch (err) {
+        void deleteImage(imageUrl);
+        await vanity.release(reservation.id);
+        throw err;
       }
-      res.status(201).json(coin);
+
+      prepared.set(reservation.id, {
+        id: reservation.id,
+        userId: user.id,
+        mint,
+        vanity: reservation.vanity,
+        name: input.name,
+        ticker: input.ticker,
+        description: input.description,
+        imageUrl,
+        metadataUri: uri,
+        website: input.website || null,
+        twitter: input.twitter || null,
+        telegram: input.telegram || null,
+        expiresAt: reservation.expiresAt,
+      });
+      coinCreateLimiter.record(userKey);
+      log(`${wallet} prepared ${input.ticker} as ${mint}${reservation.vanity ? " (vanity)" : ""}`, "coins");
+
+      const response: PreparedCoin = {
+        id: reservation.id,
+        mint,
+        vanity: reservation.vanity,
+        metadataUri: uri,
+        imageUrl,
+        expiresAt: new Date(reservation.expiresAt).toISOString(),
+      };
+      res.status(201).json(response);
+    }),
+  );
+
+  /** Step 2: the unsigned create-pool transaction (mint keypair already co-signed). */
+  app.post(
+    "/api/coins/create-tx",
+    requireAuth,
+    wrap(async (req, res) => {
+      if (!launchEnabled) throw new HttpError(503, "Launching is not configured on this server (DBC_CONFIG)");
+      const { user, wallet } = currentWallet(req);
+      txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
+      txLimiter.record(`user:${user.id}`);
+      const input = createTxSchema.parse(req.body);
+      if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
+
+      sweepPrepared();
+      const entry = prepared.get(input.prepareId);
+      const reservation = vanity.get(input.prepareId);
+      if (!entry || !reservation) throw new HttpError(410, "This launch expired. Please upload the image again.");
+      if (entry.userId !== user.id) throw new HttpError(403, "This launch belongs to another account");
+
+      // There is no pool to quote against yet: the creator is the very first buyer
+      // and gets the deterministic starting price, so one base unit is enough of a
+      // floor to keep the instruction happy.
+      const minOut = input.initialBuySol > 0 ? 1 / 10 ** TOKEN_DECIMALS : 0;
+      const built = await buildCreateTx({
+        payer: new PublicKey(wallet),
+        poolCreator: new PublicKey(wallet),
+        baseMint: reservation.keypair,
+        name: entry.name,
+        symbol: entry.ticker,
+        uri: entry.metadataUri,
+        firstBuySol: input.initialBuySol,
+        minOut,
+      });
+
+      // The mint is spent even if the user never signs: reusing it after a
+      // creation transaction may still land would be far worse.
+      vanity.consume(input.prepareId);
+      prepared.delete(input.prepareId);
+
+      const response: UnsignedTx = { tx: built.tx, lastValidBlockHeight: built.lastValidBlockHeight, mint: entry.mint };
+      res.json(response);
+    }),
+  );
+
+  /** The Metaplex off-chain metadata for a mint we launched. */
+  app.get(
+    "/api/meta/:file",
+    wrap(async (req, res) => {
+      const mint = req.params.file.replace(/\.json$/, "");
+      if (!isMint(mint)) throw new HttpError(404, "Not found");
+      const meta = await readTokenMetadata(mint);
+      if (!meta) throw new HttpError(404, "Not found");
+      res.set("Cache-Control", "public, max-age=300");
+      res.json(meta);
     }),
   );
 
   app.get(
     "/api/coins/:ca",
-    wrap((req, res) => {
-      res.json(coinByCa(req.params.ca, req.user?.id));
+    wrap(async (req, res) => {
+      res.json(await buildCoinDetail(req.params.ca, req.user?.walletAddress ?? null));
     }),
   );
 
   app.get(
     "/api/coins/:ca/candles",
     wrap((req, res) => {
+      res.json(storage.getCandles(coinByCa(req.params.ca).id));
+    }),
+  );
+
+  app.get(
+    "/api/coins/:ca/trades",
+    wrap((req, res) => {
       const coin = coinByCa(req.params.ca);
-      res.json(storage.getCandles(coin.id));
+      res.json(storage.getCoinTrades(coin.id, parseLimit(req.query.limit, 100, 500)));
     }),
   );
 
   app.post(
     "/api/coins/:ca/quote",
-    requireAuth,
-    wrap((req, res) => {
+    wrap(async (req, res) => {
       const coin = coinByCa(req.params.ca);
-      const { side, amount } = tradeSchema.parse(req.body);
-      res.json(storage.quote(coin.id, currentUser(req).id, side, amount));
+      const input = quoteSchema.parse(req.body);
+      if (coin.curve.migrated) throw new HttpError(400, "This coin has graduated and now trades on Meteora");
+      try {
+        res.json(await quoteSwap(coin.pool, input.side, input.amount, input.slippageBps));
+      } catch (err) {
+        throw new HttpError(400, errorMessage(err));
+      }
     }),
   );
 
+  /** The unsigned swap transaction for the connected wallet. */
   app.post(
-    "/api/coins/:ca/trade",
+    "/api/coins/:ca/swap-tx",
     requireAuth,
-    wrap((req, res) => {
-      const target = coinByCa(req.params.ca);
-      const { side, amount, minOut } = tradeSchema.parse(req.body);
-      const { trade, coin, user } = storage.trade(target.id, currentUser(req).id, side, amount, minOut);
-      broadcast("trade", { coin, trade: { ...trade, user: storage.toPublicUser(user.id) } });
-      // The creator just earned their fee share; let their open tabs refresh the balance.
-      if (coin.creatorId !== user.id) {
-        const creator = storage.getUser(coin.creatorId);
-        if (creator) broadcast("balance:updated", { userId: creator.id, balance: creator.balance });
+    wrap(async (req, res) => {
+      const { user, wallet } = currentWallet(req);
+      txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
+      txLimiter.record(`user:${user.id}`);
+      const coin = coinByCa(req.params.ca);
+      const input = swapTxSchema.parse(req.body);
+      if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
+      if (coin.curve.migrated) throw new HttpError(400, "This coin has graduated and now trades on Meteora");
+
+      const quote = await quoteSwap(coin.pool, input.side, input.amount, input.slippageBps).catch((err: unknown) => {
+        throw new HttpError(400, errorMessage(err));
+      });
+      const built = await buildSwapTx({
+        owner: new PublicKey(wallet),
+        pool: new PublicKey(coin.pool),
+        side: input.side,
+        amount: input.amount,
+        minOut: quote.minOut,
+      });
+      const response: UnsignedTx = { tx: built.tx, lastValidBlockHeight: built.lastValidBlockHeight, quote };
+      res.json(response);
+    }),
+  );
+
+  /** Claim trading fees: the coin's creator, or the treasury for the platform share. */
+  app.post(
+    "/api/coins/:ca/claim-tx",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { wallet } = currentWallet(req);
+      const coin = coinByCa(req.params.ca);
+      const treasury = treasuryPubkey?.toBase58() ?? null;
+      const pool = new PublicKey(coin.pool);
+      let built;
+      if (wallet === coin.creatorWallet) {
+        built = await buildClaimCreatorFeeTx(new PublicKey(wallet), pool);
+      } else if (treasury && wallet === treasury) {
+        built = await buildClaimPartnerFeeTx(new PublicKey(wallet), pool);
+      } else {
+        throw new HttpError(403, "Only the creator can claim these fees");
       }
-      res.json({ trade, coin, user: storage.toSafeUser(user) });
+      const response: UnsignedTx = { tx: built.tx, lastValidBlockHeight: built.lastValidBlockHeight };
+      res.json(response);
+    }),
+  );
+
+  /**
+   * Relays a signed transaction, waits for confirmation and indexes it, so the
+   * response already carries the resulting trade or the freshly created coin.
+   */
+  app.post(
+    "/api/tx/send",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { user } = currentWallet(req);
+      txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
+      txLimiter.record(`user:${user.id}`);
+      const input = sendTxSchema.parse(req.body);
+
+      let signature: string;
+      try {
+        signature = await sendSignedTx(input.tx);
+      } catch (err) {
+        throw new HttpError(400, errorMessage(err));
+      }
+
+      const response: SentTx = { signature, explorerUrl: explorerUrl("tx", signature), confirmed: true };
+
+      if (input.kind === "create" && input.ca) {
+        const coin = await waitForCoin(input.ca);
+        if (coin) {
+          response.coin = storage.summarize(coin);
+          broadcast("coin:created", { coin: response.coin });
+        }
+      } else if (input.kind === "swap") {
+        const trade = await indexer.indexSignature(signature).catch(() => null);
+        if (trade) response.trade = trade;
+      }
+
+      res.status(201).json(response);
     }),
   );
 
   // ---- Comments -----------------------------------------------------------
+
+  app.get(
+    "/api/coins/:ca/comments",
+    wrap((req, res) => {
+      res.json(storage.listComments(coinByCa(req.params.ca).id));
+    }),
+  );
 
   app.post(
     "/api/coins/:ca/comments",
@@ -596,7 +902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const coin = coinByCa(req.params.ca);
       const { body, image } = commentSchema.parse(req.body);
 
-      const imageUrl = image ? await saveImage(image, "comments", nanoid(), 800) : undefined;
+      const imageUrl = image ? await saveImage(image, "comments", `${coin.id}-${Date.now().toString(36)}`, 800) : undefined;
       let comment: CommentView;
       try {
         comment = storage.addComment(coin.id, me.id, body, imageUrl);
@@ -606,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       commentLimiter.record(userKey);
 
-      broadcast("comment:created", { ...comment, ca: coin.ca });
+      broadcast("comment", { comment, ca: coin.ca });
       res.status(201).json(comment);
     }),
   );
@@ -617,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     wrap((req, res) => {
       const id = parseId(req.params.id);
       const comment = storage.toggleLike(id, currentUser(req).id);
-      broadcast("comment:updated", { ...comment, ca: coinCaById(comment.coinId) });
+      broadcast("comment", { comment, ca: storage.getCommentCoinCa(comment.id) ?? null });
       res.json(comment);
     }),
   );
@@ -627,49 +933,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/portfolio",
     requireAuth,
-    wrap((req, res) => {
-      res.json(storage.getPortfolio(currentUser(req).id));
+    wrap(async (req, res) => {
+      const user = currentUser(req);
+      const wallet = user.walletAddress;
+      const portfolio: Portfolio = storage.getPortfolio(wallet);
+      if (wallet) {
+        const [balanceSol, balances] = await Promise.all([
+          getSolBalance(wallet).catch(() => 0),
+          getTokenBalances(
+            wallet,
+            portfolio.holdings.map((h) => h.coin.ca),
+          ).catch(() => new Map<string, number>()),
+        ]);
+        portfolio.balanceSol = balanceSol;
+        // The chain is authoritative for what the wallet actually holds.
+        let holdingsValueSol = 0;
+        let unrealizedPnlSol = 0;
+        portfolio.holdings = portfolio.holdings
+          .map((h) => {
+            const tokens = balances.get(h.coin.ca) ?? h.tokens;
+            const valueSol = tokens * h.coin.priceSol;
+            const pnl = valueSol - h.costBasisSol;
+            holdingsValueSol += valueSol;
+            unrealizedPnlSol += pnl;
+            return { ...h, tokens, valueSol, unrealizedPnlSol: pnl };
+          })
+          .filter((h) => h.tokens > 0)
+          .sort((a, b) => b.valueSol - a.valueSol);
+        portfolio.holdingsValueSol = holdingsValueSol;
+        portfolio.unrealizedPnlSol = unrealizedPnlSol;
+        portfolio.totalValueSol = balanceSol + holdingsValueSol;
+        portfolio.creatorClaimableSol = await claimableForCoins(portfolio.createdCoins);
+      }
+      res.json(portfolio);
     }),
   );
 
   app.get(
     "/api/wallet",
-    requireAuth,
-    wrap((req, res) => {
-      res.json(storage.getWallet(currentUser(req).id));
-    }),
-  );
-
-  app.post(
-    "/api/wallet/withdraw",
-    requireAuth,
-    wrap((req, res) => {
-      const { toAddress, amount } = withdrawSchema.parse(req.body);
-      const withdrawal = storage.requestWithdrawal(currentUser(req).id, toAddress, amount);
-      // Pay out in the background; the client polls / listens for the final status.
-      void processWithdrawal(withdrawal.id)
-        .then((updated) => {
-          if (updated.status !== "pending") {
-            broadcast("withdrawal:updated", { userId: updated.userId, withdrawal: updated });
-            if (updated.status === "failed") {
-              // The refund landed back on the ledger.
-              const owner = storage.getUser(updated.userId);
-              if (owner) broadcast("balance:updated", { userId: owner.id, balance: owner.balance });
-            }
-          }
-        })
-        .catch((err) => log(`processing withdrawal #${withdrawal.id} failed: ${errorMessage(err)}`, "wallet"));
-      res.status(201).json(withdrawal);
-    }),
-  );
-
-  app.post(
-    "/api/wallet/faucet",
-    requireAuth,
-    wrap((req, res) => {
-      if (!config.chain.testnet) throw new HttpError(404, "The faucet is only available on testnets");
-      const user = storage.faucet(currentUser(req).id);
-      res.json(storage.toSafeUser(user));
+    wrap(async (req, res) => {
+      const wallet = req.user?.walletAddress ?? null;
+      const view: WalletView = {
+        wallet,
+        balanceSol: wallet ? await getSolBalance(wallet).catch(() => 0) : 0,
+        solUsd: getSolUsd(),
+        chain: clusterInfo(),
+      };
+      res.json(view);
     }),
   );
 
@@ -680,7 +990,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     wrap((req, res) => {
       const profile = storage.getPublicProfile(req.params.username);
       if (!profile) throw new HttpError(404, "User not found");
-      profile.createdCoins.forEach(rememberCa);
       res.json(profile);
     }),
   );
@@ -688,21 +997,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ---- Admin --------------------------------------------------------------
 
   app.get(
-    "/api/admin/users",
+    "/api/admin/overview",
     requireAdmin,
-    wrap((req, res) => {
-      res.json(storage.listUsers(queryString(req.query.search) ?? "", parseLimit(req.query.limit, 100, 500)));
+    wrap(async (_req, res) => {
+      const coins = storage.listCoins({ sort: "volume", limit: 25 });
+      const claimable: AdminOverview["claimable"] = [];
+      for (const summary of coins) {
+        const coin = storage.findCoinByCa(summary.ca);
+        if (!coin || !coin.pool) continue;
+        try {
+          const fees = await getPoolFees(coin.pool);
+          if (fees.partnerSol <= 0 && fees.creatorSol <= 0) continue;
+          claimable.push({
+            coin: { id: coin.id, ca: coin.ca, name: coin.name, ticker: coin.ticker, imageUrl: coin.imageUrl },
+            partnerSol: fees.partnerSol,
+            creatorSol: fees.creatorSol,
+          });
+        } catch {
+          // RPC hiccup: skip this pool rather than failing the whole page.
+        }
+      }
+      const overview: AdminOverview = {
+        stats: storage.getStats(),
+        vanityAvailable: vanity.count(),
+        vanityUsed: vanity.usedCount(),
+        claimable,
+        indexer: indexer.status(),
+      };
+      res.json(overview);
     }),
   );
 
-  app.post(
-    "/api/admin/users/credit",
+  app.get(
+    "/api/admin/users",
     requireAdmin,
     wrap((req, res) => {
-      const { username, amount } = adminCreditSchema.parse(req.body);
-      const { user, queued } = storage.adminCreditBalance(username, amount);
-      if (user) broadcast("balance:updated", { userId: user.id, balance: user.balance });
-      res.json({ user: user ? storage.toSafeUser(user) : null, queued });
+      res.json(storage.listUsers(queryString(req.query.search) ?? queryString(req.query.q) ?? "", parseLimit(req.query.limit, 100, 500)));
+    }),
+  );
+
+  /** The grinder pushes pre-mined "…noxia" mints here (token auth, no session). */
+  app.post(
+    "/api/admin/vanity",
+    wrap(async (req, res) => {
+      const token = req.header("x-admin-token");
+      if (!config.adminApiToken) throw new HttpError(503, "ADMIN_API_TOKEN is not configured");
+      if (token !== config.adminApiToken) throw new HttpError(401, "Invalid admin token");
+      const { keypairs } = vanityUploadSchema.parse(req.body);
+      const result = await vanity.add(keypairs);
+      res.json({ added: result.added, available: result.available });
+    }),
+  );
+
+  /** Treasury claim of the platform fee share on one pool. */
+  app.post(
+    "/api/admin/claim-tx",
+    requireAuth,
+    wrap(async (req, res) => {
+      const { wallet } = currentWallet(req);
+      const treasury = treasuryPubkey?.toBase58() ?? null;
+      if (!treasury) throw new HttpError(503, "TREASURY_WALLET is not configured");
+      if (wallet !== treasury) throw new HttpError(403, "Only the treasury wallet can claim platform fees");
+      const { ca } = claimSchema.parse(req.body);
+      const coin = coinByCa(ca);
+      const built = await buildClaimPartnerFeeTx(new PublicKey(wallet), new PublicKey(coin.pool));
+      const response: UnsignedTx = { tx: built.tx, lastValidBlockHeight: built.lastValidBlockHeight };
+      res.json(response);
     }),
   );
 
@@ -735,8 +1095,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(413).json({ message: "Request body too large (images must be under 2 MB)" });
       return;
     }
-    // Anything else that already carries a 4xx status (other HttpError-like classes, body-parser
-    // encoding errors...) is a client error we can surface as-is.
     const status = typeof e.status === "number" ? e.status : typeof e.statusCode === "number" ? e.statusCode : 0;
     if (status >= 400 && status < 500 && typeof e.message === "string") {
       res.status(status).json({ message: e.message });
@@ -749,3 +1107,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return httpServer;
 }
+
+// ---------------------------------------------------------------------------
+// Post-send helpers
+// ---------------------------------------------------------------------------
+
+/** Waits (briefly) for the indexer to pick up a pool that was just created. */
+async function waitForCoin(mint: string, timeoutMs = 15_000): Promise<Coin | undefined> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const known = storage.findCoinByCa(mint);
+    if (known) return known;
+    const indexed = await indexer.indexPoolForMint(mint);
+    if (indexed) return indexed;
+    if (Date.now() >= deadline) return undefined;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+}
+
+/** Sum of the creator fees claimable across a set of coins (best effort). */
+async function claimableForCoins(coins: CoinSummary[]): Promise<number> {
+  let total = 0;
+  for (const coin of coins.slice(0, 20)) {
+    if (!coin.pool) continue;
+    try {
+      total += (await getPoolFees(coin.pool)).creatorSol;
+    } catch {
+      // ignore: a single unreachable pool must not break the portfolio
+    }
+  }
+  return total;
+}
+
+export type { Trade };

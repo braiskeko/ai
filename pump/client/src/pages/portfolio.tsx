@@ -532,10 +532,10 @@ export default function PortfolioPage() {
             }
           />
           <SummaryTile
-            label={t("portfolio.creatorClaimable")}
+            label={t("portfolio.creatorEarnings")}
             value={usd(data.creatorClaimableSol, solUsd)}
             accent="text-gold"
-            sub={data.creatorClaimableSol > 0 ? t("portfolio.creatorClaimableHint") : sol(data.creatorClaimableSol)}
+            sub={data.creatorClaimableSol > 0 ? t("portfolio.creatorEarningsHint") : sol(data.creatorClaimableSol)}
           />
         </div>
 
@@ -588,7 +588,7 @@ export default function PortfolioPage() {
                   <div className="sm:col-span-2">
                     <div className="flex items-center gap-3 rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm">
                       <Gift className="h-4 w-4 shrink-0 text-gold" />
-                      <span className="text-muted-foreground">{t("portfolio.creatorClaimableHint")}</span>
+                      <span className="text-muted-foreground">{t("portfolio.creatorEarningsHint")}</span>
                     </div>
                   </div>
                 )}

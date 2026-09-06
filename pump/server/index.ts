@@ -2,9 +2,13 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { broadcast, closeRealtime, registerRoutes } from "./routes";
 import { log, serveStatic, setupVite } from "./vite";
 import { config } from "./config";
+import * as indexer from "./indexer";
+import { ensureMetaDir } from "./meta";
+import { seedDemo } from "./seed";
+import { launchEnabled, startSolUsdRefresh, stopSolUsdRefresh } from "./solana";
 import { initStorage, storage } from "./storage";
-import { deriveDepositAddress, startDepositWatcher } from "./chain";
 import { UPLOADS_ROOT, ensureUploadDirs } from "./uploads";
+import * as vanity from "./vanity";
 
 const SHUTDOWN_TIMEOUT_MS = 8_000;
 
@@ -16,7 +20,7 @@ app.use(express.json({ limit: "3mb" }));
 app.use(express.urlencoded({ extended: false }));
 
 // Request log for API calls: method, path, status, duration. Bodies are deliberately
-// not logged (they contain emails, balances, wallet addresses and image payloads).
+// not logged (they contain emails, wallet addresses and image payloads).
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -30,13 +34,24 @@ app.use((req, res, next) => {
 async function main(): Promise<void> {
   if (config.sessionSecretIsEphemeral) log("SESSION_SECRET not set: sessions reset on restart", "config");
   if (!config.databaseUrl) log(`DATABASE_URL not set: persisting to ${config.dataFile}`, "config");
+  log(`cluster ${config.solana.cluster} via ${config.solana.rpcUrl}`, "config");
+  if (!launchEnabled) log("DBC_CONFIG not set: coin creation is disabled", "config");
 
-  // Uploaded images live outside the snapshot; make sure the directories exist before the first upload.
+  // Uploaded images and metadata documents live outside the snapshot.
   await ensureUploadDirs();
+  await ensureMetaDir();
   log(`uploads stored in ${UPLOADS_ROOT}`, "config");
 
-  // Loads the snapshot (or seeds demo data), wires persistence and applies INITIAL_CREDITS.
-  await initStorage({ deriveDepositAddress });
+  // 1. storage (snapshot + persistence), 2. chain indexer, 3. HTTP/WS routes.
+  await initStorage();
+  await vanity.init();
+  startSolUsdRefresh();
+
+  // The indexer broadcasts through the WebSocket, which routes.ts owns; wire the
+  // seam before starting it so nothing is dropped between the two.
+  indexer.setBroadcaster((event, payload) => broadcast(event, payload as Record<string, unknown>));
+  await indexer.start();
+  seedDemo();
 
   const server = await registerRoutes(app);
 
@@ -63,16 +78,9 @@ async function main(): Promise<void> {
     serveStatic(app);
   }
 
-  let stopDepositWatcher: () => void = () => {};
-
   // Serves both the API and the client on the single exposed port.
   server.listen({ port: config.port, host: "0.0.0.0", reusePort: true }, () => {
     log(`${config.appName} serving on port ${config.port} (${config.isProd ? "production" : "development"})`);
-    stopDepositWatcher = startDepositWatcher((userId, deposit) => {
-      broadcast("deposit", { userId, deposit });
-      const user = storage.getUser(userId);
-      if (user) broadcast("balance:updated", { userId, balance: user.balance });
-    });
   });
 
   let shuttingDown = false;
@@ -81,7 +89,8 @@ async function main(): Promise<void> {
     shuttingDown = true;
     log(`${signal} received, shutting down`);
 
-    stopDepositWatcher();
+    indexer.stop();
+    stopSolUsdRefresh();
     closeRealtime();
 
     let forceTimer: NodeJS.Timeout | undefined;

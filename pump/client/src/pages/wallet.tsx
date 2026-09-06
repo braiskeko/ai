@@ -156,7 +156,7 @@ export default function WalletPage() {
             <WalletIcon className="h-7 w-7" />
           </div>
           <h1 className="mt-4 text-xl font-bold">{t("wallet.loginRequired")}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{t("wallet.loginHint")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("wallet.connectHint")}</p>
           <Button className="mt-6 rounded-lg font-semibold" onClick={openLogin}>
             <LogIn className="h-4 w-4" />
             {t("nav.login")}
@@ -204,7 +204,7 @@ export default function WalletPage() {
 
         <section className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("wallet.balance")}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("wallet.solBalance")}</div>
             <div className="mt-1 text-4xl font-extrabold text-primary tabular">{usd(data.balanceSol, data.solUsd)}</div>
             <div className="mt-1 text-sm text-muted-foreground tabular">{sol(data.balanceSol)}</div>
             {chain.testnet && (
@@ -224,7 +224,7 @@ export default function WalletPage() {
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
                 <WalletIcon className="h-4 w-4" />
               </span>
-              <h2 className="text-base font-bold">{t("wallet.yourAddress")}</h2>
+              <h2 className="text-base font-bold">{t("wallet.address")}</h2>
             </div>
 
             <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">

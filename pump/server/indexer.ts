@@ -247,7 +247,7 @@ export async function indexPool(address: PublicKey | string): Promise<Coin | nul
     curve: read.curve,
     ...("description" in meta ? meta : {}),
   });
-  if (created) broadcast("coin:created", summaryOf(coin));
+  if (created) broadcast("coin:created", { coin: summaryOf(coin) });
   return coin;
 }
 
@@ -296,7 +296,7 @@ export async function syncPools(): Promise<void> {
           twitter: meta.twitter,
           telegram: meta.telegram,
         });
-        if (created) broadcast("coin:created", summaryOf(coin));
+        if (created) broadcast("coin:created", { coin: summaryOf(coin) });
         await backfillPool(coin);
         subscribe(coin);
         continue;
@@ -305,10 +305,10 @@ export async function syncPools(): Promise<void> {
       const before = existing.curve;
       const graduated = storage.setCurve(existing, curve);
       if (graduated) {
-        broadcast("coin:graduated", summaryOf(existing));
+        broadcast("coin:graduated", { coin: summaryOf(existing) });
         unsubscribe(existing.pool);
       } else if (before.priceSol !== curve.priceSol || before.quoteReserveSol !== curve.quoteReserveSol) {
-        broadcast("coin:updated", summaryOf(existing));
+        broadcast("coin:updated", { coin: summaryOf(existing) });
       }
       if (!curve.migrated) subscribe(existing);
       else unsubscribe(existing.pool);
@@ -459,8 +459,10 @@ function unsubscribe(pool: string): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Starts the indexer: an immediate sync (which also backfills and subscribes),
- * then one every 10 s. Never rejects — a dead RPC only sets `rpcOk = false`.
+ * Starts the indexer: one sync (which discovers pools, refreshes curves and
+ * subscribes), then one every 10 s. Backfilling the trade history of every known
+ * pool can take a while, so it runs in the background — the HTTP server must not
+ * wait for it. Never rejects: a dead RPC only sets `rpcOk = false`.
  */
 export async function start(): Promise<void> {
   if (running) return;
@@ -470,11 +472,22 @@ export async function start(): Promise<void> {
     return;
   }
   await syncPools();
-  for (const coin of storage.listCoins({ limit: Number.MAX_SAFE_INTEGER })) {
-    const stored = storage.findCoinByCa(coin.ca);
-    if (stored && !stored.curve.migrated) await backfillPool(stored);
-  }
+  void backfillAll();
   scheduleSync();
+}
+
+/** Replays the missing signatures of every live pool, oldest first. */
+async function backfillAll(): Promise<void> {
+  for (const summary of storage.listCoins({ limit: Number.MAX_SAFE_INTEGER })) {
+    const coin = storage.findCoinByCa(summary.ca);
+    if (!coin || coin.curve.migrated) continue;
+    try {
+      const indexed = await backfillPool(coin);
+      if (indexed) log(`backfilled ${indexed} trades for ${coin.ticker || coin.ca}`, "indexer");
+    } catch (err) {
+      log(`backfill of ${coin.ca} failed: ${(err as Error).message}`, "indexer");
+    }
+  }
 }
 
 function scheduleSync(): void {
