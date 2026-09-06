@@ -154,7 +154,7 @@ export function Navbar() {
                     href="/wallet"
                     className="hidden flex-col items-end rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-accent sm:flex"
                   >
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="label">
                       {shortAddr(user.walletAddress!)}
                     </span>
                     <span className="text-sm font-semibold tabular text-primary">{fmtSol(walletView?.balanceSol ?? 0)} SOL</span>

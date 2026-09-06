@@ -39,8 +39,60 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
   }
 
   return (
-    <div className={cn("overflow-x-auto rounded-xl border border-border", className)}>
-      <table className="w-full min-w-[420px] text-sm">
+    <div className={cn("surface overflow-hidden", className)}>
+      {/* Mobile: stacked rows */}
+      <ul className="feed-divide tabular sm:hidden">
+        {holders.map((h, i) => {
+          const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
+          return (
+            <li key={h.wallet} className={cn("flex items-center gap-3 px-4 py-3", h.isCurve ? "bg-muted/30" : mine && "bg-primary/5")}>
+              <span className="w-5 shrink-0 text-xs text-muted-foreground">{h.isCurve ? "—" : i + 1}</span>
+              {h.isCurve ? (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden>
+                    <path d="M4 18c6-1 8-6 9-10 1 5 3 8 7 9" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              ) : h.user ? (
+                <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="shrink-0">
+                  <PublicAvatar user={h.user} wallet={h.wallet} size={32} />
+                </Link>
+              ) : (
+                <span className="shrink-0">
+                  <PublicAvatar user={null} wallet={h.wallet} size={32} />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">
+                    {h.isCurve ? (
+                      t("holders.curve")
+                    ) : h.user ? (
+                      <Link href={`/u/${encodeURIComponent(h.user.username)}`} className="hover:underline">
+                        <TraderName user={h.user} wallet={h.wallet} mine={mine} />
+                      </Link>
+                    ) : (
+                      <TraderName user={null} wallet={h.wallet} mine={mine} />
+                    )}
+                  </span>
+                  {h.isCreator && (
+                    <span className="shrink-0 rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
+                      {t("holders.creator")}
+                    </span>
+                  )}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {fmtTokens(h.tokens)} {coin.ticker}
+                </div>
+              </div>
+              <div className="shrink-0 text-right text-sm font-semibold">{sharePct(h.share)}</div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* sm+: table */}
+      <table className="hidden w-full min-w-[420px] text-sm sm:table">
         <thead>
           <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <th className="w-10 px-3 py-2 font-medium">{t("holders.rank")}</th>
@@ -49,7 +101,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
             <th className="px-3 py-2 text-right font-medium">{t("holders.share")}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border tabular">
+        <tbody className="divide-y divide-border/70 tabular">
           {holders.map((h, i) => {
             const mine = !!user?.walletAddress && user.walletAddress === h.wallet;
             return (
@@ -83,7 +135,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                         </span>
                       )}
                       {h.isCreator && (
-                        <span className="shrink-0 rounded-md bg-[#fbbf24]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#fbbf24]">
+                        <span className="shrink-0 rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
                           {t("holders.creator")}
                         </span>
                       )}

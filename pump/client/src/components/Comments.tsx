@@ -168,7 +168,7 @@ function CommentsTab({ coin }: { coin: CoinDetail }) {
       {list.length === 0 ? (
         <EmptyBox icon={<MessageSquare className="h-5 w-5" />}>{t("comments.empty")}</EmptyBox>
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="feed-divide">
           <AnimatePresence initial={false}>
             {list.map((c) => {
               const fresh = !initialIdsRef.current!.has(c.id);
@@ -383,12 +383,12 @@ function CommentItem({ coin, comment }: { coin: CoinDetail; comment: CommentView
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <Link
             href={`/u/${encodeURIComponent(comment.user.username)}`}
-            className={cn("font-semibold hover:underline", isDev && "text-[#fbbf24]")}
+            className={cn("font-semibold hover:underline", isDev && "text-gold")}
           >
             {mine ? t("chart.you") : `@${comment.user.username}`}
           </Link>
           {isDev && (
-            <span className="rounded-md bg-[#fbbf24]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#fbbf24]">
+            <span className="rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
               {t("comments.creatorBadge")}
             </span>
           )}
@@ -435,7 +435,7 @@ function CommentItem({ coin, comment }: { coin: CoinDetail; comment: CommentView
             aria-label={t("comments.like")}
             className={cn(
               "inline-flex items-center gap-1 rounded-md py-0.5 font-medium transition-colors hover:text-foreground",
-              liked && "text-[#f43f5e] hover:text-[#f43f5e]",
+              liked && "text-down hover:text-down",
             )}
           >
             <motion.span

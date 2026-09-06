@@ -62,13 +62,10 @@ export function LiveTicker({ limit = 30, className }: { limit?: number; classNam
 
   return (
     <div
-      className={cn(
-        "marquee relative flex items-center overflow-hidden rounded-xl border border-border bg-card/60",
-        className,
-      )}
+      className={cn("marquee surface relative flex items-center overflow-hidden bg-card/60", className)}
       aria-live="off"
     >
-      <div className="z-10 flex h-full shrink-0 items-center gap-2 border-r border-border bg-card px-3 py-2">
+      <div className="z-10 flex h-full shrink-0 items-center gap-2 border-r border-border/70 bg-card px-3 py-2">
         <LiveDot />
       </div>
       <div className="min-w-0 flex-1 overflow-hidden py-1.5 [mask-image:linear-gradient(to_right,transparent,black_24px,black_calc(100%-24px),transparent)]">
@@ -81,8 +78,8 @@ export function LiveTicker({ limit = 30, className }: { limit?: number; classNam
                 key={`${item.id}-${i}`}
                 href={`/${item.coin.ca}`}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors hover:bg-accent",
-                  buy ? "border-primary/25 bg-primary/5" : "border-destructive/25 bg-destructive/5",
+                  "tap inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors hover:bg-accent",
+                  buy ? "border-up/25 bg-up/5" : "border-down/25 bg-down/5",
                 )}
               >
                 {item.user?.avatarUrl ? (
@@ -92,7 +89,7 @@ export function LiveTicker({ limit = 30, className }: { limit?: number; classNam
                 )}
                 <span className="whitespace-nowrap">
                   <span className="font-semibold">{handle}</span>{" "}
-                  <span className={buy ? "text-primary" : "text-destructive"}>
+                  <span className={buy ? "text-up" : "text-down"}>
                     {t(buy ? "home.feed.bought" : "home.feed.sold", {
                       user: "",
                       amount: compactUsd(item.sol * solUsd),
@@ -100,7 +97,7 @@ export function LiveTicker({ limit = 30, className }: { limit?: number; classNam
                     }).trim()}
                   </span>
                 </span>
-                <img src={item.coin.imageUrl} alt="" className="h-4 w-4 rounded-sm object-cover" />
+                <img src={item.coin.imageUrl} alt="" className="h-4 w-4 rounded-md object-cover" />
               </Link>
             );
           })}

@@ -65,7 +65,7 @@ export function TraderName({ user, wallet, mine = false }: { user: PublicUser | 
 /** Shared empty-state box used by the market tabs. */
 export function EmptyBox({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-10 text-center">
+    <div className="surface flex flex-col items-center justify-center px-4 py-10 text-center">
       {icon && (
         <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
           {icon}
@@ -93,8 +93,67 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
   }
 
   return (
-    <div className={cn("overflow-x-auto rounded-xl border border-border", className)}>
-      <table className="w-full min-w-[560px] text-sm">
+    <div className={cn("surface overflow-hidden", className)}>
+      {/* Mobile: stacked rows, no table chrome */}
+      <ul className="feed-divide sm:hidden">
+        {rows.map((tr, i) => {
+          const buy = tr.side === "buy";
+          const mine = !!user && !!user.walletAddress && user.walletAddress === tr.wallet;
+          return (
+            <motion.li
+              key={tr.id}
+              layout="position"
+              initial={i === 0 ? { opacity: 0, backgroundColor: buy ? "rgba(34,197,94,0.18)" : "rgba(244,63,94,0.18)" } : false}
+              animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className={cn("flex items-center gap-3 px-4 py-3", mine && "bg-primary/5")}
+            >
+              {tr.user ? (
+                <Link href={`/u/${encodeURIComponent(tr.user.username)}`} className="shrink-0">
+                  <PublicAvatar user={tr.user} wallet={tr.wallet} size={32} />
+                </Link>
+              ) : (
+                <span className="shrink-0">
+                  <PublicAvatar user={null} wallet={tr.wallet} size={32} />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      buy ? "bg-up/15 text-up" : "bg-down/15 text-down",
+                    )}
+                  >
+                    {buy ? t("trade.buy") : t("trade.sell")}
+                  </span>
+                  <span className="truncate font-semibold">
+                    {tr.user ? (
+                      <Link href={`/u/${encodeURIComponent(tr.user.username)}`} className="hover:underline">
+                        <TraderName user={tr.user} wallet={tr.wallet} mine={mine} />
+                      </Link>
+                    ) : (
+                      <TraderName user={null} wallet={tr.wallet} mine={mine} />
+                    )}
+                  </span>
+                </div>
+                <div className="mt-0.5 truncate text-xs tabular text-muted-foreground">
+                  {fmtTokens(tr.tokens)} {ticker} · {priceSol(tr.priceSol)}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="stat text-sm">{sol(tr.sol)}</div>
+                <div className="text-[11px] text-muted-foreground" title={new Date(tr.createdAt).toLocaleString()}>
+                  {timeAgo(tr.createdAt)}
+                </div>
+              </div>
+            </motion.li>
+          );
+        })}
+      </ul>
+
+      {/* sm+: table */}
+      <table className="hidden w-full min-w-[560px] text-sm sm:table">
         <thead>
           <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <th className="px-3 py-2 font-medium">{t("trades.time")}</th>
@@ -105,7 +164,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
             <th className="px-3 py-2 font-medium">{t("trades.trader")}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-y divide-border/70">
           {rows.map((tr, i) => {
             const buy = tr.side === "buy";
             const mine = !!user && !!user.walletAddress && user.walletAddress === tr.wallet;
@@ -124,8 +183,8 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
                 <td className="px-3 py-2">
                   <span
                     className={cn(
-                      "inline-flex rounded-md px-1.5 py-0.5 text-xs font-semibold",
-                      buy ? "bg-[#22c55e]/15 text-[#22c55e]" : "bg-[#f43f5e]/15 text-[#f43f5e]",
+                      "inline-flex rounded-full px-1.5 py-0.5 text-xs font-semibold",
+                      buy ? "bg-up/15 text-up" : "bg-down/15 text-down",
                     )}
                   >
                     {buy ? t("trade.buy") : t("trade.sell")}

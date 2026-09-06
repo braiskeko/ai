@@ -96,9 +96,9 @@ function PnlText({ valueSol, solUsd, className }: { valueSol: number; solUsd: nu
 
 function SummaryTile({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: ReactNode; accent?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-xl font-bold tabular", accent)}>{value}</div>
+    <div className="surface p-4">
+      <div className="label">{label}</div>
+      <div className={cn("stat mt-1 text-xl", accent)}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
@@ -106,7 +106,7 @@ function SummaryTile({ label, value, sub, accent }: { label: string; value: Reac
 
 function EmptyState({ icon, title, hint, action }: { icon: ReactNode; title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+    <div className="surface flex flex-col items-center px-6 py-12 text-center">
       <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">{icon}</div>
       <h3 className="mt-3 font-semibold">{title}</h3>
       {hint && <p className="mt-1 max-w-xs text-sm text-muted-foreground">{hint}</p>}
@@ -173,7 +173,7 @@ function ProfileCard({ user }: { user: SafeUser }) {
   const canSave = parsed.success && changed && !rename.isPending;
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:p-5">
+    <section className="surface flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
       <div className="relative mx-auto shrink-0 sm:mx-0">
         {preview ? (
           <img src={preview} alt="" className="h-20 w-20 rounded-full object-cover opacity-70" />
@@ -312,18 +312,18 @@ function HoldingRow({ h, solUsd }: { h: PortfolioHolding; solUsd: number }) {
         </div>
         <div className="grid grid-cols-3 gap-3 text-right sm:w-[340px]">
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("portfolio.value")}</div>
+            <div className="label">{t("portfolio.value")}</div>
             <div className="font-bold tabular">{usd(h.valueSol, solUsd)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("portfolio.pnl")}</div>
+            <div className="label">{t("portfolio.pnl")}</div>
             <div>
               <PnlText valueSol={h.unrealizedPnlSol} solUsd={solUsd} />
               <div className={cn("text-[11px] tabular", pnlPct >= 0 ? "text-up" : "text-down")}>{signedPct(pnlPct)}</div>
             </div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
+            <div className="label">{t("coin.mcap")}</div>
             <div className="font-semibold tabular text-primary">{compactUsd(h.coin.marketCapSol * solUsd)}</div>
           </div>
         </div>

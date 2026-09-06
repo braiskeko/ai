@@ -37,7 +37,7 @@ function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
       <div className="min-w-0">
-        <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="truncate label">{label}</div>
         <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>
       </div>
     </div>

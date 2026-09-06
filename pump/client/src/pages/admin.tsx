@@ -68,7 +68,7 @@ function StatsStrip({ overview }: { overview: AdminOverview | undefined }) {
               <Icon className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t(key)}</div>
+              <div className="truncate label">{t(key)}</div>
               {value === null ? <Skeleton className="mt-1 h-5 w-16" /> : <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>}
             </div>
           </div>
@@ -98,22 +98,22 @@ function IndexerCard({ overview }: { overview: AdminOverview | undefined }) {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.rpcStatus")}</div>
+            <div className="label">{t("admin.rpcStatus")}</div>
             <div className={`mt-1 inline-flex items-center gap-1 text-sm font-semibold ${indexer.rpcOk ? "text-up" : "text-down"}`}>
               {indexer.rpcOk ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
               {indexer.rpcOk ? t("admin.rpcOk") : t("admin.rpcDown")}
             </div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.lastSlot")}</div>
+            <div className="label">{t("admin.lastSlot")}</div>
             <div className="mt-1 text-sm font-semibold tabular">{count(indexer.lastSlot)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.subscribedPools")}</div>
+            <div className="label">{t("admin.subscribedPools")}</div>
             <div className="mt-1 text-sm font-semibold tabular">{count(indexer.subscribedPools)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.lastSync")}</div>
+            <div className="label">{t("admin.lastSync")}</div>
             <div className="mt-1 text-sm font-semibold tabular">{indexer.lastSyncAt ? timeAgo(indexer.lastSyncAt) : t("admin.never")}</div>
           </div>
         </div>

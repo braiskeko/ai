@@ -81,20 +81,24 @@ const createTx = await dbc.creator.createPoolWithFirstBuy({
 await sendTx(connection, createTx, [payer, mint], "createPoolWithFirstBuy");
 log(`mint ${mint.publicKey.toBase58()} pool ${pool.toBase58()} ${explorer(cluster, "token", mint.publicKey.toBase58())}`);
 
+// The anchor account nests every field under `poolState`.
+const stateOf = (vp) => vp.poolState;
+
 const readState = async (label) => {
   const vp = await dbc.state.getPool(pool);
   if (!vp) fail("pool not found");
-  const price = getPriceFromSqrtPrice(vp.sqrtPrice, 6, 9);
+  const st = stateOf(vp);
+  const price = getPriceFromSqrtPrice(st.sqrtPrice, 6, 9);
   const progress = await dbc.state.getPoolQuoteTokenCurveProgress(pool);
   log(
     `${label}: price ${price.toString()} SOL/token, mcap ${(Number(price.toString()) * 1e9).toFixed(3)} SOL, quoteReserve ${
-      Number(vp.quoteReserve.toString()) / 1e9
-    } SOL, baseReserve ${Number(vp.baseReserve.toString()) / 1e6} tokens, progress ${(progress * 100).toFixed(2)}%`,
+      Number(st.quoteReserve.toString()) / 1e9
+    } SOL, baseReserve ${Number(st.baseReserve.toString()) / 1e6} tokens, progress ${(progress * 100).toFixed(2)}%`,
   );
   return vp;
 };
 const afterCreate = await readState("after create");
-if (!(Number(afterCreate.quoteReserve.toString()) > 0)) fail("first buy did not add quote reserve");
+if (!(Number(stateOf(afterCreate).quoteReserve.toString()) > 0)) fail("first buy did not add quote reserve");
 
 // ---- quote + buy --------------------------------------------------------------
 const currentPoint = await getCurrentPoint(connection, ActivationType.Slot);
@@ -108,9 +112,15 @@ const quote = dbc.pool.swapQuote({
   eligibleForFirstSwapWithMinFee: false,
   currentPoint,
 });
-log(`quote buy 0.1 SOL → ${Number(quote.amountOut.toString()) / 1e6} tokens (min ${Number(quote.minimumAmountOut.toString()) / 1e6}), fee ${Number(quote.fee.trading.toString()) / 1e9} SOL`);
+// SwapQuoteResult: {actualInputAmount, outputAmount, nextSqrtPrice, tradingFee, protocolFee, referralFee, minimumAmountOut}
+const totalFee = (q) => Number(q.tradingFee.add(q.protocolFee).add(q.referralFee).toString()) / 1e9;
+log(
+  `quote buy 0.1 SOL → ${Number(quote.outputAmount.toString()) / 1e6} tokens (min ${
+    Number(quote.minimumAmountOut.toString()) / 1e6
+  }), fee ${totalFee(quote)} SOL`,
+);
 const expectedFee = 0.1 * 0.027;
-const fee = Number(quote.fee.trading.toString()) / 1e9;
+const fee = totalFee(quote);
 if (Math.abs(fee - expectedFee) > 1e-6) fail(`fee ${fee} != 2.7% (${expectedFee})`);
 
 const buyTx = await dbc.pool.swap({
@@ -123,7 +133,8 @@ const buyTx = await dbc.pool.swap({
 });
 await sendTx(connection, buyTx, [payer], "buy 0.1 SOL");
 const afterBuy = await readState("after buy");
-if (!(Number(afterBuy.sqrtPrice.toString()) > Number(afterCreate.sqrtPrice.toString()))) fail("price did not rise");
+if (!(Number(stateOf(afterBuy).sqrtPrice.toString()) > Number(stateOf(afterCreate).sqrtPrice.toString())))
+  fail("price did not rise");
 
 // ---- sell half of what we hold ------------------------------------------------
 const accounts = await connection.getParsedTokenAccountsByOwner(payer.publicKey, { mint: mint.publicKey });
@@ -140,7 +151,7 @@ const sellQuote = dbc.pool.swapQuote({
   eligibleForFirstSwapWithMinFee: false,
   currentPoint: await getCurrentPoint(connection, ActivationType.Slot),
 });
-log(`quote sell ${sellAmount.toNumber() / 1e6} tokens → ${Number(sellQuote.amountOut.toString()) / 1e9} SOL`);
+log(`quote sell ${sellAmount.toNumber() / 1e6} tokens → ${Number(sellQuote.outputAmount.toString()) / 1e9} SOL`);
 const sellTx = await dbc.pool.swap({
   owner: payer.publicKey,
   pool,
@@ -151,7 +162,8 @@ const sellTx = await dbc.pool.swap({
 });
 await sendTx(connection, sellTx, [payer], "sell");
 const afterSell = await readState("after sell");
-if (!(Number(afterSell.sqrtPrice.toString()) < Number(afterBuy.sqrtPrice.toString()))) fail("price did not fall");
+if (!(Number(stateOf(afterSell).sqrtPrice.toString()) < Number(stateOf(afterBuy).sqrtPrice.toString())))
+  fail("price did not fall");
 
 // ---- fees ------------------------------------------------------------------------
 const metrics = await dbc.state.getPoolFeeMetrics(pool);
