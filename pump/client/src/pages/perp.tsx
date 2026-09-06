@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import type { PerpDetail } from "@shared/schema";
@@ -7,7 +7,7 @@ import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
 import { WatchButton } from "@/components/WatchButton";
-import { TradingViewChart, tradingViewSymbol } from "@/components/TradingViewChart";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import NotFound from "@/pages/not-found";
 import { useT } from "@/i18n";
@@ -18,12 +18,12 @@ import { cn } from "@/lib/utils";
 /**
  * One perpetual market: what it costs, what it has done today, and its chart.
  *
- * The chart is TradingView where TradingView carries the symbol, and our own
- * candles — the real ones from Hyperliquid — everywhere else and whenever their
- * script cannot load.
+ * The chart is our own, drawn from Hyperliquid's real candles — the same chart,
+ * at the same size, that any token on Next gets.
  */
 export default function PerpPage() {
   const t = useT();
+  const [, navigate] = useLocation();
   const { symbol = "" } = useParams<{ symbol: string }>();
   const market = useQuery<PerpDetail>({
     queryKey: [`/api/perps/${encodeURIComponent(symbol)}`],
@@ -34,8 +34,6 @@ export default function PerpPage() {
   });
 
   const [range, setRange] = useState<ChartRange>("4H");
-  const [tvDown, setTvDown] = useState(false);
-  const tvSymbol = useMemo(() => (symbol ? tradingViewSymbol(symbol) : null), [symbol]);
 
   const data = market.data;
   useEffect(() => {
@@ -52,7 +50,7 @@ export default function PerpPage() {
   }
 
   return (
-    <PageShell wide noHeader className="pt-4 pb-nav-actions md:pb-10">
+    <PageShell wide noHeader noTabs className="pt-4 pb-nav-actions md:pb-10">
       {!data ? (
         <div className="space-y-4">
           <Skeleton className="h-12 w-52" />
@@ -102,21 +100,18 @@ export default function PerpPage() {
             </div>
           </section>
 
-          {tvSymbol && !tvDown ? (
-            <TradingViewChart symbol={tvSymbol} interval="60" height={380} onUnavailable={() => setTvDown(true)} />
-          ) : (
-            <CandleChart
-              candles={data.candles}
-              trades={[]}
-              ticker={data.symbol}
-              unit="USD"
-              mode="price"
-              modeSwitch={false}
-              range={range}
-              onRangeChange={setRange}
-              className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
-            />
-          )}
+          {/* The same chart a token gets, drawn from Hyperliquid's own candles. */}
+          <CandleChart
+            candles={data.candles}
+            trades={[]}
+            ticker={data.symbol}
+            unit="USD"
+            mode="price"
+            modeSwitch={false}
+            range={range}
+            onRangeChange={setRange}
+            className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
+          />
 
           <section className="surface divide-y divide-border p-4">
             <Row label={t("perps.vol24h")} value={compactUsd(data.volume24hUsd)} />
@@ -128,8 +123,29 @@ export default function PerpPage() {
             />
             <Row label={t("perps.leverage")} value={`${data.maxLeverage}x`} />
           </section>
+        </div>
+      )}
 
-          <p className="px-1 text-sm text-muted-foreground">{t("perps.tradingSoon")}</p>
+      {/* Long / Short sit where Buy / Sell sit on a token, so every chart reads the same. */}
+      {data && (
+        <div className="fixed inset-x-0 bottom-[calc(1.1rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
+          <div className="mx-auto flex max-w-7xl gap-2.5">
+            <Button
+              type="button"
+              onClick={() => navigate(`/perp/${encodeURIComponent(data.symbol)}/long`)}
+              className="tap h-12 flex-1 rounded-2xl bg-up text-base font-bold text-white hover:bg-up/90"
+            >
+              {t("perps.long")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`/perp/${encodeURIComponent(data.symbol)}/short`)}
+              className="tap h-12 flex-1 rounded-2xl border-down/50 text-base font-bold text-down hover:bg-down/10"
+            >
+              {t("perps.short")}
+            </Button>
+          </div>
         </div>
       )}
     </PageShell>

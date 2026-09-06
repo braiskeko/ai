@@ -53,7 +53,7 @@ function isActive(location: string, href: string) {
   return location === href || location.startsWith(`${href}/`);
 }
 
-export function Navbar() {
+export function Navbar({ hideTabs = false }: { hideTabs?: boolean } = {}) {
   const t = useT();
   const config = useConfig();
   const [location, navigate] = useLocation();
@@ -275,7 +275,7 @@ export function Navbar() {
         </Link>
       </header>
 
-      <MobileTabs />
+      {!hideTabs && <MobileTabs />}
     </>
   );
 }

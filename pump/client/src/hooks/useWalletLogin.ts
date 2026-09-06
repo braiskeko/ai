@@ -64,10 +64,17 @@ export function useWalletLogin(options: { onSuccess?: (user: SafeUser) => void }
   const [busyWallet, setBusyWallet] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /** Installed / loadable wallets, ready to show in the picker (with their icons). */
+  /**
+   * Installed / loadable wallets, ready to show in the picker (with their icons).
+   *
+   * The generic "Mobile Wallet Adapter" entry the library injects on Android is
+   * left out: it is not a wallet anyone recognises, and every account here can
+   * already sign with its own wallet.
+   */
   const detected: DetectedWallet[] = useMemo(
     () =>
       wallets
+        .filter((w) => !/mobile wallet adapter/i.test(w.adapter.name))
         .filter((w) => w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable)
         .map((w) => ({
           name: w.adapter.name,

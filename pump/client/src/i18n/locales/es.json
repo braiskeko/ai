@@ -569,8 +569,6 @@
   "profile.signedOutTitle": "Tu perfil",
   "profile.signedOutHint": "Inicia sesión para ver tu saldo, posiciones e historial.",
   "home.allChains": "Todas",
-  "token.notTradableTitle": "Todavía no se puede operar {chain} aquí",
-  "token.notTradableHint": "Next ejecuta swaps en Solana por ahora. Precios, gráficos y depósitos funcionan en todas las redes de la lista.",
   "token.openMarket": "Abrir el mercado",
   "holders.avgEntry": "Entrada media: {mcap} MC",
   "perps.title": "Perps",
@@ -639,5 +637,18 @@
   "settings.helpFees": "Los swaps de monedas lanzadas aquí pagan un 2,7%, del que un 10% va al creador de la moneda.",
   "settings.helpContact": "¿Algo va mal? Escríbenos por donde encontraste Next contando qué hiciste y qué pasó.",
   "chart.waitingCandles": "Este pool aún no da velas: se están tomando muestras de precio y el gráfico se irá rellenando.",
-  "token.noAppHolders": "Todavía no lo tiene nadie de Next."
+  "token.noAppHolders": "Todavía no lo tiene nadie de Next.",
+  "launch.firstBuy": "Tu primera compra",
+  "launch.freeUntilNow": "Gratis hasta aquí. Tu primera compra es lo que crea la moneda.",
+  "launch.supplyShare": "≈{pct} del supply, al precio de lanzamiento",
+  "launch.minimum": "Compra mínimo {amount}",
+  "launch.confirm": "Crear {ticker} · {amount}",
+  "launch.formNotice": "Preparar tu moneda es gratis. Terminas el lanzamiento comprando al menos {amount} de ella — esos tokens son tuyos, y son tu parte del supply.",
+  "perps.long": "Long",
+  "perps.short": "Short",
+  "perps.oiShort": "OI",
+  "perps.market": "Mercado",
+  "perps.liquidationPrice": "Precio de liquidación",
+  "perps.slTp": "Stop Loss / Take Profit",
+  "perps.addSlTp": "Añadir SL/TP"
 }

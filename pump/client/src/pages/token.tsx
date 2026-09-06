@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
-import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
+import { parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
 import { PublicAvatar } from "@/components/TradesTable";
@@ -798,29 +798,6 @@ function Chip({
 }
 
 /**
- * A token on a chain Next cannot swap on yet. Saying so — and pointing at a place
- * that can — beats a Buy button that would fail.
- */
-function OffChainNotice({ token }: { token: ExternalTokenDetail }) {
-  const t = useT();
-  return (
-    <section className="rounded-3xl border border-border bg-card p-5 text-center">
-      <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-foreground">
-        <ExternalLink className="h-5 w-5" />
-      </div>
-      <h2 className="mt-3 text-base font-bold">{t("token.notTradableTitle", { chain: CHAIN_LABELS[token.chain] })}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{t("token.notTradableHint")}</p>
-      <Button asChild className="mt-4 w-full rounded-xl font-semibold">
-        <a href={token.jupiterUrl} target="_blank" rel="noopener noreferrer">
-          {t("token.openMarket")}
-          <ExternalLink className="h-4 w-4" />
-        </a>
-      </Button>
-    </section>
-  );
-}
-
-/**
  * Who on Next holds this token, biggest position first, with what it is worth.
  *
  * Only accounts from here: the point is seeing the people you follow in a coin,
@@ -943,7 +920,7 @@ export default function TokenPage() {
   }
 
   return (
-    <PageShell wide noHeader className="pt-4 pb-nav-actions md:pb-10">
+    <PageShell wide noHeader noTabs className="pt-4 pb-nav-actions md:pb-10">
       {token.isLoading || !data ? (
         token.isError ? (
           <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
@@ -1011,13 +988,9 @@ export default function TokenPage() {
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
-              {data.tradable ? (
-                <div className="hidden lg:block">
-                  <ExternalTradePanel token={data} />
-                </div>
-              ) : (
-                <OffChainNotice token={data} />
-              )}
+              <div className="hidden lg:block">
+                <ExternalTradePanel token={data} />
+              </div>
               <AuditCard token={data} />
             </aside>
           </div>
@@ -1025,13 +998,13 @@ export default function TokenPage() {
       )}
 
       {/* Mobile: Buy/Sell push the full-screen keypad; Sell only when there is a position. */}
-      {data && data.tradable && (
-        <div className="fixed inset-x-0 bottom-[calc(5.6rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
+      {data && (
+        <div className="fixed inset-x-0 bottom-[calc(1.1rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
               onClick={() => navigate(`/buy/${data.mint}`)}
-              className="tap h-12 flex-1 rounded-full bg-up text-base font-bold text-white hover:bg-up/90"
+              className="tap h-12 flex-1 rounded-2xl bg-up text-base font-bold text-white hover:bg-up/90"
             >
               {t("trade.buy")}
             </Button>
@@ -1040,7 +1013,7 @@ export default function TokenPage() {
                 type="button"
                 variant="outline"
                 onClick={() => navigate(`/sell/${data.mint}`)}
-                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+                className="tap h-12 flex-1 rounded-2xl border-down/50 text-base font-bold text-down hover:bg-down/10"
               >
                 {t("trade.sell")}
               </Button>

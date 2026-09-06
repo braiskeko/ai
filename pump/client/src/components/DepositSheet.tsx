@@ -120,7 +120,7 @@ export function DepositSheet({ open, onOpenChange }: { open: boolean; onOpenChan
                   className="tap flex w-full items-center justify-between gap-3 rounded-2xl bg-card px-5 py-4 text-left"
                 >
                   <span className="text-[19px] font-bold">{n.label}</span>
-                  <ChainIcon chain={n.icon} size={28} mono />
+                  <ChainIcon chain={n.icon} size={28} mono className="text-muted-foreground" />
                 </button>
               ))}
             </div>

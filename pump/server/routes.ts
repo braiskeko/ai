@@ -11,7 +11,9 @@ import {
   CREATOR_FEE_SHARE,
   GRADUATION_MCAP_USD,
   LAUNCH_MCAP_USD,
+  LAUNCH_MIN_BUY_USD,
   CHAINS,
+  CHAIN_LABELS,
   EVM_ADDRESS_RE,
   SOLANA_ADDRESS_RE,
   parseTokenId,
@@ -626,6 +628,18 @@ function interleave(lists: ExternalToken[][]): ExternalToken[] {
  * raw route, because Jupiter's swap endpoint wants its own quote object back
  * verbatim.
  */
+/**
+ * Every token gets the same Buy screen, but only Solana can be filled today.
+ * The other chains stop here, with a sentence that says why rather than a
+ * validation error about an address shape.
+ */
+function assertSwappable(rawId: string): void {
+  const parsed = parseTokenId(rawId);
+  if (parsed && parsed.chain !== "solana") {
+    throw new HttpError(400, `Swaps on ${CHAIN_LABELS[parsed.chain]} are not live on Next yet. Solana trades fill right away.`);
+  }
+}
+
 async function routeExternalTrade(input: {
   mint: string;
   side: "buy" | "sell";
@@ -1010,6 +1024,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!entry || !reservation) throw new HttpError(410, "This launch expired. Please upload the image again.");
       if (entry.userId !== user.id) throw new HttpError(403, "This launch belongs to another account");
 
+      // The first buy is what puts the coin on-chain, so it cannot be skipped.
+      // A little tolerance absorbs the SOL price moving between the keypad and here.
+      const minBuySol = (LAUNCH_MIN_BUY_USD / Math.max(getSolUsd(), 1e-9)) * 0.9;
+      if (input.initialBuySol < minBuySol) {
+        throw new HttpError(400, `Buy at least $${LAUNCH_MIN_BUY_USD} of your coin to finish creating it.`);
+      }
+
       // There is no pool to quote against yet: the creator is the very first buyer
       // and gets the deterministic starting price, so one base unit is enough of a
       // floor to keep the instruction happy.
@@ -1234,6 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ipKey = `ip:${clientIp(req)}`;
       externalQuoteLimiter.check(ipKey, res, "Too many quotes. Please slow down.");
       externalQuoteLimiter.record(ipKey);
+      assertSwappable(req.params.mint);
       const input = externalQuoteSchema.parse({ ...req.body, mint: req.params.mint });
       res.json((await routeExternalTrade(input)).quote);
     }),
@@ -1247,6 +1269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { user, wallet } = currentWallet(req);
       txLimiter.check(`user:${user.id}`, res, "Too many transactions. Please slow down.");
       txLimiter.record(`user:${user.id}`);
+      assertSwappable(req.params.mint);
       const input = externalSwapTxSchema.parse({ ...req.body, mint: req.params.mint });
       if (input.wallet !== wallet) throw new HttpError(403, "That wallet is not linked to your account");
 

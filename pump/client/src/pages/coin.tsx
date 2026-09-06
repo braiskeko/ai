@@ -670,7 +670,7 @@ export default function CoinPage() {
   }
 
   return (
-    <PageShell wide noHeader className="pt-4 pb-nav-actions md:pb-10">
+    <PageShell wide noHeader noTabs className="pt-4 pb-nav-actions md:pb-10">
       {coin.isLoading || !data ? (
         coin.isError ? (
           <ErrorState message={apiErrorMessage(coin.error, t("common.error"))} onRetry={() => void coin.refetch()} retrying={coin.isFetching} />
@@ -749,12 +749,12 @@ export default function CoinPage() {
         full width, the way it does in the reference design.
       */}
       {data && !data.curve.migrated && (
-        <div className="fixed inset-x-0 bottom-[calc(5.6rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(1.1rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
               onClick={() => navigate(`/buy/${data.ca}`)}
-              className="tap h-12 flex-1 rounded-full bg-up text-base font-bold text-white hover:bg-up/90"
+              className="tap h-12 flex-1 rounded-2xl bg-up text-base font-bold text-white hover:bg-up/90"
             >
               {t("trade.buy")}
             </Button>
@@ -763,7 +763,7 @@ export default function CoinPage() {
                 type="button"
                 variant="outline"
                 onClick={() => navigate(`/sell/${data.ca}`)}
-                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+                className="tap h-12 flex-1 rounded-2xl border-down/50 text-base font-bold text-down hover:bg-down/10"
               >
                 {t("trade.sell")}
               </Button>

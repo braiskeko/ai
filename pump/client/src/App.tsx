@@ -21,6 +21,7 @@ import Search from "@/pages/search";
 import People from "@/pages/people";
 import TradeSheet from "@/pages/tradeSheet";
 import Perp from "@/pages/perp";
+import PerpTrade from "@/pages/perpTrade";
 import Profile from "@/pages/profile";
 import MyProfile from "@/pages/my-profile";
 import Settings from "@/pages/settings";
@@ -83,6 +84,9 @@ function Routes() {
       <Route path="/wallet" component={Wallet} />
       <Route path="/search" component={Search} />
       <Route path="/people" component={People} />
+      {/* Full-screen long/short keypad. Must stay above "/perp/:symbol". */}
+      <Route path="/perp/:symbol/long" component={PerpTrade} />
+      <Route path="/perp/:symbol/short" component={PerpTrade} />
       <Route path="/perp/:symbol" component={Perp} />
       <Route path="/feed" component={Feed} />
       {/* Activity is now the Feed screen; kept as an alias so old links/bookmarks still work. */}

@@ -70,12 +70,19 @@ export function ChainIcon({
   chain: Chain;
   size?: number;
   className?: string;
-  /** Flatten the logo to the text colour — how the deposit list shows them. */
+  /**
+   * Draw the mark in the current text colour — how the deposit list shows them.
+   *
+   * The hosted artwork is skipped here on purpose: most of those logos are a
+   * solid silhouette on a coloured disc, so filtering them to one colour turns
+   * every one of them into the same blank circle. The drawn marks are shapes,
+   * so they still tell the chains apart in grey.
+   */
   mono?: boolean;
 }) {
   // Each hosted source is tried directly, then through the proxy; the drawn mark
   // is the last step.
-  const candidates = SOURCES[chain].flatMap((url) => [url, proxied(url)]);
+  const candidates = mono ? [] : SOURCES[chain].flatMap((url) => [url, proxied(url)]);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => setAttempt(0), [chain]);
 
@@ -100,12 +107,7 @@ export function ChainIcon({
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setAttempt((n) => n + 1)}
-      className={cn(
-        "shrink-0 rounded-full object-contain",
-        // Any artwork, flattened to solid black and inverted to white on dark.
-        mono && "[filter:grayscale(1)_brightness(0)] dark:[filter:grayscale(1)_brightness(0)_invert(1)]",
-        className,
-      )}
+      className={cn("shrink-0 rounded-full object-contain", className)}
       style={{ width: size, height: size }}
     />
   );

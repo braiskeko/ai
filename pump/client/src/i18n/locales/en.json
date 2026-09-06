@@ -634,8 +634,6 @@
   "profile.signedOutTitle": "Your profile",
   "profile.signedOutHint": "Sign in to see your balance, positions and history.",
   "home.allChains": "All chains",
-  "token.notTradableTitle": "{chain} tokens are not tradable here yet",
-  "token.notTradableHint": "Next executes swaps on Solana today. Prices, charts and deposits work on every chain listed.",
   "token.openMarket": "Open the market",
   "holders.avgEntry": "Avg. entry: {mcap} MC",
   "perps.title": "Perps",
@@ -704,5 +702,18 @@
   "settings.helpFees": "Swaps on coins launched here pay 2.7%, of which 10% goes to the coin's creator.",
   "settings.helpContact": "Something wrong? Reply where you found Next and describe what you did and what happened.",
   "chart.waitingCandles": "No candles for this pool yet — prices are being sampled and the chart fills in as they arrive.",
-  "token.noAppHolders": "Nobody on Next holds this yet."
+  "token.noAppHolders": "Nobody on Next holds this yet.",
+  "launch.firstBuy": "Your first buy",
+  "launch.freeUntilNow": "Free so far. Your first buy is what creates the coin.",
+  "launch.supplyShare": "≈{pct} of the supply, bought at the launch price",
+  "launch.minimum": "Buy at least {amount}",
+  "launch.confirm": "Create {ticker} · {amount}",
+  "launch.formNotice": "Setting up your coin is free. You finish the launch by buying at least {amount} of it yourself — those are your own tokens, and your share of the supply.",
+  "perps.long": "Long",
+  "perps.short": "Short",
+  "perps.oiShort": "OI",
+  "perps.market": "Market",
+  "perps.liquidationPrice": "Liquidation price",
+  "perps.slTp": "Stop Loss / Take Profit",
+  "perps.addSlTp": "Add SL/TP"
 }

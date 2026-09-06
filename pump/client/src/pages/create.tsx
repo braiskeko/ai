@@ -4,9 +4,12 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
-import { ChevronDown, ImagePlus, Loader2, Lock, Rocket, Sparkles, Wallet, X } from "lucide-react";
+import { ChevronDown, ImagePlus, Loader2, Lock, Rocket, Sparkles, X } from "lucide-react";
 import type { PreparedCoin, SentTx, UnsignedTx, WalletView } from "@shared/schema";
-import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, LAUNCH_MCAP_USD, SWAP_FEE, prepareCoinSchema } from "@shared/schema";
+import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, LAUNCH_MCAP_USD, LAUNCH_MIN_BUY_USD, SWAP_FEE, prepareCoinSchema } from "@shared/schema";
+import { LaunchKeypad } from "@/components/LaunchKeypad";
+import { useDepositSheet } from "@/components/DepositSheet";
+import { useSolUsd } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +33,6 @@ const ACCEPTED_IMAGE_RE = /^image\/(png|jpe?g|webp|gif)$/;
 const NAME_MAX = 32;
 const TICKER_MAX = 10;
 const DESCRIPTION_MAX = 1000;
-const MAX_INITIAL_BUY_SOL = 1000;
 const DEFAULT_SLIPPAGE_BPS = 500;
 /** Left unspent so the wallet always has SOL for network + swap fees. */
 const FEE_RESERVE_SOL = 0.01;
@@ -327,9 +329,12 @@ export default function CreatePage() {
   const { user, isLoading: authLoading, openLogin } = useAuth();
   const config = useConfig();
   const { publicKey, connected, signAndSend } = useWalletTx();
+  const solUsd = useSolUsd();
+  const deposit = useDepositSheet();
   const [linksOpen, setLinksOpen] = useState(false);
-  const [initialBuyRaw, setInitialBuyRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
+  /** Set once the (free) preparation succeeded: the keypad that finishes the launch. */
+  const [pending, setPending] = useState<{ prepared: PreparedCoin; ticker: string } | null>(null);
 
   const walletLinked = !!user?.walletAddress;
   // Signing in is enough: the account's own wallet can sign (see lib/embeddedWallet.ts).
@@ -358,30 +363,22 @@ export default function CreatePage() {
   const description = watch("description") ?? "";
   const image = watch("image") ?? "";
 
-  const initialBuySol = Number(initialBuyRaw) || 0;
-  const buyTooLarge = walletLinked && initialBuySol > spendableSol + 1e-9;
-  const buyTooLargeForCap = initialBuySol > MAX_INITIAL_BUY_SOL;
-
   const setImage = useCallback(
     (dataUrl: string) => setValue("image", dataUrl, { shouldDirty: true, shouldValidate: isSubmitted }),
     [setValue, isSubmitted],
   );
 
-  const setInitialBuy = (raw: string) => {
-    const cleaned = raw.replace(/[^0-9.]/g, "");
-    const firstDot = cleaned.indexOf(".");
-    const normalised = firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
-    setInitialBuyRaw(normalised);
-  };
-
   const submitting = phase !== "idle";
 
+  /**
+   * Step 1, free: the image, the metadata and the mint address are reserved on
+   * our side. Nothing has touched the chain yet, so nothing has been paid.
+   */
   const onSubmit = handleSubmit(async (values) => {
     if (!user || !canLaunch) {
       openLogin();
       return;
     }
-    if (buyTooLarge || buyTooLargeForCap) return;
     const parsed = prepareCoinSchema.safeParse(values);
     if (!parsed.success) {
       toast({ variant: "destructive", title: t("common.error"), description: parsed.error.issues[0]?.message ?? t("common.error") });
@@ -395,17 +392,30 @@ export default function CreatePage() {
         twitter: parsed.data.twitter || undefined,
         telegram: parsed.data.telegram || undefined,
       });
-      const prepared = (await prepRes.json()) as PreparedCoin;
+      setPending({ prepared: (await prepRes.json()) as PreparedCoin, ticker: parsed.data.ticker });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("create.failed"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setPhase("idle");
+    }
+  });
 
+  /**
+   * Step 2, paid: the creator's first buy. This one transaction creates the coin
+   * and buys the creator's own share of it, and then the coin has a chart.
+   */
+  const finishLaunch = async (amountUsd: number) => {
+    if (!pending || !publicKey) return;
+    const initialBuySol = amountUsd / Math.max(solUsd, 1e-9);
+    try {
+      setPhase("signing");
       const txRes = await apiRequest("POST", "/api/coins/create-tx", {
-        prepareId: prepared.id,
+        prepareId: pending.prepared.id,
         wallet: publicKey,
         initialBuySol,
         slippageBps: DEFAULT_SLIPPAGE_BPS,
       });
       const unsigned = (await txRes.json()) as UnsignedTx;
-
-      setPhase("signing");
       const sent: SentTx = await signAndSend(unsigned, "create", unsigned.mint, () => setPhase("confirming"));
 
       void qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/coins") });
@@ -415,14 +425,15 @@ export default function CreatePage() {
 
       const ca = sent.coin?.ca ?? unsigned.mint;
       if (!ca) throw new Error(t("create.failed"));
-      toast({ title: `🚀 ${t("create.created", { ticker: `$${parsed.data.ticker}` })}`, description: t("create.createdHint", { ca }) });
+      toast({ title: `🚀 ${t("create.created", { ticker: `$${pending.ticker}` })}`, description: t("create.createdHint", { ca }) });
+      setPending(null);
       navigate(`/${ca}`);
     } catch (err) {
       toast({ variant: "destructive", title: t("create.failed"), description: apiErrorMessage(err, t("common.error")) });
     } finally {
       setPhase("idle");
     }
-  });
+  };
 
   const phaseLabel = () => {
     if (phase === "preparing") return t("create.phasePreparing");
@@ -560,78 +571,11 @@ export default function CreatePage() {
               </div>
             </section>
 
-            {/* Initial buy + curve facts */}
+            {/* Curve facts */}
             <section className="space-y-6 rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <div className="space-y-2">
-                <div className="flex items-baseline justify-between gap-3">
-                  <Label htmlFor="coin-initial-buy" className="text-sm font-semibold">
-                    {t("create.initialBuy")}
-                  </Label>
-                  {walletLinked && (
-                    <span className="inline-flex items-center gap-1 text-xs tabular text-muted-foreground">
-                      <Wallet className="h-3 w-3" />
-                      {t("trade.balance")}: <span className="font-semibold text-foreground">{fmtSol(balanceSol)} SOL</span>
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    id="coin-initial-buy"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={initialBuyRaw}
-                    disabled={submitting}
-                    onChange={(e) => setInitialBuy(e.target.value)}
-                    aria-invalid={buyTooLarge || buyTooLargeForCap}
-                    className={cn("h-11 rounded-lg pr-14 tabular", (buyTooLarge || buyTooLargeForCap) && "border-destructive focus-visible:ring-destructive")}
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">SOL</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {[0.1, 0.5, 1].map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => setInitialBuy(String(v))}
-                      className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold tabular text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                    >
-                      {v} SOL
-                    </button>
-                  ))}
-                  {walletLinked && spendableSol > 0 && (
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => setInitialBuy(String(Math.min(spendableSol, MAX_INITIAL_BUY_SOL)))}
-                      className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                    >
-                      {t("trade.max")}
-                    </button>
-                  )}
-                  {initialBuyRaw && (
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => setInitialBuy("")}
-                      className="rounded-full px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                    >
-                      {t("trade.reset")}
-                    </button>
-                  )}
-                </div>
-                {buyTooLarge ? (
-                  <p role="alert" className="text-xs font-medium text-destructive">
-                    {t("create.insufficient", { balance: `${fmtSol(balanceSol)} SOL` })}
-                  </p>
-                ) : buyTooLargeForCap ? (
-                  <p role="alert" className="text-xs font-medium text-destructive">
-                    {t("create.initialBuyMax", { max: `${MAX_INITIAL_BUY_SOL} SOL` })}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{t("create.initialBuyHint")}</p>
-                )}
-              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("launch.formNotice", { amount: `$${LAUNCH_MIN_BUY_USD}` })}
+              </p>
 
               <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 sm:grid-cols-3">
                 <Stat label={t("create.launchMcap")} value={fmtCompactUsd(config?.launchMcapUsd ?? LAUNCH_MCAP_USD)} />
@@ -655,7 +599,7 @@ export default function CreatePage() {
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={submitting || buyTooLarge || buyTooLargeForCap}
+                  disabled={submitting}
                   className="h-12 rounded-xl px-6 text-base font-bold shadow-[0_0_24px_-6px_hsl(var(--primary)/0.9)]"
                 >
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
@@ -686,16 +630,24 @@ export default function CreatePage() {
           <div className="pointer-events-none select-none" aria-hidden>
             <PreviewCard name={name} ticker={ticker} description={description} image={image} />
           </div>
-          {initialBuySol > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-4 text-xs text-muted-foreground">
-              <div className="flex items-center justify-between gap-3 py-1">
-                <span>{t("create.initialBuy")}</span>
-                <span className="font-semibold tabular text-primary">{fmtSol(initialBuySol)} SOL</span>
-              </div>
-            </div>
-          )}
         </aside>
       </div>
+
+      {/* The last step: the creator's own first buy is what puts the coin on-chain. */}
+      {pending && (
+        <LaunchKeypad
+          ticker={pending.ticker}
+          image={image}
+          availableUsd={spendableSol * solUsd}
+          launchMcapUsd={config?.launchMcapUsd ?? LAUNCH_MCAP_USD}
+          busy={submitting}
+          busyLabel={phaseLabel()}
+          onCancel={() => setPending(null)}
+          onConfirm={(usd) => void finishLaunch(usd)}
+          onDeposit={deposit.open}
+        />
+      )}
+      {deposit.sheet}
     </PageShell>
   );
 }

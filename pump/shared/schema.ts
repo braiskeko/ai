@@ -15,6 +15,14 @@ export const CREATOR_FEE_SHARE = 0.1;
 export const LAUNCH_MCAP_USD = 5_000;
 /** Market cap (USD) at which the bonding curve completes and liquidity migrates to a Meteora DAMM v2 pool. */
 export const GRADUATION_MCAP_USD = 69_000;
+/**
+ * What the creator must buy of their own coin to finish the launch (USD).
+ *
+ * Filling in the coin costs nothing; this first buy is the transaction that
+ * actually creates it on-chain, and the tokens it returns are the creator's own
+ * stake in the supply.
+ */
+export const LAUNCH_MIN_BUY_USD = 1;
 /** Candle interval for the live chart (ms). */
 export const CANDLE_INTERVAL_MS = 60_000;
 /** Solana addresses (mints, wallets, pools) are base58, 32–44 chars. */
