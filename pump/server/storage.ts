@@ -42,6 +42,7 @@ import {
   type SafeUser,
   type Trade,
   type User,
+  PublicProfile,
 } from "@shared/schema";
 import { config } from "./config";
 import { createBackend, Persister } from "./persistence";
@@ -1240,9 +1241,7 @@ export class Storage {
   }
 
   /** Public profile page data, or undefined when no such user exists. */
-  getPublicProfile(
-    username: string,
-  ): { user: PublicUser; coins: CoinSummary[]; trades: (Trade & { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> })[] } | undefined {
+  getPublicProfile(username: string): PublicProfile | undefined {
     const user = this.getUserByUsername(username);
     if (!user) return undefined;
     const now = Date.now();
@@ -1261,7 +1260,12 @@ export class Storage {
       if (trades.length >= 100) break;
     }
     const publicUser = this.toPublicUser(user.id);
-    return publicUser ? { user: publicUser, coins, trades } : undefined;
+    if (!publicUser) return undefined;
+    // Distinct coins this user's wallet still holds (0 when no wallet is linked yet).
+    const holdingsCount = wallet
+      ? this.state.holdings.filter((h) => h.wallet === wallet && h.tokens > 0).length
+      : 0;
+    return { user: publicUser, createdCoins: coins, trades, joinedAt: user.createdAt, holdingsCount };
   }
 }
 

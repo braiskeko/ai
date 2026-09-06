@@ -3,7 +3,7 @@ import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Activity as ActivityIcon, CalendarDays, Coins, Pencil, PieChart, RefreshCw } from "lucide-react";
-import type { ActivityItem, CoinSummary, PublicUser } from "@shared/schema";
+import type { PublicProfile } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { EmptyBox, PublicAvatar } from "@/components/TradesTable";
@@ -16,14 +16,6 @@ import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, useSolUsd, usd } fr
 import { cn } from "@/lib/utils";
 import NotFound from "@/pages/not-found";
 
-interface PublicProfile {
-  user: PublicUser;
-  createdCoins: CoinSummary[];
-  joinedAt: string;
-  holdingsCount: number;
-}
-
-const ACTIVITY_KEY = "/api/activity?limit=200";
 const RECENT_TRADES = 30;
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
@@ -58,10 +50,14 @@ interface UserTrade {
   coin: { ca: string; name: string; ticker: string; imageUrl: string };
 }
 
-function RecentTrades({ userId }: { userId: number }) {
+/**
+ * The profile endpoint already returns this user's own trades (the global activity feed
+ * only carries the most recent ones, so quiet users looked like they had never traded).
+ * Live trades are merged on top so the list updates while the page is open.
+ */
+function RecentTrades({ userId, history }: { userId: number; history: PublicProfile["trades"] }) {
   const t = useT();
   const solUsd = useSolUsd();
-  const activity = useQuery<ActivityItem[]>({ queryKey: [ACTIVITY_KEY], staleTime: 15_000 });
   const live = useLiveTrades(200);
 
   const trades = useMemo<UserTrade[]>(() => {
@@ -70,24 +66,15 @@ function RecentTrades({ userId }: { userId: number }) {
       if (trade.userId !== userId) continue;
       byId.set(trade.id, { id: trade.id, at: trade.createdAt, side: trade.side, sol: trade.sol, tokens: trade.tokens, priceSol: trade.priceSol, coin });
     }
-    for (const a of activity.data ?? []) {
-      if (a.user?.id !== userId || byId.has(a.trade.id)) continue;
-      byId.set(a.trade.id, { id: a.trade.id, at: a.trade.createdAt, side: a.trade.side, sol: a.trade.sol, tokens: a.trade.tokens, priceSol: a.trade.priceSol, coin: a.coin });
+    for (const tr of history) {
+      if (byId.has(tr.id)) continue;
+      byId.set(tr.id, { id: tr.id, at: tr.createdAt, side: tr.side, sol: tr.sol, tokens: tr.tokens, priceSol: tr.priceSol, coin: tr.coin });
     }
     return Array.from(byId.values())
       .sort((a, b) => Date.parse(b.at) - Date.parse(a.at) || b.id - a.id)
       .slice(0, RECENT_TRADES);
-  }, [live, activity.data, userId]);
+  }, [live, history, userId]);
 
-  if (activity.isLoading) {
-    return (
-      <div className="space-y-2" aria-hidden>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 rounded-xl" />
-        ))}
-      </div>
-    );
-  }
   if (trades.length === 0) {
     return <EmptyBox icon={<ActivityIcon className="h-5 w-5" />}>{t("profile.noTrades")}</EmptyBox>;
   }
@@ -253,7 +240,7 @@ export default function ProfilePage() {
 
         <section>
           <h2 className="mb-3 text-lg font-bold">{t("profile.recentTrades")}</h2>
-          <RecentTrades userId={data.user.id} />
+          <RecentTrades userId={data.user.id} history={data.trades} />
         </section>
       </div>
     </PageShell>

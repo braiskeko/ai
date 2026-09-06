@@ -415,6 +415,17 @@ export interface ActivityItem {
   coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl">;
 }
 
+export interface PublicProfile {
+  user: PublicUser;
+  /** coins this user launched, newest first */
+  createdCoins: CoinSummary[];
+  /** the user's own trades, newest first */
+  trades: (Trade & { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> })[];
+  joinedAt: string;
+  /** distinct coins the user's wallet still holds */
+  holdingsCount: number;
+}
+
 export interface PlatformStats {
   coins: number;
   /** lifetime SOL volume */
