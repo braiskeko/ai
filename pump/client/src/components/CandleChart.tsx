@@ -592,7 +592,7 @@ export function CandleChart({
     series.applyOptions({
       priceFormat: {
         type: "custom",
-        formatter: (p: number) => (mode === "mcap" ? fmtCompactUsd(p) : fmtAxisPrice(p)),
+        formatter: (p: number) => (mode === "mcap" ? fmtCompactAmount(p, unit) : fmtAxisPrice(p, unit)),
         minMove: mode === "mcap" ? 1 : 1e-9,
       },
     });
@@ -621,7 +621,7 @@ export function CandleChart({
     }
     lastDataRef.current = { key, data: candleData };
     scheduleRef.current();
-  }, [candleData, volumeData, mode, interval, palette, height]);
+  }, [candleData, volumeData, mode, unit, interval, palette, height]);
 
   // ---- New trades: pop marker + follow real time ---------------------------
   const lastTradeId = markers.length ? markers[markers.length - 1].trade.id : 0;
@@ -646,8 +646,8 @@ export function CandleChart({
           : shortCa(m.trade.wallet, 4, 4);
     const vars = {
       user: who,
-      amount: `${fmtCompactUsd(m.trade.sol)} (${fmtTokens(m.trade.tokens)} ${ticker})`,
-      price: mode === "mcap" ? fmtCompactUsd(m.trade.marketCapSol) : fmtAxisPrice(m.trade.priceSol),
+      amount: `${fmtCompactAmount(m.trade.sol)} (${fmtTokens(m.trade.tokens)} ${ticker})`,
+      price: mode === "mcap" ? fmtCompactAmount(m.trade.marketCapSol) : fmtAxisPrice(m.trade.priceSol),
     };
     return m.trade.side === "buy" ? t("chart.boughtAt", vars) : t("chart.soldAt", vars);
   };
