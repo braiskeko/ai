@@ -94,7 +94,9 @@ export function Navbar() {
   };
 
   const avatarSeed = user?.avatarUrl ?? user?.avatarSeed ?? "";
-  const profileHref = user ? `/u/${encodeURIComponent(user.username)}` : "/wallet";
+  // Always the stable route: it resolves the session itself, so the tab works before
+  // /api/me has answered and survives a rename.
+  const profileHref = "/profile";
 
   const mobileTabs = [
     { href: "/", key: "nav.home", icon: Home },

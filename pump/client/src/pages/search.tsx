@@ -99,48 +99,49 @@ function fromToken(t: ExternalToken): Row {
 function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
   const t = useT();
   return (
-    <div className="group feed-row">
-      <Link href={row.href} className="absolute inset-0" aria-label={row.name} />
-      {row.imageUrl ? (
-        <img src={row.imageUrl} alt="" loading="lazy" className="relative h-12 w-12 shrink-0 rounded-2xl bg-muted object-cover" />
-      ) : (
-        <div className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-muted text-sm font-black text-muted-foreground">
-          {row.ticker.slice(0, 2)}
-        </div>
-      )}
-      <div className="relative min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate font-bold uppercase leading-tight">{row.ticker}</span>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-              row.source === "next" ? "bg-primary/15 text-primary" : "bg-violet/15 text-violet",
-            )}
-          >
-            {row.source === "next" ? t("search.badgeNext") : t("search.badgeSolana")}
-          </span>
-        </div>
-        <div className="truncate text-xs uppercase text-muted-foreground">{compactUsd(row.marketCapUsd)} {t("coin.mcap")}</div>
-      </div>
-      <div className="relative shrink-0 text-right">
-        <div className="stat text-sm leading-tight">{priceUsd(row.priceUsd)}</div>
-        {row.change24h !== 0 ? (
-          <div className={cn("text-[11px] font-semibold tabular", row.change24h >= 0 ? "text-up" : "text-down")}>
-            {signedPct(row.change24h)}
-          </div>
+    // The whole row is the link (an absolutely positioned overlay link sits *under* the
+    // content on touch devices, so the first tap lands on a child and does nothing).
+    <div className="flex items-center gap-3 px-4 transition-colors hover:bg-accent/40">
+      <Link href={row.href} aria-label={row.name} className="tap flex min-w-0 flex-1 items-center gap-3 py-3">
+        {row.imageUrl ? (
+          <img src={row.imageUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-full bg-muted object-cover" />
         ) : (
-          <div className="text-[11px] text-muted-foreground">·</div>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-muted text-sm font-black text-muted-foreground">
+            {row.ticker.slice(0, 2)}
+          </span>
         )}
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-bold uppercase leading-tight">{row.ticker}</span>
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                row.source === "next" ? "bg-primary/15 text-primary" : "bg-violet/15 text-violet",
+              )}
+            >
+              {row.source === "next" ? t("search.badgeNext") : t("search.badgeSolana")}
+            </span>
+          </span>
+          <span className="block truncate text-xs uppercase text-muted-foreground">
+            {compactUsd(row.marketCapUsd)} {t("coin.mcap")}
+          </span>
+        </span>
+        <span className="shrink-0 text-right">
+          <span className="stat block text-sm leading-tight">{priceUsd(row.priceUsd)}</span>
+          {row.change24h !== 0 ? (
+            <span className={cn("block text-[11px] font-semibold tabular", row.change24h >= 0 ? "text-up" : "text-down")}>
+              {signedPct(row.change24h)}
+            </span>
+          ) : (
+            <span className="block text-[11px] text-muted-foreground">·</span>
+          )}
+        </span>
+      </Link>
       <button
         type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onDismiss();
-        }}
+        onClick={onDismiss}
         aria-label={t("common.close")}
-        className="relative grid h-8 w-8 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+        className="tap grid h-8 w-8 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>

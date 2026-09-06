@@ -8,7 +8,6 @@ import {
   Lightbulb,
   PlusCircle,
   RefreshCw,
-  Search,
   SlidersHorizontal,
   Sparkles,
   TrendingUp,
@@ -30,8 +29,27 @@ import { compactUsd, priceUsd, shortCa, signedPct, useSolUsd } from "@/lib/forma
 import { cn } from "@/lib/utils";
 
 type Sort = "new" | "trending" | "mcap" | "volume" | "graduated";
-/** "next" = coins launched here; "solana" = every other token, via the aggregator. */
-type Scope = "next" | "solana";
+
+/**
+ * One list, whatever the origin: coins launched on Next and every other Solana token the
+ * aggregator knows about are merged and ranked together.
+ */
+interface Row {
+  key: string;
+  href: string;
+  image: string | null;
+  title: string;
+  fallback: string;
+  marketCapUsd: number;
+  priceUsd: number;
+  change24h: number;
+  volumeUsd: number;
+  createdAt: string | null;
+  verified: boolean;
+  /** launched here, so it can carry the launchpad badge */
+  own: boolean;
+  coinId?: number;
+}
 
 const SORTS: { key: Sort; labelKey: string; icon: LucideIcon }[] = [
   { key: "new", labelKey: "home.sort.new", icon: Sparkles },
@@ -42,17 +60,12 @@ const SORTS: { key: Sort; labelKey: string; icon: LucideIcon }[] = [
 ];
 const SORT_KEYS = new Set<string>(SORTS.map((s) => s.key));
 
-/**
- * The aggregator only offers three orderings, so the Solana scope shows the
- * three sort pills that map onto them and defaults to trending.
- */
+/** The aggregator offers three orderings; the rest are ranked client-side after merging. */
 const EXTERNAL_LISTS: Partial<Record<Sort, "trending" | "top" | "new">> = {
   trending: "trending",
   volume: "top",
   new: "new",
 };
-const EXTERNAL_SORTS = SORTS.filter((s) => s.key in EXTERNAL_LISTS);
-const DEFAULT_EXTERNAL_SORT: Sort = "trending";
 const LIST_LIMIT = 60;
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
@@ -160,39 +173,6 @@ function TopTraders() {
 // Scope switch: coins launched here vs. every other Solana token
 // ---------------------------------------------------------------------------
 
-function ScopeSwitch({ scope, onChange }: { scope: Scope; onChange: (s: Scope) => void }) {
-  const t = useT();
-  const options: { key: Scope; label: string }[] = [
-    { key: "next", label: t("home.scope.next") },
-    { key: "solana", label: t("home.scope.solana") },
-  ];
-  return (
-    <div className="-mx-4 border-b border-border sm:mx-0" role="tablist" aria-label={t("home.scope.aria")}>
-      <div className="flex">
-        {options.map(({ key, label }) => {
-          const active = key === scope;
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onChange(key)}
-              className={cn(
-                "tap relative flex-1 pb-2.5 pt-1 text-[17px] transition-colors",
-                active ? "font-bold text-foreground" : "font-medium text-muted-foreground",
-              )}
-            >
-              {label}
-              {active && <span className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-2/3 rounded-full bg-primary" />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // External token feed row (same look as CoinCard's "row" variant)
 // ---------------------------------------------------------------------------
@@ -272,75 +252,57 @@ function TokenRow({
 }
 
 /** The "Solana" feed: external tokens from `/api/tokens`. */
-function ExternalFeed({ sort, q }: { sort: Sort; q: string }) {
-  const t = useT();
-  const listKey = useMemo(() => {
-    const p = new URLSearchParams();
-    p.set("list", EXTERNAL_LISTS[sort] ?? "trending");
-    if (q) p.set("q", q);
-    p.set("limit", String(LIST_LIMIT));
-    return `/api/tokens?${p.toString()}`;
-  }, [sort, q]);
+function rowFromCoin(coin: CoinSummary, solUsd: number): Row {
+  return {
+    key: `next:${coin.ca}`,
+    href: `/${coin.ca}`,
+    image: coin.imageUrl,
+    title: coin.name,
+    fallback: coin.ticker,
+    marketCapUsd: coin.marketCapSol * solUsd,
+    priceUsd: coin.priceSol * solUsd,
+    change24h: coin.change24h,
+    volumeUsd: coin.volumeSol * solUsd,
+    createdAt: coin.createdAt,
+    verified: false,
+    own: true,
+    coinId: coin.id,
+  };
+}
 
-  const tokens = useQuery<ExternalToken[]>({ queryKey: [listKey], staleTime: 30_000 });
-  const list = tokens.data ?? [];
+function rowFromToken(token: ExternalToken): Row {
+  return {
+    key: `sol:${token.mint}`,
+    href: `/t/${token.mint}`,
+    image: token.icon,
+    title: token.symbol.toUpperCase(),
+    fallback: token.symbol,
+    marketCapUsd: token.marketCapUsd,
+    priceUsd: token.priceUsd,
+    change24h: token.change24h,
+    volumeUsd: token.volume24hUsd,
+    createdAt: token.createdAt,
+    verified: token.verified,
+    own: false,
+  };
+}
 
-  if (tokens.isLoading) {
-    return (
-      <>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <CoinCardSkeleton key={i} variant="row" />
-        ))}
-      </>
-    );
+/** Rank the merged list the way the active chip asks for. */
+function rankRows(rows: Row[], sort: Sort): Row[] {
+  const byTime = (a: Row, b: Row) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? "");
+  switch (sort) {
+    case "new":
+      return rows.slice().sort(byTime);
+    case "mcap":
+      return rows.slice().sort((a, b) => b.marketCapUsd - a.marketCapUsd);
+    case "volume":
+      return rows.slice().sort((a, b) => b.volumeUsd - a.volumeUsd);
+    case "trending":
+      // Volume relative to size: what is moving, not merely what is large.
+      return rows.slice().sort((a, b) => b.volumeUsd / (b.marketCapUsd || 1) - a.volumeUsd / (a.marketCapUsd || 1));
+    case "graduated":
+      return rows.slice().sort((a, b) => b.marketCapUsd - a.marketCapUsd);
   }
-  if (tokens.isError) {
-    return (
-      <EmptyState
-        title={t("home.external.unavailable")}
-        hint={apiErrorMessage(tokens.error, t("home.external.unavailableHint"))}
-        action={
-          <Button variant="outline" className="rounded-full" onClick={() => void tokens.refetch()}>
-            <RefreshCw className={cn("h-4 w-4", tokens.isFetching && "animate-spin")} />
-            {t("common.retry")}
-          </Button>
-        }
-      />
-    );
-  }
-  if (list.length === 0) {
-    // An empty answer means either "nothing matched" or "the aggregator is
-    // unreachable" — the server degrades both to []. Say so honestly.
-    return (
-      <EmptyState
-        title={q ? t("home.noResults", { q }) : t("home.external.unavailable")}
-        hint={q ? t("home.external.searchHint") : t("home.external.unavailableHint")}
-        action={
-          <Button variant="outline" className="rounded-full" onClick={() => void tokens.refetch()}>
-            <RefreshCw className={cn("h-4 w-4", tokens.isFetching && "animate-spin")} />
-            {t("common.retry")}
-          </Button>
-        }
-      />
-    );
-  }
-  return (
-    <>
-      {list.map((token) => (
-        <TokenRow
-          key={token.mint}
-          href={`/t/${token.mint}`}
-          image={token.icon}
-          title={token.symbol.toUpperCase()}
-          marketCapUsd={token.marketCapUsd}
-          priceUsd={token.priceUsd}
-          change24h={token.change24h}
-          verified={token.verified}
-          fallback={token.symbol}
-        />
-      ))}
-    </>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -357,27 +319,13 @@ export default function Home() {
 
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const q = (params.get("q") ?? "").trim();
-  // The scope lives in the URL (?scope=solana) so it survives reloads and sharing.
-  const scope: Scope = params.get("scope") === "solana" ? "solana" : "next";
-  const external = scope === "solana";
   const rawSort = params.get("sort") ?? "";
-  const defaultSort: Sort = external ? DEFAULT_EXTERNAL_SORT : "new";
-  const allowedSort = external ? rawSort in EXTERNAL_LISTS : SORT_KEYS.has(rawSort);
-  const sort: Sort = allowedSort ? (rawSort as Sort) : defaultSort;
+  const sort: Sort = SORT_KEYS.has(rawSort) ? (rawSort as Sort) : "trending";
 
   const setSort = (next: Sort) => {
     const p = new URLSearchParams(search);
-    if (next === defaultSort) p.delete("sort");
+    if (next === "trending") p.delete("sort");
     else p.set("sort", next);
-    const qs = p.toString();
-    navigate(qs ? `/?${qs}` : "/", { replace: true });
-  };
-  const setScope = (next: Scope) => {
-    const p = new URLSearchParams(search);
-    if (next === "solana") p.set("scope", "solana");
-    else p.delete("scope");
-    // Sort vocabularies differ between the two feeds; start each at its default.
-    p.delete("sort");
     const qs = p.toString();
     navigate(qs ? `/?${qs}` : "/", { replace: true });
   };
@@ -389,7 +337,7 @@ export default function Home() {
   };
 
   // Key shape matters: lib/useLive prepends live coins into "newest first" lists (sort=new, no search).
-  const listKey = useMemo(() => {
+  const coinsKey = useMemo(() => {
     const p = new URLSearchParams();
     if (sort !== "new") p.set("sort", sort);
     if (q) p.set("q", q);
@@ -397,7 +345,17 @@ export default function Home() {
     return `/api/coins?${p.toString()}`;
   }, [sort, q]);
 
-  const coins = useQuery<CoinSummary[]>({ queryKey: [listKey], staleTime: 30_000, enabled: !external });
+  const tokensKey = useMemo(() => {
+    const p = new URLSearchParams();
+    p.set("list", EXTERNAL_LISTS[sort] ?? "trending");
+    if (q) p.set("q", q);
+    p.set("limit", String(LIST_LIMIT));
+    return `/api/tokens?${p.toString()}`;
+  }, [sort, q]);
+
+  const coins = useQuery<CoinSummary[]>({ queryKey: [coinsKey], staleTime: 30_000 });
+  // Graduated is a launchpad-only notion, so the aggregator is not asked for it.
+  const tokens = useQuery<ExternalToken[]>({ queryKey: [tokensKey], staleTime: 30_000, enabled: sort !== "graduated" });
   const recent = useRecentlyCreatedIds();
 
   // "New coin!" toast for coins launched by other people while we are browsing.
@@ -413,7 +371,14 @@ export default function Home() {
   );
   useLiveEvent("coin:created", onCreated);
 
-  const list = coins.data ?? [];
+  const rows = useMemo(() => {
+    const own = (coins.data ?? []).map((c) => rowFromCoin(c, solUsd));
+    const external = (tokens.data ?? []).map(rowFromToken);
+    return rankRows([...own, ...external], sort);
+  }, [coins.data, tokens.data, solUsd, sort]);
+
+  const loading = coins.isLoading || (tokens.isLoading && sort !== "graduated");
+  const failed = coins.isError && (tokens.isError || sort === "graduated");
 
   return (
     <PageShell wide>
@@ -433,47 +398,39 @@ export default function Home() {
             </div>
           )}
 
-          <ScopeSwitch scope={scope} onChange={setScope} />
-
-          <SortPills
-            sort={sort}
-            onChange={setSort}
-            ariaLabel={t("home.sortBy")}
-            options={external ? EXTERNAL_SORTS : SORTS}
-          />
+          <SortPills sort={sort} onChange={setSort} ariaLabel={t("home.sortBy")} />
 
           <div>
-            {external ? (
-              <ExternalFeed sort={sort} q={q} />
-            ) : coins.isLoading ? (
+            {loading ? (
               Array.from({ length: 8 }).map((_, i) => <CoinCardSkeleton key={i} variant="row" />)
-            ) : coins.isError ? (
+            ) : failed ? (
               <EmptyState
                 title={t("home.loadError")}
                 hint={apiErrorMessage(coins.error, t("common.error"))}
                 action={
-                  <Button variant="outline" className="rounded-full" onClick={() => void coins.refetch()}>
+                  <Button
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => {
+                      void coins.refetch();
+                      void tokens.refetch();
+                    }}
+                  >
                     <RefreshCw className={cn("h-4 w-4", coins.isFetching && "animate-spin")} />
                     {t("common.retry")}
                   </Button>
                 }
               />
-            ) : list.length === 0 ? (
+            ) : rows.length === 0 ? (
               q ? (
                 <EmptyState
                   title={t("home.noResults", { q })}
                   hint={t("home.noResultsHint")}
                   action={
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button className="rounded-full font-semibold" onClick={() => setScope("solana")}>
-                        <Search className="h-4 w-4" />
-                        {t("home.external.searchAll")}
-                      </Button>
-                      <Button variant="outline" className="rounded-full" onClick={clearSearch}>
-                        <X className="h-4 w-4" />
-                        {t("home.clearSearch")}
-                      </Button>
-                    </div>
+                    <Button variant="outline" className="rounded-full" onClick={clearSearch}>
+                      <X className="h-4 w-4" />
+                      {t("home.clearSearch")}
+                    </Button>
                   }
                 />
               ) : (
@@ -491,17 +448,18 @@ export default function Home() {
                 />
               )
             ) : (
-              list.map((coin) => (
+              rows.map((row) => (
                 <TokenRow
-                  key={coin.id}
-                  href={`/${coin.ca}`}
-                  image={coin.imageUrl}
-                  title={coin.name}
-                  marketCapUsd={coin.marketCapSol * solUsd}
-                  priceUsd={coin.priceSol * solUsd}
-                  change24h={coin.change24h}
-                  highlight={recent.has(coin.id)}
-                  fallback={coin.ticker}
+                  key={row.key}
+                  href={row.href}
+                  image={row.image}
+                  title={row.title}
+                  marketCapUsd={row.marketCapUsd}
+                  priceUsd={row.priceUsd}
+                  change24h={row.change24h}
+                  verified={row.verified}
+                  highlight={row.coinId !== undefined && recent.has(row.coinId)}
+                  fallback={row.fallback}
                 />
               ))
             )}

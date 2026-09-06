@@ -70,10 +70,12 @@ function RowBody({ coin, highlight, className, progress, graduated, solUsd, t }:
         className,
       )}
     >
+      {/* Covers the row so a single tap opens the coin: an overlay link would sit under
+          the content on touch devices and swallow the first tap. */}
       <Link
         href={`/${coin.ca}`}
         aria-label={t("coin.openCoin", { name: coin.name })}
-        className="absolute inset-0"
+        className="absolute inset-0 z-10"
       />
       <img
         src={coin.imageUrl}

@@ -400,11 +400,11 @@ function ProfileSkeleton() {
   );
 }
 
-export default function ProfilePage() {
+export default function ProfilePage({ username: explicit }: { username?: string } = {}) {
   const t = useT();
   const solUsd = useSolUsd();
   const params = useParams<{ username: string }>();
-  const username = decodeURIComponent(params.username ?? "");
+  const username = explicit ?? decodeURIComponent(params.username ?? "");
   const { user: me } = useAuth();
   const [range, setRange] = useState<Range>("24h");
 

@@ -19,6 +19,7 @@ import Search from "@/pages/search";
 import People from "@/pages/people";
 import TradeSheet from "@/pages/tradeSheet";
 import Profile from "@/pages/profile";
+import MyProfile from "@/pages/my-profile";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
@@ -64,7 +65,8 @@ function Router() {
       {/* Activity is now the Feed screen; kept as an alias so old links/bookmarks still work. */}
       <Route path="/activity" component={Feed} />
       <Route path="/admin" component={Admin} />
-      <Route path="/u/:username" component={Profile} />
+      <Route path="/profile" component={MyProfile} />
+      <Route path="/u/:username">{() => <Profile />}</Route>
       {/* Full-screen buy/sell keypad (mobile). Must stay above "/:ca". */}
       <Route path="/buy/:mint" component={TradeSheet} />
       <Route path="/sell/:mint" component={TradeSheet} />
