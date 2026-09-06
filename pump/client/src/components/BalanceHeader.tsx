@@ -46,12 +46,14 @@ export function BalanceHeader({ className }: { className?: string }) {
                 {pnlSol >= 0 ? "+" : "-"}
                 {formatUsd(Math.abs(pnlSol) * solUsd)} <span className="font-medium text-muted-foreground">{t("home.pnlLabel")}</span>
               </div>
-            ) : (
-              // Signed in without a wallet yet means it is still being set up —
-              // saying "sign in" to someone who just did is nonsense.
-              <div className="mt-1 text-sm text-muted-foreground">
-                {signedIn ? t("wallet.preparing") : t("home.balanceHint")}
+            ) : signedIn ? (
+              // The wallet is still being linked. It takes a moment and nothing is
+              // required of the user, so the balance simply reads zero until then.
+              <div className="mt-1 text-sm font-semibold tabular text-muted-foreground">
+                {formatUsd(0)} <span className="font-medium text-muted-foreground">{t("home.pnlLabel")}</span>
               </div>
+            ) : (
+              <div className="mt-1 text-sm text-muted-foreground">{t("home.balanceHint")}</div>
             )}
           </>
         )}
