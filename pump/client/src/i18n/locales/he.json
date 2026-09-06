@@ -21,7 +21,6 @@
   "nav.homeAria": "דף הבית של {app}",
   "header.earn": "הרוויחו 10% מנפח המסחר של המטבע שלכם",
   "header.earnHint": "צרו טוקן וקבלו נתח מכל החלפה שמתבצעת בו.",
-
   "auth.title": "ברוכים הבאים ל-{app}",
   "auth.subtitle": "התחברו כדי ליצור מטבעות, לקנות ולמכור.",
   "auth.wallet": "חיבור ארנק",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "התנתקתם",
   "auth.seeYou": "נתראה בפעם הבאה.",
   "auth.walletHint": "חתמו על הודעה עם הארנק. בלי עסקה, בלי גז.",
-
   "home.title": "השקות אחרונות",
   "home.subtitle": "מטבעות חדשים מופיעים כאן ברגע שהם נוצרים.",
   "home.king": "מלך הגבעה",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} מכר {amount} של {ticker}",
   "home.feed.created": "{user} יצר את {ticker}",
   "home.newCoin": "מטבע חדש!",
-  "home.animations": "אנימציות",
-
   "coin.mcap": "שווי שוק",
   "coin.price": "מחיר",
   "coin.volume24h": "נפח 24 שעות",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} תגובות",
   "coin.holdersCount": "{n} מחזיקים",
   "coin.openCoin": "פתיחת {name}",
-
   "chart.title": "גרף חי",
   "chart.1m": "1ד׳",
   "chart.5m": "5ד׳",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} קנה {amount} במחיר {price}",
   "chart.soldAt": "{user} מכר {amount} במחיר {price}",
   "chart.you": "אתם",
-
   "trade.buy": "קנייה",
   "trade.sell": "מכירה",
   "trade.amount": "סכום",
@@ -150,7 +144,6 @@
   "trade.minReceived": "מינימום לקבלה",
   "trade.switchToTokens": "מעבר ל-{ticker}",
   "trade.switchToUsdc": "מעבר ל-USDC",
-
   "comments.title": "תגובות",
   "comments.trades": "עסקאות",
   "comments.holders": "מחזיקים מובילים",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "מחזיק {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "חי",
-
   "holders.rank": "#",
   "holders.holder": "מחזיק",
   "holders.share": "נתח",
   "holders.tokens": "טוקנים",
   "holders.curve": "עקומת בונדינג",
   "holders.creator": "יוצר",
-
   "trades.time": "זמן",
   "trades.type": "סוג",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "מחיר",
   "trades.trader": "סוחר",
   "trades.empty": "אין עסקאות עדיין.",
-
   "create.title": "יצירת טוקן",
   "create.subtitle": "השיקו את המימקוין שלכם בשניות. הוא עולה לאוויר מיידית בכתובת משלו שמסתיימת ב-\"next\".",
   "create.name": "שם",
@@ -211,7 +201,6 @@
   "create.loginRequired": "התחברו כדי ליצור טוקן",
   "create.launchPrice": "מחיר השקה",
   "create.launchMcap": "שווי שוק בהשקה",
-
   "portfolio.title": "תיק",
   "portfolio.total": "שווי כולל",
   "portfolio.cash": "מזומן",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "עריכת שם משתמש",
   "portfolio.avatar": "שינוי אווטאר",
   "portfolio.saved": "הפרופיל נשמר",
-
   "wallet.title": "ארנק",
   "wallet.balance": "יתרת מזומן",
   "wallet.usdcOn": "USDC על {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "נשלח",
   "wallet.status.failed": "נכשל",
   "wallet.loginRequired": "התחברו כדי לראות את הארנק שלכם",
-
   "activity.title": "פעילות",
   "activity.subtitle": "כל עסקה ב-{app}, בזמן אמת.",
   "activity.empty": "אין עסקאות עדיין.",
-
   "profile.coins": "מטבעות שנוצרו",
   "profile.joined": "הצטרף ב-{date}",
   "profile.notFound": "המשתמש לא נמצא",
-
   "admin.title": "ניהול",
   "admin.users": "משתמשים",
   "admin.credit": "זיכוי או חיוב יתרה",
@@ -289,14 +274,12 @@
   "admin.search": "חיפוש לפי שם משתמש או אימייל",
   "admin.balanceUpdated": "היתרה עודכנה",
   "admin.creditQueued": "הזיכוי נכנס לתור",
-
   "footer.disclaimer": "מטבעות ב-{app} נסחרים על עקומת בונדינג פנימית. שום דבר כאן אינו ייעוץ פיננסי.",
   "footer.fee": "עמלת החלפה {fee} · {share} מהעמלות הולכות ליוצרים",
   "footer.theme": "ערכת נושא",
   "footer.settledOn": "USDC על {chain}",
   "footer.links": "כותרת תחתונה",
   "footer.liveFeed": "פיד בזמן אמת: {status}",
-
   "common.loading": "טוען...",
   "common.error": "משהו השתבש",
   "common.retry": "נסו שוב",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "ההפקדה אושרה: {amount}",
   "common.withdrawalSent": "המשיכה נשלחה",
   "common.withdrawalFailed": "המשיכה נכשלה",
-
   "time.s": "{n}שנ׳",
   "time.m": "{n}ד׳",
   "time.h": "{n}ש׳",
   "time.d": "{n}י׳",
-
   "coin.stats": "נתונים",
   "coin.about": "אודות",
   "coin.created": "נוצר",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} ליוצר",
   "coin.loadError": "לא ניתן לטעון את המטבע",
   "coin.copyFailed": "לא ניתן להעתיק את הכתובת. סמנו אותה והעתיקו ידנית.",
-
   "create.tickerHint": "2–10 אותיות או ספרות, מוצג כ-$TICKER.",
   "create.imageResize": "משתנה ל-{px}×{px} בדפדפן שלכם לפני ההעלאה.",
   "create.imageProcessing": "מעבד תמונה...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "הקנייה הראשונית לא יכולה לעלות על {max}.",
   "create.loginHint": "התחברו עם ארנק, Google, Apple או אימייל כדי להשיק את המטבע שלכם.",
   "create.failed": "לא ניתן ליצור את הטוקן",
-
   "portfolio.subtitle": "המטבעות, הרווח וההפסד והיסטוריית העסקאות שלכם במקום אחד.",
   "portfolio.loginHint": "עקבו אחרי ההחזקות, הרווח/הפסד ורווחי היוצר שלכם במקום אחד.",
   "portfolio.loadError": "לא ניתן לטעון את התיק שלכם",

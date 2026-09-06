@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} ホーム",
   "header.earn": "自分のコインの出来高の10%を獲得",
   "header.earnHint": "トークンを作成すると、そのコインのすべてのスワップから分配を受け取れます。",
-
   "auth.title": "{app} へようこそ",
   "auth.subtitle": "ログインしてコインを作成、売買しよう。",
   "auth.wallet": "ウォレットを接続",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "ログアウトしました",
   "auth.seeYou": "またお会いしましょう。",
   "auth.walletHint": "ウォレットでメッセージに署名します。トランザクションもガス代も不要です。",
-
   "home.title": "最新ローンチ",
   "home.subtitle": "新しいコインは作成された瞬間にここに表示されます。",
   "home.king": "キング・オブ・ザ・ヒル",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} が {ticker} を {amount} 売りました",
   "home.feed.created": "{user} が {ticker} を作成しました",
   "home.newCoin": "新しいコイン！",
-  "home.animations": "アニメーション",
-
   "coin.mcap": "時価総額",
   "coin.price": "価格",
   "coin.volume24h": "24h 出来高",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} 件の返信",
   "coin.holdersCount": "{n} 人のホルダー",
   "coin.openCoin": "{name} を開く",
-
   "chart.title": "ライブチャート",
   "chart.1m": "1分",
   "chart.5m": "5分",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} が {price} で {amount} 買いました",
   "chart.soldAt": "{user} が {price} で {amount} 売りました",
   "chart.you": "あなた",
-
   "trade.buy": "買う",
   "trade.sell": "売る",
   "trade.amount": "数量",
@@ -150,7 +144,6 @@
   "trade.minReceived": "最小受取額",
   "trade.switchToTokens": "{ticker} に切り替え",
   "trade.switchToUsdc": "USDC に切り替え",
-
   "comments.title": "コメント",
   "comments.trades": "取引",
   "comments.holders": "上位ホルダー",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} 保有",
   "comments.creatorBadge": "dev",
   "comments.live": "ライブ",
-
   "holders.rank": "#",
   "holders.holder": "ホルダー",
   "holders.share": "割合",
   "holders.tokens": "トークン",
   "holders.curve": "ボンディングカーブ",
   "holders.creator": "作成者",
-
   "trades.time": "時刻",
   "trades.type": "種類",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "価格",
   "trades.trader": "トレーダー",
   "trades.empty": "まだ取引がありません。",
-
   "create.title": "トークンを作成",
   "create.subtitle": "数秒でミームコインをローンチ。\"next\" で終わる専用アドレスで即時に公開されます。",
   "create.name": "名前",
@@ -211,7 +201,6 @@
   "create.loginRequired": "ログインしてトークンを作成",
   "create.launchPrice": "ローンチ価格",
   "create.launchMcap": "ローンチ時の時価総額",
-
   "portfolio.title": "ポートフォリオ",
   "portfolio.total": "総資産",
   "portfolio.cash": "残高",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "ユーザー名を編集",
   "portfolio.avatar": "アバターを変更",
   "portfolio.saved": "プロフィールを保存しました",
-
   "wallet.title": "ウォレット",
   "wallet.balance": "現金残高",
   "wallet.usdcOn": "{chain} 上の USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "送信済み",
   "wallet.status.failed": "失敗",
   "wallet.loginRequired": "ログインしてウォレットを見る",
-
   "activity.title": "アクティビティ",
   "activity.subtitle": "{app} 上のすべての取引をリアルタイムで。",
   "activity.empty": "まだ取引がありません。",
-
   "profile.coins": "作成したコイン",
   "profile.joined": "{date} に参加",
   "profile.notFound": "ユーザーが見つかりません",
-
   "admin.title": "管理",
   "admin.users": "ユーザー",
   "admin.credit": "残高の加算・減算",
@@ -289,14 +274,12 @@
   "admin.search": "ユーザー名またはメールで検索",
   "admin.balanceUpdated": "残高を更新しました",
   "admin.creditQueued": "加算をキューに入れました",
-
   "footer.disclaimer": "{app} のコインは内部のボンディングカーブで取引されます。ここにあるものは投資助言ではありません。",
   "footer.fee": "スワップ手数料 {fee} · 手数料の {share} は作成者へ",
   "footer.theme": "テーマ",
   "footer.settledOn": "{chain} 上の USDC",
   "footer.links": "フッター",
   "footer.liveFeed": "リアルタイムフィード：{status}",
-
   "common.loading": "読み込み中...",
   "common.error": "問題が発生しました",
   "common.retry": "再試行",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "入金確認：{amount}",
   "common.withdrawalSent": "出金を送信しました",
   "common.withdrawalFailed": "出金に失敗しました",
-
   "time.s": "{n}秒",
   "time.m": "{n}分",
   "time.h": "{n}時間",
   "time.d": "{n}日",
-
   "coin.stats": "統計",
   "coin.about": "概要",
   "coin.created": "作成日時",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} は作成者へ",
   "coin.loadError": "このコインを読み込めませんでした",
   "coin.copyFailed": "アドレスをコピーできませんでした。選択して手動でコピーしてください。",
-
   "create.tickerHint": "2〜10文字の英数字。$TICKER として表示されます。",
   "create.imageResize": "アップロード前にブラウザで {px}×{px} にリサイズされます。",
   "create.imageProcessing": "画像を処理中...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "初回購入は {max} を超えられません。",
   "create.loginHint": "ウォレット、Google、Apple またはメールでログインしてコインをローンチ。",
   "create.failed": "トークンを作成できませんでした",
-
   "portfolio.subtitle": "あなたのコイン、損益、取引履歴をひとつの場所で。",
   "portfolio.loginHint": "保有、損益、作成者収益をひとつの場所で追跡。",
   "portfolio.loadError": "ポートフォリオを読み込めませんでした",

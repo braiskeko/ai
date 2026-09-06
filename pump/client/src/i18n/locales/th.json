@@ -21,7 +21,6 @@
   "nav.homeAria": "หน้าแรก {app}",
   "header.earn": "รับ 10% ของวอลุ่มเหรียญของคุณ",
   "header.earnHint": "สร้างโทเคนแล้วรับส่วนแบ่งจากทุกการสวอปบนเหรียญนั้น",
-
   "auth.title": "ยินดีต้อนรับสู่ {app}",
   "auth.subtitle": "เข้าสู่ระบบเพื่อสร้างเหรียญ ซื้อ และขาย",
   "auth.wallet": "เชื่อมต่อกระเป๋า",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "ออกจากระบบแล้ว",
   "auth.seeYou": "แล้วพบกันใหม่",
   "auth.walletHint": "เซ็นข้อความด้วยกระเป๋าของคุณ ไม่มีธุรกรรม ไม่มีค่าแก๊ส",
-
   "home.title": "เปิดตัวล่าสุด",
   "home.subtitle": "เหรียญใหม่จะปรากฏที่นี่ทันทีที่ถูกสร้าง",
   "home.king": "ราชาแห่งเนินเขา",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} ขาย {ticker} มูลค่า {amount}",
   "home.feed.created": "{user} สร้าง {ticker}",
   "home.newCoin": "เหรียญใหม่!",
-  "home.animations": "แอนิเมชัน",
-
   "coin.mcap": "มาร์เก็ตแคป",
   "coin.price": "ราคา",
   "coin.volume24h": "วอลุ่ม 24 ชม.",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} ความเห็น",
   "coin.holdersCount": "{n} ผู้ถือ",
   "coin.openCoin": "เปิด {name}",
-
   "chart.title": "กราฟสด",
   "chart.1m": "1 นาที",
   "chart.5m": "5 นาที",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} ซื้อ {amount} ที่ {price}",
   "chart.soldAt": "{user} ขาย {amount} ที่ {price}",
   "chart.you": "คุณ",
-
   "trade.buy": "ซื้อ",
   "trade.sell": "ขาย",
   "trade.amount": "จำนวน",
@@ -150,7 +144,6 @@
   "trade.minReceived": "ได้รับขั้นต่ำ",
   "trade.switchToTokens": "สลับเป็น {ticker}",
   "trade.switchToUsdc": "สลับเป็น USDC",
-
   "comments.title": "ความเห็น",
   "comments.trades": "การเทรด",
   "comments.holders": "ผู้ถือรายใหญ่",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "ถือ {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "สด",
-
   "holders.rank": "#",
   "holders.holder": "ผู้ถือ",
   "holders.share": "สัดส่วน",
   "holders.tokens": "โทเคน",
   "holders.curve": "บอนดิ้งเคิร์ฟ",
   "holders.creator": "ผู้สร้าง",
-
   "trades.time": "เวลา",
   "trades.type": "ประเภท",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "ราคา",
   "trades.trader": "เทรดเดอร์",
   "trades.empty": "ยังไม่มีการเทรด",
-
   "create.title": "สร้างโทเคน",
   "create.subtitle": "เปิดตัวมีมคอยน์ของคุณในไม่กี่วินาที เหรียญจะออนไลน์ทันทีที่ที่อยู่เฉพาะซึ่งลงท้ายด้วย \"next\"",
   "create.name": "ชื่อ",
@@ -211,7 +201,6 @@
   "create.loginRequired": "เข้าสู่ระบบเพื่อสร้างโทเคน",
   "create.launchPrice": "ราคาเปิดตัว",
   "create.launchMcap": "มาร์เก็ตแคปเปิดตัว",
-
   "portfolio.title": "พอร์ต",
   "portfolio.total": "มูลค่ารวม",
   "portfolio.cash": "เงินสด",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "แก้ไขชื่อผู้ใช้",
   "portfolio.avatar": "เปลี่ยนรูปโปรไฟล์",
   "portfolio.saved": "บันทึกโปรไฟล์แล้ว",
-
   "wallet.title": "กระเป๋า",
   "wallet.balance": "ยอดเงินสด",
   "wallet.usdcOn": "USDC บน {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "ส่งแล้ว",
   "wallet.status.failed": "ล้มเหลว",
   "wallet.loginRequired": "เข้าสู่ระบบเพื่อดูกระเป๋าของคุณ",
-
   "activity.title": "กิจกรรม",
   "activity.subtitle": "ทุกการเทรดบน {app} แบบเรียลไทม์",
   "activity.empty": "ยังไม่มีการเทรด",
-
   "profile.coins": "เหรียญที่สร้าง",
   "profile.joined": "เข้าร่วมเมื่อ {date}",
   "profile.notFound": "ไม่พบผู้ใช้",
-
   "admin.title": "แอดมิน",
   "admin.users": "ผู้ใช้",
   "admin.credit": "เพิ่มหรือหักยอดคงเหลือ",
@@ -289,14 +274,12 @@
   "admin.search": "ค้นหาด้วยชื่อผู้ใช้หรืออีเมล",
   "admin.balanceUpdated": "อัปเดตยอดคงเหลือแล้ว",
   "admin.creditQueued": "เข้าคิวเครดิตแล้ว",
-
   "footer.disclaimer": "เหรียญบน {app} เทรดบนบอนดิ้งเคิร์ฟภายใน ไม่มีสิ่งใดที่นี่เป็นคำแนะนำทางการเงิน",
   "footer.fee": "ค่าธรรมเนียมสวอป {fee} · {share} ของค่าธรรมเนียมไปที่ผู้สร้าง",
   "footer.theme": "ธีม",
   "footer.settledOn": "USDC บน {chain}",
   "footer.links": "ส่วนท้าย",
   "footer.liveFeed": "ฟีดเรียลไทม์: {status}",
-
   "common.loading": "กำลังโหลด...",
   "common.error": "มีบางอย่างผิดพลาด",
   "common.retry": "ลองอีกครั้ง",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "ยืนยันการฝากแล้ว: {amount}",
   "common.withdrawalSent": "ส่งการถอนแล้ว",
   "common.withdrawalFailed": "การถอนล้มเหลว",
-
   "time.s": "{n} วิ",
   "time.m": "{n} น.",
   "time.h": "{n} ชม.",
   "time.d": "{n} วัน",
-
   "coin.stats": "สถิติ",
   "coin.about": "เกี่ยวกับ",
   "coin.created": "สร้างเมื่อ",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} ให้ผู้สร้าง",
   "coin.loadError": "โหลดเหรียญนี้ไม่ได้",
   "coin.copyFailed": "คัดลอกที่อยู่ไม่ได้ เลือกแล้วคัดลอกด้วยตนเอง",
-
   "create.tickerHint": "ตัวอักษรหรือตัวเลข 2–10 ตัว แสดงเป็น $TICKER",
   "create.imageResize": "ปรับขนาดเป็น {px}×{px} ในเบราว์เซอร์ก่อนอัปโหลด",
   "create.imageProcessing": "กำลังประมวลผลรูปภาพ...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "การซื้อครั้งแรกต้องไม่เกิน {max}",
   "create.loginHint": "เข้าสู่ระบบด้วยกระเป๋า Google Apple หรืออีเมลเพื่อเปิดตัวเหรียญของคุณ",
   "create.failed": "สร้างโทเคนไม่ได้",
-
   "portfolio.subtitle": "เหรียญ กำไรขาดทุน และประวัติการเทรดของคุณในที่เดียว",
   "portfolio.loginHint": "ติดตามสิ่งที่ถือ กำไรขาดทุน และรายได้ผู้สร้างในที่เดียว",
   "portfolio.loadError": "โหลดพอร์ตของคุณไม่ได้",

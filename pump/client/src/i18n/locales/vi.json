@@ -21,7 +21,6 @@
   "nav.homeAria": "Trang chủ {app}",
   "header.earn": "Nhận 10% khối lượng giao dịch của coin bạn",
   "header.earnHint": "Tạo token và nhận một phần từ mỗi lượt swap trên đó.",
-
   "auth.title": "Chào mừng đến với {app}",
   "auth.subtitle": "Đăng nhập để tạo coin, mua và bán.",
   "auth.wallet": "Kết nối ví",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Đã đăng xuất",
   "auth.seeYou": "Hẹn gặp lại.",
   "auth.walletHint": "Ký một thông điệp bằng ví của bạn. Không giao dịch, không phí gas.",
-
   "home.title": "Mới ra mắt",
   "home.subtitle": "Coin mới xuất hiện ở đây ngay khi được tạo.",
   "home.king": "King of the Hill",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} đã bán {amount} {ticker}",
   "home.feed.created": "{user} đã tạo {ticker}",
   "home.newCoin": "Coin mới!",
-  "home.animations": "Hiệu ứng",
-
   "coin.mcap": "Vốn hóa",
   "coin.price": "Giá",
   "coin.volume24h": "Khối lượng 24h",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} phản hồi",
   "coin.holdersCount": "{n} người nắm giữ",
   "coin.openCoin": "Mở {name}",
-
   "chart.title": "Biểu đồ trực tiếp",
   "chart.1m": "1p",
   "chart.5m": "5p",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} đã mua {amount} tại {price}",
   "chart.soldAt": "{user} đã bán {amount} tại {price}",
   "chart.you": "Bạn",
-
   "trade.buy": "Mua",
   "trade.sell": "Bán",
   "trade.amount": "Số lượng",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Nhận tối thiểu",
   "trade.switchToTokens": "Chuyển sang {ticker}",
   "trade.switchToUsdc": "Chuyển sang USDC",
-
   "comments.title": "Bình luận",
   "comments.trades": "Giao dịch",
   "comments.holders": "Người nắm giữ hàng đầu",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "nắm giữ {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Trực tiếp",
-
   "holders.rank": "#",
   "holders.holder": "Người nắm giữ",
   "holders.share": "Tỷ lệ",
   "holders.tokens": "Token",
   "holders.curve": "Bonding curve",
   "holders.creator": "người tạo",
-
   "trades.time": "Thời gian",
   "trades.type": "Loại",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Giá",
   "trades.trader": "Trader",
   "trades.empty": "Chưa có giao dịch.",
-
   "create.title": "Tạo token",
   "create.subtitle": "Ra mắt memecoin của bạn trong vài giây. Nó lên sàn ngay lập tức tại địa chỉ riêng kết thúc bằng \"next\".",
   "create.name": "Tên",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Đăng nhập để tạo token",
   "create.launchPrice": "Giá ra mắt",
   "create.launchMcap": "Vốn hóa khi ra mắt",
-
   "portfolio.title": "Danh mục",
   "portfolio.total": "Tổng giá trị",
   "portfolio.cash": "Tiền mặt",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Sửa tên người dùng",
   "portfolio.avatar": "Đổi ảnh đại diện",
   "portfolio.saved": "Đã lưu hồ sơ",
-
   "wallet.title": "Ví",
   "wallet.balance": "Số dư tiền mặt",
   "wallet.usdcOn": "USDC trên {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Đã gửi",
   "wallet.status.failed": "Thất bại",
   "wallet.loginRequired": "Đăng nhập để xem ví",
-
   "activity.title": "Hoạt động",
   "activity.subtitle": "Mọi giao dịch trên {app}, ngay khi diễn ra.",
   "activity.empty": "Chưa có giao dịch.",
-
   "profile.coins": "Coin đã tạo",
   "profile.joined": "Tham gia {date}",
   "profile.notFound": "Không tìm thấy người dùng",
-
   "admin.title": "Quản trị",
   "admin.users": "Người dùng",
   "admin.credit": "Cộng hoặc trừ số dư",
@@ -289,14 +274,12 @@
   "admin.search": "Tìm theo tên người dùng hoặc email",
   "admin.balanceUpdated": "Đã cập nhật số dư",
   "admin.creditQueued": "Đã xếp hàng chờ cộng tiền",
-
   "footer.disclaimer": "Coin trên {app} giao dịch trên bonding curve nội bộ. Không có gì ở đây là lời khuyên tài chính.",
   "footer.fee": "Phí swap {fee} · {share} phí thuộc về người tạo",
   "footer.theme": "Giao diện",
   "footer.settledOn": "USDC trên {chain}",
   "footer.links": "Chân trang",
   "footer.liveFeed": "Nguồn thời gian thực: {status}",
-
   "common.loading": "Đang tải...",
   "common.error": "Đã xảy ra lỗi",
   "common.retry": "Thử lại",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Đã xác nhận nạp tiền: {amount}",
   "common.withdrawalSent": "Đã gửi lệnh rút",
   "common.withdrawalFailed": "Rút tiền thất bại",
-
   "time.s": "{n}s",
   "time.m": "{n}p",
   "time.h": "{n}h",
   "time.d": "{n}ng",
-
   "coin.stats": "Thống kê",
   "coin.about": "Giới thiệu",
   "coin.created": "Ngày tạo",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} cho người tạo",
   "coin.loadError": "Không tải được coin này",
   "coin.copyFailed": "Không sao chép được địa chỉ. Hãy chọn và sao chép thủ công.",
-
   "create.tickerHint": "2–10 chữ cái hoặc số, hiển thị dạng $TICKER.",
   "create.imageResize": "Được thu về {px}×{px} trong trình duyệt của bạn trước khi tải lên.",
   "create.imageProcessing": "Đang xử lý ảnh...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Lệnh mua ban đầu không được vượt quá {max}.",
   "create.loginHint": "Đăng nhập bằng ví, Google, Apple hoặc email để ra mắt coin của bạn.",
   "create.failed": "Không tạo được token",
-
   "portfolio.subtitle": "Coin, lãi lỗ và lịch sử giao dịch của bạn ở một nơi.",
   "portfolio.loginHint": "Theo dõi tài sản nắm giữ, lãi/lỗ và thu nhập người tạo ở một nơi.",
   "portfolio.loadError": "Không tải được danh mục của bạn",

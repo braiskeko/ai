@@ -21,7 +21,6 @@
   "nav.homeAria": "Início do {app}",
   "header.earn": "Ganhe 10% do volume da sua moeda",
   "header.earnHint": "Crie um token e receba uma parte de cada swap feito nele.",
-
   "auth.title": "Bem-vindo ao {app}",
   "auth.subtitle": "Entre para criar moedas, comprar e vender.",
   "auth.wallet": "Conectar carteira",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Você saiu",
   "auth.seeYou": "Até a próxima.",
   "auth.walletHint": "Assine uma mensagem com sua carteira. Sem transação, sem gas.",
-
   "home.title": "Últimos lançamentos",
   "home.subtitle": "Novas moedas aparecem aqui no momento em que são criadas.",
   "home.king": "Rei da Colina",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} vendeu {amount} de {ticker}",
   "home.feed.created": "{user} criou {ticker}",
   "home.newCoin": "Moeda nova!",
-  "home.animations": "Animações",
-
   "coin.mcap": "Market cap",
   "coin.price": "Preço",
   "coin.volume24h": "Volume 24h",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} respostas",
   "coin.holdersCount": "{n} holders",
   "coin.openCoin": "Abrir {name}",
-
   "chart.title": "Gráfico ao vivo",
   "chart.1m": "1m",
   "chart.5m": "5m",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} comprou {amount} a {price}",
   "chart.soldAt": "{user} vendeu {amount} a {price}",
   "chart.you": "Você",
-
   "trade.buy": "Comprar",
   "trade.sell": "Vender",
   "trade.amount": "Quantidade",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Mínimo recebido",
   "trade.switchToTokens": "Mudar para {ticker}",
   "trade.switchToUsdc": "Mudar para USDC",
-
   "comments.title": "Comentários",
   "comments.trades": "Negociações",
   "comments.holders": "Maiores holders",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "tem {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Ao vivo",
-
   "holders.rank": "#",
   "holders.holder": "Holder",
   "holders.share": "Participação",
   "holders.tokens": "Tokens",
   "holders.curve": "Bonding curve",
   "holders.creator": "criador",
-
   "trades.time": "Hora",
   "trades.type": "Tipo",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Preço",
   "trades.trader": "Trader",
   "trades.empty": "Ainda não há negociações.",
-
   "create.title": "Criar um token",
   "create.subtitle": "Lance sua memecoin em segundos. Ela entra ao vivo na hora com um endereço próprio terminado em \"next\".",
   "create.name": "Nome",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Entre para criar um token",
   "create.launchPrice": "Preço de lançamento",
   "create.launchMcap": "Market cap de lançamento",
-
   "portfolio.title": "Portfólio",
   "portfolio.total": "Valor total",
   "portfolio.cash": "Saldo",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Editar nome de usuário",
   "portfolio.avatar": "Trocar avatar",
   "portfolio.saved": "Perfil salvo",
-
   "wallet.title": "Carteira",
   "wallet.balance": "Saldo em caixa",
   "wallet.usdcOn": "USDC na {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Enviado",
   "wallet.status.failed": "Falhou",
   "wallet.loginRequired": "Entre para ver sua carteira",
-
   "activity.title": "Atividade",
   "activity.subtitle": "Cada negociação no {app}, em tempo real.",
   "activity.empty": "Ainda não há negociações.",
-
   "profile.coins": "Moedas criadas",
   "profile.joined": "Entrou em {date}",
   "profile.notFound": "Usuário não encontrado",
-
   "admin.title": "Admin",
   "admin.users": "Usuários",
   "admin.credit": "Creditar ou debitar um saldo",
@@ -289,14 +274,12 @@
   "admin.search": "Buscar por nome de usuário ou e-mail",
   "admin.balanceUpdated": "Saldo atualizado",
   "admin.creditQueued": "Crédito na fila",
-
   "footer.disclaimer": "As moedas no {app} são negociadas em uma bonding curve interna. Nada aqui é aconselhamento financeiro.",
   "footer.fee": "Taxa de swap de {fee} · {share} das taxas vão para os criadores",
   "footer.theme": "Tema",
   "footer.settledOn": "USDC na {chain}",
   "footer.links": "Rodapé",
   "footer.liveFeed": "Feed em tempo real: {status}",
-
   "common.loading": "Carregando...",
   "common.error": "Algo deu errado",
   "common.retry": "Tentar de novo",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Depósito confirmado: {amount}",
   "common.withdrawalSent": "Saque enviado",
   "common.withdrawalFailed": "Saque falhou",
-
   "time.s": "{n}s",
   "time.m": "{n}m",
   "time.h": "{n}h",
   "time.d": "{n}d",
-
   "coin.stats": "Estatísticas",
   "coin.about": "Sobre",
   "coin.created": "Criada",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} para o criador",
   "coin.loadError": "Não foi possível carregar esta moeda",
   "coin.copyFailed": "Não foi possível copiar o endereço. Selecione e copie manualmente.",
-
   "create.tickerHint": "De 2 a 10 letras ou números, exibido como $TICKER.",
   "create.imageResize": "Redimensionada para {px}×{px} no seu navegador antes do upload.",
   "create.imageProcessing": "Processando imagem...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "A compra inicial não pode exceder {max}.",
   "create.loginHint": "Entre com carteira, Google, Apple ou e-mail para lançar sua moeda.",
   "create.failed": "Não foi possível criar o token",
-
   "portfolio.subtitle": "Suas moedas, lucros e perdas e histórico de negociações em um só lugar.",
   "portfolio.loginHint": "Acompanhe suas posições, P&L e ganhos como criador em um só lugar.",
   "portfolio.loadError": "Não foi possível carregar seu portfólio",

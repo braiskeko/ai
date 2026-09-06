@@ -21,7 +21,6 @@
   "nav.homeAria": "Nyumbani {app}",
   "header.earn": "Pata 10% ya mauzo ya sarafu yako",
   "header.earnHint": "Unda tokeni na upokee sehemu ya kila swap inayofanyika kwayo.",
-
   "auth.title": "Karibu {app}",
   "auth.subtitle": "Ingia ili kuunda sarafu, kununua na kuuza.",
   "auth.wallet": "Unganisha pochi",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Umetoka",
   "auth.seeYou": "Tutaonana tena.",
   "auth.walletHint": "Saini ujumbe kwa pochi yako. Hakuna muamala, hakuna gesi.",
-
   "home.title": "Zilizozinduliwa hivi karibuni",
   "home.subtitle": "Sarafu mpya huonekana hapa mara tu zinapoundwa.",
   "home.king": "Mfalme wa Kilima",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} aliuza {amount} ya {ticker}",
   "home.feed.created": "{user} aliunda {ticker}",
   "home.newCoin": "Sarafu mpya!",
-  "home.animations": "Uhuishaji",
-
   "coin.mcap": "Thamani ya soko",
   "coin.price": "Bei",
   "coin.volume24h": "Mauzo ya saa 24",
@@ -112,7 +108,6 @@
   "coin.replies": "Majibu {n}",
   "coin.holdersCount": "Wamiliki {n}",
   "coin.openCoin": "Fungua {name}",
-
   "chart.title": "Chati mubashara",
   "chart.1m": "1d",
   "chart.5m": "5d",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} alinunua {amount} kwa {price}",
   "chart.soldAt": "{user} aliuza {amount} kwa {price}",
   "chart.you": "Wewe",
-
   "trade.buy": "Nunua",
   "trade.sell": "Uza",
   "trade.amount": "Kiasi",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Kiwango cha chini cha kupokea",
   "trade.switchToTokens": "Badilisha kwenda {ticker}",
   "trade.switchToUsdc": "Badilisha kwenda USDC",
-
   "comments.title": "Maoni",
   "comments.trades": "Biashara",
   "comments.holders": "Wamiliki wakuu",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "anamiliki {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Mubashara",
-
   "holders.rank": "#",
   "holders.holder": "Mmiliki",
   "holders.share": "Sehemu",
   "holders.tokens": "Tokeni",
   "holders.curve": "Bonding curve",
   "holders.creator": "muundaji",
-
   "trades.time": "Muda",
   "trades.type": "Aina",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Bei",
   "trades.trader": "Mfanyabiashara",
   "trades.empty": "Hakuna biashara bado.",
-
   "create.title": "Unda tokeni",
   "create.subtitle": "Zindua memecoin yako kwa sekunde chache. Inaanza kufanya kazi mara moja kwenye anwani yake inayoishia na \"next\".",
   "create.name": "Jina",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Ingia ili kuunda tokeni",
   "create.launchPrice": "Bei ya kuzindua",
   "create.launchMcap": "Thamani ya soko ya kuzindua",
-
   "portfolio.title": "Portfolio",
   "portfolio.total": "Thamani yote",
   "portfolio.cash": "Pesa taslimu",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Hariri jina la mtumiaji",
   "portfolio.avatar": "Badilisha avatar",
   "portfolio.saved": "Wasifu umehifadhiwa",
-
   "wallet.title": "Pochi",
   "wallet.balance": "Salio la pesa taslimu",
   "wallet.usdcOn": "USDC kwenye {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Imetumwa",
   "wallet.status.failed": "Imeshindikana",
   "wallet.loginRequired": "Ingia ili kuona pochi yako",
-
   "activity.title": "Shughuli",
   "activity.subtitle": "Kila biashara kwenye {app}, inavyotokea.",
   "activity.empty": "Hakuna biashara bado.",
-
   "profile.coins": "Sarafu zilizoundwa",
   "profile.joined": "Alijiunga {date}",
   "profile.notFound": "Mtumiaji hapatikani",
-
   "admin.title": "Msimamizi",
   "admin.users": "Watumiaji",
   "admin.credit": "Ongeza au punguza salio",
@@ -289,14 +274,12 @@
   "admin.search": "Tafuta kwa jina la mtumiaji au barua pepe",
   "admin.balanceUpdated": "Salio limesasishwa",
   "admin.creditQueued": "Nyongeza imewekwa kwenye foleni",
-
   "footer.disclaimer": "Sarafu kwenye {app} hufanyiwa biashara kwenye bonding curve ya ndani. Hakuna kitu hapa kilicho ushauri wa kifedha.",
   "footer.fee": "Ada ya swap {fee} · {share} ya ada huenda kwa waundaji",
   "footer.theme": "Mandhari",
   "footer.settledOn": "USDC kwenye {chain}",
   "footer.links": "Kijachini",
   "footer.liveFeed": "Mlisho wa mubashara: {status}",
-
   "common.loading": "Inapakia...",
   "common.error": "Hitilafu imetokea",
   "common.retry": "Jaribu tena",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Uwekaji pesa umethibitishwa: {amount}",
   "common.withdrawalSent": "Utoaji pesa umetumwa",
   "common.withdrawalFailed": "Utoaji pesa umeshindikana",
-
   "time.s": "{n}s",
   "time.m": "{n}d",
   "time.h": "{n}s",
   "time.d": "{n}sk",
-
   "coin.stats": "Takwimu",
   "coin.about": "Kuhusu",
   "coin.created": "Imeundwa",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} kwa muundaji",
   "coin.loadError": "Haikuwezekana kupakia sarafu hii",
   "coin.copyFailed": "Haikuwezekana kunakili anwani. Ichague na uinakili mwenyewe.",
-
   "create.tickerHint": "Herufi au namba 2–10, huonyeshwa kama $TICKER.",
   "create.imageResize": "Inabadilishwa ukubwa hadi {px}×{px} kwenye kivinjari chako kabla ya kupakia.",
   "create.imageProcessing": "Inachakata picha...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Ununuzi wa awali hauwezi kuzidi {max}.",
   "create.loginHint": "Ingia kwa pochi, Google, Apple au barua pepe ili kuzindua sarafu yako.",
   "create.failed": "Haikuwezekana kuunda tokeni",
-
   "portfolio.subtitle": "Sarafu zako, faida na hasara, na historia ya biashara mahali pamoja.",
   "portfolio.loginHint": "Fuatilia umiliki wako, faida/hasara na mapato ya muundaji mahali pamoja.",
   "portfolio.loadError": "Haikuwezekana kupakia portfolio yako",

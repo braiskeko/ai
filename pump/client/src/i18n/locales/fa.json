@@ -21,7 +21,6 @@
   "nav.homeAria": "صفحه اصلی {app}",
   "header.earn": "۱۰٪ از حجم معاملات کوینت را بگیر",
   "header.earnHint": "یک توکن بساز و از هر سواپ روی آن سهم بگیر.",
-
   "auth.title": "به {app} خوش آمدی",
   "auth.subtitle": "برای ساخت کوین، خرید و فروش وارد شو.",
   "auth.wallet": "اتصال کیف پول",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "خارج شدی",
   "auth.seeYou": "تا دفعه بعد.",
   "auth.walletHint": "با کیف پولت یک پیام امضا کن. بدون تراکنش، بدون گس.",
-
   "home.title": "آخرین لانچ‌ها",
   "home.subtitle": "کوین‌های جدید همان لحظه ساخته‌شدن اینجا ظاهر می‌شوند.",
   "home.king": "شاه قله",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} به اندازه {amount} از {ticker} فروخت",
   "home.feed.created": "{user} {ticker} را ساخت",
   "home.newCoin": "کوین جدید!",
-  "home.animations": "انیمیشن‌ها",
-
   "coin.mcap": "ارزش بازار",
   "coin.price": "قیمت",
   "coin.volume24h": "حجم ۲۴ ساعت",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} پاسخ",
   "coin.holdersCount": "{n} هولدر",
   "coin.openCoin": "باز کردن {name}",
-
   "chart.title": "چارت زنده",
   "chart.1m": "۱د",
   "chart.5m": "۵د",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} به اندازه {amount} با قیمت {price} خرید",
   "chart.soldAt": "{user} به اندازه {amount} با قیمت {price} فروخت",
   "chart.you": "تو",
-
   "trade.buy": "خرید",
   "trade.sell": "فروش",
   "trade.amount": "مقدار",
@@ -150,7 +144,6 @@
   "trade.minReceived": "حداقل دریافتی",
   "trade.switchToTokens": "تغییر به {ticker}",
   "trade.switchToUsdc": "تغییر به USDC",
-
   "comments.title": "نظرات",
   "comments.trades": "معاملات",
   "comments.holders": "هولدرهای برتر",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} در اختیار دارد",
   "comments.creatorBadge": "dev",
   "comments.live": "زنده",
-
   "holders.rank": "#",
   "holders.holder": "هولدر",
   "holders.share": "سهم",
   "holders.tokens": "توکن‌ها",
   "holders.curve": "باندینگ کرو",
   "holders.creator": "سازنده",
-
   "trades.time": "زمان",
   "trades.type": "نوع",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "قیمت",
   "trades.trader": "تریدر",
   "trades.empty": "هنوز معامله‌ای نیست.",
-
   "create.title": "ساخت توکن",
   "create.subtitle": "میم‌کوینت را در چند ثانیه لانچ کن. فوراً روی آدرس مخصوص خودش که به \"next\" ختم می‌شود فعال می‌شود.",
   "create.name": "نام",
@@ -211,7 +201,6 @@
   "create.loginRequired": "برای ساخت توکن وارد شو",
   "create.launchPrice": "قیمت لانچ",
   "create.launchMcap": "ارزش بازار در لانچ",
-
   "portfolio.title": "پورتفولیو",
   "portfolio.total": "ارزش کل",
   "portfolio.cash": "نقد",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "ویرایش نام کاربری",
   "portfolio.avatar": "تغییر آواتار",
   "portfolio.saved": "پروفایل ذخیره شد",
-
   "wallet.title": "کیف پول",
   "wallet.balance": "موجودی نقد",
   "wallet.usdcOn": "USDC روی {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "ارسال شد",
   "wallet.status.failed": "ناموفق",
   "wallet.loginRequired": "برای دیدن کیف پولت وارد شو",
-
   "activity.title": "فعالیت",
   "activity.subtitle": "هر معامله در {app}، همان لحظه که رخ می‌دهد.",
   "activity.empty": "هنوز معامله‌ای نیست.",
-
   "profile.coins": "کوین‌های ساخته‌شده",
   "profile.joined": "عضو از {date}",
   "profile.notFound": "کاربر پیدا نشد",
-
   "admin.title": "مدیریت",
   "admin.users": "کاربران",
   "admin.credit": "افزایش یا کاهش موجودی",
@@ -289,14 +274,12 @@
   "admin.search": "جستجو با نام کاربری یا ایمیل",
   "admin.balanceUpdated": "موجودی به‌روز شد",
   "admin.creditQueued": "اعتبار در صف قرار گرفت",
-
   "footer.disclaimer": "کوین‌ها در {app} روی یک باندینگ کرو داخلی معامله می‌شوند. هیچ‌چیز اینجا توصیه مالی نیست.",
   "footer.fee": "کارمزد سواپ {fee} · {share} از کارمزدها به سازندگان می‌رسد",
   "footer.theme": "پوسته",
   "footer.settledOn": "USDC روی {chain}",
   "footer.links": "پانوشت",
   "footer.liveFeed": "فید بلادرنگ: {status}",
-
   "common.loading": "در حال بارگذاری...",
   "common.error": "مشکلی پیش آمد",
   "common.retry": "تلاش دوباره",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "واریز تأیید شد: {amount}",
   "common.withdrawalSent": "برداشت ارسال شد",
   "common.withdrawalFailed": "برداشت ناموفق بود",
-
   "time.s": "{n}ث",
   "time.m": "{n}د",
   "time.h": "{n}س",
   "time.d": "{n}ر",
-
   "coin.stats": "آمار",
   "coin.about": "درباره",
   "coin.created": "ساخته‌شده",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} به سازنده",
   "coin.loadError": "این کوین بارگذاری نشد",
   "coin.copyFailed": "آدرس کپی نشد. انتخابش کن و دستی کپی کن.",
-
   "create.tickerHint": "۲ تا ۱۰ حرف یا عدد، به شکل $TICKER نمایش داده می‌شود.",
   "create.imageResize": "قبل از آپلود در مرورگرت به {px}×{px} تغییر اندازه می‌یابد.",
   "create.imageProcessing": "در حال پردازش تصویر...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "خرید اولیه نمی‌تواند از {max} بیشتر باشد.",
   "create.loginHint": "برای لانچ کوینت با کیف پول، Google، Apple یا ایمیل وارد شو.",
   "create.failed": "توکن ساخته نشد",
-
   "portfolio.subtitle": "کوین‌ها، سود و زیان و تاریخچه معاملاتت در یک جا.",
   "portfolio.loginHint": "دارایی‌ها، سود/زیان و درآمد سازنده‌ات را در یک جا دنبال کن.",
   "portfolio.loadError": "پورتفولیو بارگذاری نشد",

@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} 홈",
   "header.earn": "내 코인 거래량의 10%를 받으세요",
   "header.earnHint": "토큰을 만들면 해당 코인의 모든 스왑에서 수익을 나눠 받습니다.",
-
   "auth.title": "{app}에 오신 걸 환영합니다",
   "auth.subtitle": "로그인하고 코인을 만들고, 사고팔아 보세요.",
   "auth.wallet": "지갑 연결",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "로그아웃됨",
   "auth.seeYou": "다음에 또 만나요.",
   "auth.walletHint": "지갑으로 메시지에 서명하세요. 트랜잭션도, 가스비도 없습니다.",
-
   "home.title": "최신 출시",
   "home.subtitle": "새 코인은 만들어지는 순간 여기에 나타납니다.",
   "home.king": "킹 오브 더 힐",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user}님이 {ticker} {amount}를 매도했습니다",
   "home.feed.created": "{user}님이 {ticker}를 만들었습니다",
   "home.newCoin": "새 코인!",
-  "home.animations": "애니메이션",
-
   "coin.mcap": "시가총액",
   "coin.price": "가격",
   "coin.volume24h": "24h 거래량",
@@ -112,7 +108,6 @@
   "coin.replies": "댓글 {n}개",
   "coin.holdersCount": "홀더 {n}명",
   "coin.openCoin": "{name} 열기",
-
   "chart.title": "실시간 차트",
   "chart.1m": "1분",
   "chart.5m": "5분",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user}님이 {price}에 {amount} 매수",
   "chart.soldAt": "{user}님이 {price}에 {amount} 매도",
   "chart.you": "나",
-
   "trade.buy": "매수",
   "trade.sell": "매도",
   "trade.amount": "수량",
@@ -150,7 +144,6 @@
   "trade.minReceived": "최소 수령량",
   "trade.switchToTokens": "{ticker}로 전환",
   "trade.switchToUsdc": "USDC로 전환",
-
   "comments.title": "댓글",
   "comments.trades": "거래",
   "comments.holders": "상위 홀더",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} 보유",
   "comments.creatorBadge": "dev",
   "comments.live": "실시간",
-
   "holders.rank": "#",
   "holders.holder": "홀더",
   "holders.share": "비율",
   "holders.tokens": "토큰",
   "holders.curve": "본딩 커브",
   "holders.creator": "제작자",
-
   "trades.time": "시간",
   "trades.type": "유형",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "가격",
   "trades.trader": "트레이더",
   "trades.empty": "아직 거래가 없습니다.",
-
   "create.title": "토큰 만들기",
   "create.subtitle": "몇 초 만에 밈코인을 출시하세요. \"next\"로 끝나는 고유 주소로 즉시 공개됩니다.",
   "create.name": "이름",
@@ -211,7 +201,6 @@
   "create.loginRequired": "로그인하고 토큰 만들기",
   "create.launchPrice": "출시 가격",
   "create.launchMcap": "출시 시가총액",
-
   "portfolio.title": "포트폴리오",
   "portfolio.total": "총 가치",
   "portfolio.cash": "현금",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "사용자 이름 수정",
   "portfolio.avatar": "아바타 변경",
   "portfolio.saved": "프로필 저장됨",
-
   "wallet.title": "지갑",
   "wallet.balance": "현금 잔액",
   "wallet.usdcOn": "{chain}의 USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "전송됨",
   "wallet.status.failed": "실패",
   "wallet.loginRequired": "로그인하고 지갑 보기",
-
   "activity.title": "활동",
   "activity.subtitle": "{app}의 모든 거래를 실시간으로.",
   "activity.empty": "아직 거래가 없습니다.",
-
   "profile.coins": "만든 코인",
   "profile.joined": "{date} 가입",
   "profile.notFound": "사용자를 찾을 수 없습니다",
-
   "admin.title": "관리자",
   "admin.users": "사용자",
   "admin.credit": "잔액 추가 또는 차감",
@@ -289,14 +274,12 @@
   "admin.search": "사용자 이름 또는 이메일로 검색",
   "admin.balanceUpdated": "잔액 업데이트됨",
   "admin.creditQueued": "지급 대기 중",
-
   "footer.disclaimer": "{app}의 코인은 내부 본딩 커브에서 거래됩니다. 여기의 어떤 내용도 투자 조언이 아닙니다.",
   "footer.fee": "스왑 수수료 {fee} · 수수료의 {share}는 제작자에게",
   "footer.theme": "테마",
   "footer.settledOn": "{chain}의 USDC",
   "footer.links": "푸터",
   "footer.liveFeed": "실시간 피드: {status}",
-
   "common.loading": "불러오는 중...",
   "common.error": "문제가 발생했습니다",
   "common.retry": "다시 시도",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "입금 확인: {amount}",
   "common.withdrawalSent": "출금 전송됨",
   "common.withdrawalFailed": "출금 실패",
-
   "time.s": "{n}초",
   "time.m": "{n}분",
   "time.h": "{n}시간",
   "time.d": "{n}일",
-
   "coin.stats": "통계",
   "coin.about": "소개",
   "coin.created": "생성일",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share}는 제작자에게",
   "coin.loadError": "이 코인을 불러올 수 없습니다",
   "coin.copyFailed": "주소를 복사할 수 없습니다. 선택 후 직접 복사하세요.",
-
   "create.tickerHint": "2–10자의 영문 또는 숫자, $TICKER 형식으로 표시됩니다.",
   "create.imageResize": "업로드 전 브라우저에서 {px}×{px}로 크기가 조정됩니다.",
   "create.imageProcessing": "이미지 처리 중...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "초기 매수는 {max}를 초과할 수 없습니다.",
   "create.loginHint": "지갑, Google, Apple 또는 이메일로 로그인하고 코인을 출시하세요.",
   "create.failed": "토큰을 만들 수 없습니다",
-
   "portfolio.subtitle": "내 코인, 손익, 거래 내역을 한곳에서.",
   "portfolio.loginHint": "보유 자산, 손익, 제작자 수익을 한곳에서 확인하세요.",
   "portfolio.loadError": "포트폴리오를 불러올 수 없습니다",

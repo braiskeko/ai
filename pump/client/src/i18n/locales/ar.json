@@ -21,7 +21,6 @@
   "nav.homeAria": "الصفحة الرئيسية لـ {app}",
   "header.earn": "اربح 10% من حجم تداول عملتك",
   "header.earnHint": "أنشئ توكن واحصل على حصة من كل عملية تبديل عليه.",
-
   "auth.title": "مرحباً بك في {app}",
   "auth.subtitle": "سجّل الدخول لإنشاء العملات والشراء والبيع.",
   "auth.wallet": "ربط المحفظة",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "تم تسجيل الخروج",
   "auth.seeYou": "نراك في المرة القادمة.",
   "auth.walletHint": "وقّع رسالة بمحفظتك. بدون معاملة، بدون رسوم غاز.",
-
   "home.title": "أحدث الإطلاقات",
   "home.subtitle": "تظهر العملات الجديدة هنا لحظة إنشائها.",
   "home.king": "ملك القمة",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} باع {amount} من {ticker}",
   "home.feed.created": "{user} أنشأ {ticker}",
   "home.newCoin": "عملة جديدة!",
-  "home.animations": "الرسوم المتحركة",
-
   "coin.mcap": "القيمة السوقية",
   "coin.price": "السعر",
   "coin.volume24h": "حجم 24 ساعة",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} ردود",
   "coin.holdersCount": "{n} حاملين",
   "coin.openCoin": "افتح {name}",
-
   "chart.title": "رسم بياني مباشر",
   "chart.1m": "1د",
   "chart.5m": "5د",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} اشترى {amount} بسعر {price}",
   "chart.soldAt": "{user} باع {amount} بسعر {price}",
   "chart.you": "أنت",
-
   "trade.buy": "شراء",
   "trade.sell": "بيع",
   "trade.amount": "المبلغ",
@@ -150,7 +144,6 @@
   "trade.minReceived": "الحد الأدنى المستلَم",
   "trade.switchToTokens": "التبديل إلى {ticker}",
   "trade.switchToUsdc": "التبديل إلى USDC",
-
   "comments.title": "التعليقات",
   "comments.trades": "الصفقات",
   "comments.holders": "أكبر الحاملين",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "يحمل {amount}",
   "comments.creatorBadge": "مطوّر",
   "comments.live": "مباشر",
-
   "holders.rank": "#",
   "holders.holder": "الحامل",
   "holders.share": "الحصة",
   "holders.tokens": "التوكنات",
   "holders.curve": "منحنى الترابط",
   "holders.creator": "المُنشئ",
-
   "trades.time": "الوقت",
   "trades.type": "النوع",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "السعر",
   "trades.trader": "المتداول",
   "trades.empty": "لا صفقات بعد.",
-
   "create.title": "إنشاء توكن",
   "create.subtitle": "أطلق ميم كوين خاصتك في ثوانٍ. تصبح متاحة فوراً على عنوانها الخاص المنتهي بـ \"next\".",
   "create.name": "الاسم",
@@ -211,7 +201,6 @@
   "create.loginRequired": "سجّل الدخول لإنشاء توكن",
   "create.launchPrice": "سعر الإطلاق",
   "create.launchMcap": "القيمة السوقية عند الإطلاق",
-
   "portfolio.title": "المحفظة الاستثمارية",
   "portfolio.total": "القيمة الإجمالية",
   "portfolio.cash": "النقد",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "تعديل اسم المستخدم",
   "portfolio.avatar": "تغيير الصورة الرمزية",
   "portfolio.saved": "تم حفظ الملف الشخصي",
-
   "wallet.title": "المحفظة",
   "wallet.balance": "الرصيد النقدي",
   "wallet.usdcOn": "USDC على {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "تم الإرسال",
   "wallet.status.failed": "فشل",
   "wallet.loginRequired": "سجّل الدخول لعرض محفظتك",
-
   "activity.title": "النشاط",
   "activity.subtitle": "كل صفقة على {app}، لحظة حدوثها.",
   "activity.empty": "لا صفقات بعد.",
-
   "profile.coins": "العملات المُنشأة",
   "profile.joined": "انضم في {date}",
   "profile.notFound": "المستخدم غير موجود",
-
   "admin.title": "الإدارة",
   "admin.users": "المستخدمون",
   "admin.credit": "إضافة أو خصم رصيد",
@@ -289,14 +274,12 @@
   "admin.search": "ابحث باسم المستخدم أو البريد الإلكتروني",
   "admin.balanceUpdated": "تم تحديث الرصيد",
   "admin.creditQueued": "تمت إضافة الرصيد إلى قائمة الانتظار",
-
   "footer.disclaimer": "تُتداول العملات على {app} عبر منحنى ترابط داخلي. لا شيء هنا يُعد نصيحة مالية.",
   "footer.fee": "رسوم تبديل {fee} · {share} من الرسوم تذهب إلى المُنشئين",
   "footer.theme": "المظهر",
   "footer.settledOn": "USDC على {chain}",
   "footer.links": "التذييل",
   "footer.liveFeed": "التحديث المباشر: {status}",
-
   "common.loading": "جارٍ التحميل...",
   "common.error": "حدث خطأ ما",
   "common.retry": "إعادة المحاولة",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "تم تأكيد الإيداع: {amount}",
   "common.withdrawalSent": "تم إرسال السحب",
   "common.withdrawalFailed": "فشل السحب",
-
   "time.s": "{n}ث",
   "time.m": "{n}د",
   "time.h": "{n}س",
   "time.d": "{n}ي",
-
   "coin.stats": "الإحصائيات",
   "coin.about": "حول",
   "coin.created": "تاريخ الإنشاء",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} للمُنشئ",
   "coin.loadError": "تعذّر تحميل هذه العملة",
   "coin.copyFailed": "تعذّر نسخ العنوان. حدّده وانسخه يدوياً.",
-
   "create.tickerHint": "من 2 إلى 10 أحرف أو أرقام، يُعرض بصيغة $TICKER.",
   "create.imageResize": "يُغيَّر حجمها إلى {px}×{px} في متصفحك قبل الرفع.",
   "create.imageProcessing": "جارٍ معالجة الصورة...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "لا يمكن أن يتجاوز الشراء الأولي {max}.",
   "create.loginHint": "سجّل الدخول بمحفظة أو Google أو Apple أو البريد الإلكتروني لإطلاق عملتك.",
   "create.failed": "تعذّر إنشاء التوكن",
-
   "portfolio.subtitle": "عملاتك وأرباحك وخسائرك وسجل صفقاتك في مكان واحد.",
   "portfolio.loginHint": "تابع حيازاتك وأرباحك/خسائرك وأرباح المُنشئ في مكان واحد.",
   "portfolio.loadError": "تعذّر تحميل محفظتك الاستثمارية",

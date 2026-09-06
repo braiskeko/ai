@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} होम",
   "header.earn": "अपने कॉइन के वॉल्यूम का 10% कमाएँ",
   "header.earnHint": "टोकन बनाएँ और उस पर होने वाले हर स्वैप का हिस्सा पाएँ।",
-
   "auth.title": "{app} में आपका स्वागत है",
   "auth.subtitle": "कॉइन बनाने, खरीदने और बेचने के लिए साइन इन करें।",
   "auth.wallet": "वॉलेट कनेक्ट करें",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "लॉग आउट हो गए",
   "auth.seeYou": "फिर मिलेंगे।",
   "auth.walletHint": "अपने वॉलेट से एक मैसेज साइन करें। न ट्रांज़ैक्शन, न गैस।",
-
   "home.title": "नए लॉन्च",
   "home.subtitle": "नए कॉइन बनते ही यहाँ दिखते हैं।",
   "home.king": "किंग ऑफ़ द हिल",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} ने {amount} का {ticker} बेचा",
   "home.feed.created": "{user} ने {ticker} बनाया",
   "home.newCoin": "नया कॉइन!",
-  "home.animations": "एनिमेशन",
-
   "coin.mcap": "मार्केट कैप",
   "coin.price": "कीमत",
   "coin.volume24h": "24 घंटे का वॉल्यूम",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} जवाब",
   "coin.holdersCount": "{n} होल्डर",
   "coin.openCoin": "{name} खोलें",
-
   "chart.title": "लाइव चार्ट",
   "chart.1m": "1मि",
   "chart.5m": "5मि",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} ने {price} पर {amount} खरीदा",
   "chart.soldAt": "{user} ने {price} पर {amount} बेचा",
   "chart.you": "आप",
-
   "trade.buy": "खरीदें",
   "trade.sell": "बेचें",
   "trade.amount": "राशि",
@@ -150,7 +144,6 @@
   "trade.minReceived": "न्यूनतम प्राप्ति",
   "trade.switchToTokens": "{ticker} पर स्विच करें",
   "trade.switchToUsdc": "USDC पर स्विच करें",
-
   "comments.title": "कमेंट",
   "comments.trades": "ट्रेड",
   "comments.holders": "टॉप होल्डर",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} रखता है",
   "comments.creatorBadge": "dev",
   "comments.live": "लाइव",
-
   "holders.rank": "#",
   "holders.holder": "होल्डर",
   "holders.share": "हिस्सा",
   "holders.tokens": "टोकन",
   "holders.curve": "बॉन्डिंग कर्व",
   "holders.creator": "क्रिएटर",
-
   "trades.time": "समय",
   "trades.type": "प्रकार",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "कीमत",
   "trades.trader": "ट्रेडर",
   "trades.empty": "अभी कोई ट्रेड नहीं।",
-
   "create.title": "टोकन बनाएँ",
   "create.subtitle": "अपना मीमकॉइन सेकंडों में लॉन्च करें। यह \"next\" पर खत्म होने वाले अपने एड्रेस पर तुरंत लाइव हो जाता है।",
   "create.name": "नाम",
@@ -211,7 +201,6 @@
   "create.loginRequired": "टोकन बनाने के लिए लॉग इन करें",
   "create.launchPrice": "लॉन्च कीमत",
   "create.launchMcap": "लॉन्च मार्केट कैप",
-
   "portfolio.title": "पोर्टफोलियो",
   "portfolio.total": "कुल मूल्य",
   "portfolio.cash": "कैश",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "यूज़रनेम बदलें",
   "portfolio.avatar": "अवतार बदलें",
   "portfolio.saved": "प्रोफ़ाइल सेव हुई",
-
   "wallet.title": "वॉलेट",
   "wallet.balance": "कैश बैलेंस",
   "wallet.usdcOn": "{chain} पर USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "भेजा गया",
   "wallet.status.failed": "विफल",
   "wallet.loginRequired": "वॉलेट देखने के लिए लॉग इन करें",
-
   "activity.title": "गतिविधि",
   "activity.subtitle": "{app} पर हर ट्रेड, जैसे-जैसे होता है।",
   "activity.empty": "अभी कोई ट्रेड नहीं।",
-
   "profile.coins": "बनाए गए कॉइन",
   "profile.joined": "{date} को जुड़े",
   "profile.notFound": "यूज़र नहीं मिला",
-
   "admin.title": "एडमिन",
   "admin.users": "यूज़र",
   "admin.credit": "बैलेंस क्रेडिट या डेबिट करें",
@@ -289,14 +274,12 @@
   "admin.search": "यूज़रनेम या ईमेल से खोजें",
   "admin.balanceUpdated": "बैलेंस अपडेट हुआ",
   "admin.creditQueued": "क्रेडिट कतार में",
-
   "footer.disclaimer": "{app} पर कॉइन एक आंतरिक बॉन्डिंग कर्व पर ट्रेड होते हैं। यहाँ कुछ भी वित्तीय सलाह नहीं है।",
   "footer.fee": "{fee} स्वैप फ़ीस · फ़ीस का {share} क्रिएटर्स को जाता है",
   "footer.theme": "थीम",
   "footer.settledOn": "{chain} पर USDC",
   "footer.links": "फ़ुटर",
   "footer.liveFeed": "रियलटाइम फ़ीड: {status}",
-
   "common.loading": "लोड हो रहा है...",
   "common.error": "कुछ गड़बड़ हो गई",
   "common.retry": "फिर कोशिश करें",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "जमा कन्फ़र्म: {amount}",
   "common.withdrawalSent": "निकासी भेजी गई",
   "common.withdrawalFailed": "निकासी विफल",
-
   "time.s": "{n}से",
   "time.m": "{n}मि",
   "time.h": "{n}घं",
   "time.d": "{n}दि",
-
   "coin.stats": "आँकड़े",
   "coin.about": "बारे में",
   "coin.created": "बनाया गया",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} क्रिएटर को",
   "coin.loadError": "यह कॉइन लोड नहीं हो सका",
   "coin.copyFailed": "एड्रेस कॉपी नहीं हो सका। इसे चुनकर मैन्युअली कॉपी करें।",
-
   "create.tickerHint": "2–10 अक्षर या अंक, $TICKER के रूप में दिखेगा।",
   "create.imageResize": "अपलोड से पहले आपके ब्राउज़र में {px}×{px} में रीसाइज़ होगा।",
   "create.imageProcessing": "इमेज प्रोसेस हो रही है...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "शुरुआती खरीद {max} से ज़्यादा नहीं हो सकती।",
   "create.loginHint": "अपना कॉइन लॉन्च करने के लिए वॉलेट, Google, Apple या ईमेल से साइन इन करें।",
   "create.failed": "टोकन नहीं बनाया जा सका",
-
   "portfolio.subtitle": "आपके कॉइन, लाभ-हानि और ट्रेड इतिहास एक जगह।",
   "portfolio.loginHint": "अपनी होल्डिंग्स, P&L और क्रिएटर कमाई एक जगह ट्रैक करें।",
   "portfolio.loadError": "आपका पोर्टफोलियो लोड नहीं हो सका",

@@ -80,7 +80,6 @@
   "home.feed.sold": "{user} sold {amount} of {ticker}",
   "home.feed.created": "{user} created {ticker}",
   "home.newCoin": "New coin!",
-  "home.animations": "Animations",
   "coin.mcap": "Market cap",
   "coin.price": "Price",
   "coin.volume24h": "24h volume",

@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} 首页",
   "header.earn": "赚取你的币 10% 的交易量",
   "header.earnHint": "创建代币，每笔兑换都分你一份。",
-
   "auth.title": "欢迎来到 {app}",
   "auth.subtitle": "登录后即可创建币种、买入和卖出。",
   "auth.wallet": "连接钱包",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "已退出登录",
   "auth.seeYou": "下次见。",
   "auth.walletHint": "用钱包签署一条消息。无交易，无 gas。",
-
   "home.title": "最新发射",
   "home.subtitle": "新币一创建就会出现在这里。",
   "home.king": "山丘之王",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} 卖出了 {amount} 的 {ticker}",
   "home.feed.created": "{user} 创建了 {ticker}",
   "home.newCoin": "新币！",
-  "home.animations": "动画",
-
   "coin.mcap": "市值",
   "coin.price": "价格",
   "coin.volume24h": "24h 交易量",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} 条回复",
   "coin.holdersCount": "{n} 位持有者",
   "coin.openCoin": "打开 {name}",
-
   "chart.title": "实时图表",
   "chart.1m": "1分",
   "chart.5m": "5分",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} 以 {price} 买入了 {amount}",
   "chart.soldAt": "{user} 以 {price} 卖出了 {amount}",
   "chart.you": "你",
-
   "trade.buy": "买入",
   "trade.sell": "卖出",
   "trade.amount": "数量",
@@ -150,7 +144,6 @@
   "trade.minReceived": "最少收到",
   "trade.switchToTokens": "切换为 {ticker}",
   "trade.switchToUsdc": "切换为 USDC",
-
   "comments.title": "评论",
   "comments.trades": "交易",
   "comments.holders": "主要持有者",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "持有 {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "实时",
-
   "holders.rank": "#",
   "holders.holder": "持有者",
   "holders.share": "占比",
   "holders.tokens": "代币",
   "holders.curve": "联合曲线",
   "holders.creator": "创建者",
-
   "trades.time": "时间",
   "trades.type": "类型",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "价格",
   "trades.trader": "交易者",
   "trades.empty": "还没有交易。",
-
   "create.title": "创建代币",
   "create.subtitle": "几秒钟发射你的 memecoin。它会立即上线，拥有一个以 \"next\" 结尾的专属地址。",
   "create.name": "名称",
@@ -211,7 +201,6 @@
   "create.loginRequired": "登录以创建代币",
   "create.launchPrice": "发射价格",
   "create.launchMcap": "发射市值",
-
   "portfolio.title": "持仓",
   "portfolio.total": "总价值",
   "portfolio.cash": "现金",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "编辑用户名",
   "portfolio.avatar": "更换头像",
   "portfolio.saved": "个人资料已保存",
-
   "wallet.title": "钱包",
   "wallet.balance": "现金余额",
   "wallet.usdcOn": "{chain} 上的 USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "已发送",
   "wallet.status.failed": "失败",
   "wallet.loginRequired": "登录以查看钱包",
-
   "activity.title": "动态",
   "activity.subtitle": "{app} 上的每一笔交易，实时呈现。",
   "activity.empty": "还没有交易。",
-
   "profile.coins": "创建的币",
   "profile.joined": "{date} 加入",
   "profile.notFound": "未找到用户",
-
   "admin.title": "管理",
   "admin.users": "用户",
   "admin.credit": "增加或扣除余额",
@@ -289,14 +274,12 @@
   "admin.search": "按用户名或邮箱搜索",
   "admin.balanceUpdated": "余额已更新",
   "admin.creditQueued": "入账已排队",
-
   "footer.disclaimer": "{app} 上的币在内部联合曲线上交易。这里的一切都不构成财务建议。",
   "footer.fee": "{fee} 兑换手续费 · {share} 的手续费归创建者",
   "footer.theme": "主题",
   "footer.settledOn": "{chain} 上的 USDC",
   "footer.links": "页脚",
   "footer.liveFeed": "实时推送：{status}",
-
   "common.loading": "加载中...",
   "common.error": "出了点问题",
   "common.retry": "重试",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "充值已确认：{amount}",
   "common.withdrawalSent": "提现已发送",
   "common.withdrawalFailed": "提现失败",
-
   "time.s": "{n}秒",
   "time.m": "{n}分",
   "time.h": "{n}时",
   "time.d": "{n}天",
-
   "coin.stats": "数据",
   "coin.about": "简介",
   "coin.created": "创建时间",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} 归创建者",
   "coin.loadError": "无法加载该币",
   "coin.copyFailed": "无法复制地址。请选中后手动复制。",
-
   "create.tickerHint": "2–10 个字母或数字，显示为 $TICKER。",
   "create.imageResize": "上传前会在浏览器中缩放为 {px}×{px}。",
   "create.imageProcessing": "处理图片中...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "首次买入不能超过 {max}。",
   "create.loginHint": "使用钱包、Google、Apple 或邮箱登录以发射你的币。",
   "create.failed": "无法创建代币",
-
   "portfolio.subtitle": "你的币、盈亏和交易记录，一站式查看。",
   "portfolio.loginHint": "在一个地方追踪你的持仓、盈亏和创建者收益。",
   "portfolio.loadError": "无法加载你的持仓",

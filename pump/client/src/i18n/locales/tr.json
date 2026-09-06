@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} ana sayfa",
   "header.earn": "Coininin hacminden %10 kazan",
   "header.earnHint": "Bir token oluştur ve üzerindeki her swap'tan pay al.",
-
   "auth.title": "{app}'ya hoş geldin",
   "auth.subtitle": "Coin oluşturmak, almak ve satmak için giriş yap.",
   "auth.wallet": "Cüzdan bağla",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Çıkış yapıldı",
   "auth.seeYou": "Bir dahaki sefere görüşürüz.",
   "auth.walletHint": "Cüzdanınla bir mesaj imzala. İşlem yok, gas yok.",
-
   "home.title": "Son lansmanlar",
   "home.subtitle": "Yeni coinler oluşturuldukları anda burada görünür.",
   "home.king": "Tepenin Kralı",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user}, {amount} tutarında {ticker} sattı",
   "home.feed.created": "{user}, {ticker} oluşturdu",
   "home.newCoin": "Yeni coin!",
-  "home.animations": "Animasyonlar",
-
   "coin.mcap": "Piyasa değeri",
   "coin.price": "Fiyat",
   "coin.volume24h": "24s hacim",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} yanıt",
   "coin.holdersCount": "{n} sahip",
   "coin.openCoin": "{name} coinini aç",
-
   "chart.title": "Canlı grafik",
   "chart.1m": "1d",
   "chart.5m": "5d",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user}, {price} fiyatından {amount} aldı",
   "chart.soldAt": "{user}, {price} fiyatından {amount} sattı",
   "chart.you": "Sen",
-
   "trade.buy": "Al",
   "trade.sell": "Sat",
   "trade.amount": "Miktar",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Minimum alınacak",
   "trade.switchToTokens": "{ticker} birimine geç",
   "trade.switchToUsdc": "USDC birimine geç",
-
   "comments.title": "Yorumlar",
   "comments.trades": "İşlemler",
   "comments.holders": "En büyük sahipler",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} tutuyor",
   "comments.creatorBadge": "dev",
   "comments.live": "Canlı",
-
   "holders.rank": "#",
   "holders.holder": "Sahip",
   "holders.share": "Pay",
   "holders.tokens": "Token",
   "holders.curve": "Bonding curve",
   "holders.creator": "oluşturan",
-
   "trades.time": "Zaman",
   "trades.type": "Tür",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Fiyat",
   "trades.trader": "Trader",
   "trades.empty": "Henüz işlem yok.",
-
   "create.title": "Token oluştur",
   "create.subtitle": "Memecoinini saniyeler içinde başlat. \"next\" ile biten kendi adresinde anında yayına girer.",
   "create.name": "İsim",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Token oluşturmak için giriş yap",
   "create.launchPrice": "Lansman fiyatı",
   "create.launchMcap": "Lansman piyasa değeri",
-
   "portfolio.title": "Portföy",
   "portfolio.total": "Toplam değer",
   "portfolio.cash": "Nakit",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Kullanıcı adını düzenle",
   "portfolio.avatar": "Avatarı değiştir",
   "portfolio.saved": "Profil kaydedildi",
-
   "wallet.title": "Cüzdan",
   "wallet.balance": "Nakit bakiye",
   "wallet.usdcOn": "{chain} üzerinde USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Gönderildi",
   "wallet.status.failed": "Başarısız",
   "wallet.loginRequired": "Cüzdanını görmek için giriş yap",
-
   "activity.title": "Etkinlik",
   "activity.subtitle": "{app} üzerindeki her işlem, anında.",
   "activity.empty": "Henüz işlem yok.",
-
   "profile.coins": "Oluşturulan coinler",
   "profile.joined": "{date} tarihinde katıldı",
   "profile.notFound": "Kullanıcı bulunamadı",
-
   "admin.title": "Yönetici",
   "admin.users": "Kullanıcılar",
   "admin.credit": "Bakiye ekle veya düş",
@@ -289,14 +274,12 @@
   "admin.search": "Kullanıcı adı veya e-posta ile ara",
   "admin.balanceUpdated": "Bakiye güncellendi",
   "admin.creditQueued": "Bakiye sıraya alındı",
-
   "footer.disclaimer": "{app} üzerindeki coinler dahili bir bonding curve üzerinde işlem görür. Buradaki hiçbir şey yatırım tavsiyesi değildir.",
   "footer.fee": "{fee} swap ücreti · ücretlerin {share} kadarı kuruculara gider",
   "footer.theme": "Tema",
   "footer.settledOn": "{chain} üzerinde USDC",
   "footer.links": "Alt bilgi",
   "footer.liveFeed": "Gerçek zamanlı akış: {status}",
-
   "common.loading": "Yükleniyor...",
   "common.error": "Bir şeyler ters gitti",
   "common.retry": "Tekrar dene",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Yatırma onaylandı: {amount}",
   "common.withdrawalSent": "Çekim gönderildi",
   "common.withdrawalFailed": "Çekim başarısız",
-
   "time.s": "{n}sn",
   "time.m": "{n}dk",
   "time.h": "{n}sa",
   "time.d": "{n}g",
-
   "coin.stats": "İstatistikler",
   "coin.about": "Hakkında",
   "coin.created": "Oluşturuldu",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} kurucuya",
   "coin.loadError": "Bu coin yüklenemedi",
   "coin.copyFailed": "Adres kopyalanamadı. Seçip elle kopyala.",
-
   "create.tickerHint": "2–10 harf veya rakam, $TICKER olarak gösterilir.",
   "create.imageResize": "Yüklemeden önce tarayıcında {px}×{px} boyutuna küçültülür.",
   "create.imageProcessing": "Görsel işleniyor...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "İlk alım {max} değerini aşamaz.",
   "create.loginHint": "Coinini başlatmak için cüzdan, Google, Apple veya e-posta ile giriş yap.",
   "create.failed": "Token oluşturulamadı",
-
   "portfolio.subtitle": "Coinlerin, kâr-zararın ve işlem geçmişin tek yerde.",
   "portfolio.loginHint": "Varlıklarını, K/Z'ni ve kurucu kazançlarını tek yerden takip et.",
   "portfolio.loadError": "Portföyün yüklenemedi",

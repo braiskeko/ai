@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} home",
   "header.earn": "Verdien 10% van het volume van je coin",
   "header.earnHint": "Maak een token en ontvang een deel van elke swap erop.",
-
   "auth.title": "Welkom bij {app}",
   "auth.subtitle": "Log in om coins te maken, te kopen en te verkopen.",
   "auth.wallet": "Wallet verbinden",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Uitgelogd",
   "auth.seeYou": "Tot de volgende keer.",
   "auth.walletHint": "Onderteken een bericht met je wallet. Geen transactie, geen gas.",
-
   "home.title": "Nieuwste launches",
   "home.subtitle": "Nieuwe coins verschijnen hier zodra ze gemaakt zijn.",
   "home.king": "King of the Hill",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} verkocht {amount} aan {ticker}",
   "home.feed.created": "{user} maakte {ticker}",
   "home.newCoin": "Nieuwe coin!",
-  "home.animations": "Animaties",
-
   "coin.mcap": "Marktkapitalisatie",
   "coin.price": "Prijs",
   "coin.volume24h": "24u-volume",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} reacties",
   "coin.holdersCount": "{n} holders",
   "coin.openCoin": "{name} openen",
-
   "chart.title": "Live grafiek",
   "chart.1m": "1m",
   "chart.5m": "5m",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} kocht {amount} voor {price}",
   "chart.soldAt": "{user} verkocht {amount} voor {price}",
   "chart.you": "Jij",
-
   "trade.buy": "Kopen",
   "trade.sell": "Verkopen",
   "trade.amount": "Bedrag",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Minimaal ontvangen",
   "trade.switchToTokens": "Wissel naar {ticker}",
   "trade.switchToUsdc": "Wissel naar USDC",
-
   "comments.title": "Reacties",
   "comments.trades": "Trades",
   "comments.holders": "Top holders",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "bezit {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Live",
-
   "holders.rank": "#",
   "holders.holder": "Holder",
   "holders.share": "Aandeel",
   "holders.tokens": "Tokens",
   "holders.curve": "Bonding curve",
   "holders.creator": "maker",
-
   "trades.time": "Tijd",
   "trades.type": "Type",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Prijs",
   "trades.trader": "Trader",
   "trades.empty": "Nog geen trades.",
-
   "create.title": "Een token maken",
   "create.subtitle": "Lanceer je memecoin in seconden. Hij gaat direct live op een eigen adres dat eindigt op \"next\".",
   "create.name": "Naam",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Log in om een token te maken",
   "create.launchPrice": "Launchprijs",
   "create.launchMcap": "Marktkapitalisatie bij launch",
-
   "portfolio.title": "Portfolio",
   "portfolio.total": "Totale waarde",
   "portfolio.cash": "Saldo",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Gebruikersnaam wijzigen",
   "portfolio.avatar": "Avatar wijzigen",
   "portfolio.saved": "Profiel opgeslagen",
-
   "wallet.title": "Wallet",
   "wallet.balance": "Beschikbaar saldo",
   "wallet.usdcOn": "USDC op {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Verstuurd",
   "wallet.status.failed": "Mislukt",
   "wallet.loginRequired": "Log in om je wallet te zien",
-
   "activity.title": "Activiteit",
   "activity.subtitle": "Elke trade op {app}, terwijl het gebeurt.",
   "activity.empty": "Nog geen trades.",
-
   "profile.coins": "Gemaakte coins",
   "profile.joined": "Lid sinds {date}",
   "profile.notFound": "Gebruiker niet gevonden",
-
   "admin.title": "Admin",
   "admin.users": "Gebruikers",
   "admin.credit": "Saldo bij- of afschrijven",
@@ -289,14 +274,12 @@
   "admin.search": "Zoek op gebruikersnaam of e-mail",
   "admin.balanceUpdated": "Saldo bijgewerkt",
   "admin.creditQueued": "Bijschrijving in wachtrij",
-
   "footer.disclaimer": "Coins op {app} worden verhandeld op een interne bonding curve. Niets hier is financieel advies.",
   "footer.fee": "{fee} swapkosten · {share} van de kosten gaat naar makers",
   "footer.theme": "Thema",
   "footer.settledOn": "USDC op {chain}",
   "footer.links": "Voettekst",
   "footer.liveFeed": "Realtime feed: {status}",
-
   "common.loading": "Laden...",
   "common.error": "Er ging iets mis",
   "common.retry": "Opnieuw proberen",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Storting bevestigd: {amount}",
   "common.withdrawalSent": "Opname verstuurd",
   "common.withdrawalFailed": "Opname mislukt",
-
   "time.s": "{n}s",
   "time.m": "{n}m",
   "time.h": "{n}u",
   "time.d": "{n}d",
-
   "coin.stats": "Statistieken",
   "coin.about": "Over",
   "coin.created": "Gemaakt",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} naar de maker",
   "coin.loadError": "Kon deze coin niet laden",
   "coin.copyFailed": "Kon het adres niet kopiëren. Selecteer het en kopieer het handmatig.",
-
   "create.tickerHint": "2–10 letters of cijfers, weergegeven als $TICKER.",
   "create.imageResize": "Wordt vóór het uploaden in je browser verkleind naar {px}×{px}.",
   "create.imageProcessing": "Afbeelding verwerken...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "De eerste aankoop mag niet hoger zijn dan {max}.",
   "create.loginHint": "Log in met een wallet, Google, Apple of e-mail om je coin te lanceren.",
   "create.failed": "Kon de token niet maken",
-
   "portfolio.subtitle": "Je coins, winst en verlies en tradegeschiedenis op één plek.",
   "portfolio.loginHint": "Volg je posities, P&L en inkomsten als maker op één plek.",
   "portfolio.loadError": "Kon je portfolio niet laden",

@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} home",
   "header.earn": "Kumita ng 10% ng volume ng coin mo",
   "header.earnHint": "Gumawa ng token at makakuha ng bahagi sa bawat swap dito.",
-
   "auth.title": "Maligayang pagdating sa {app}",
   "auth.subtitle": "Mag-sign in para gumawa ng coin, bumili at magbenta.",
   "auth.wallet": "Ikonekta ang wallet",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Naka-log out",
   "auth.seeYou": "Hanggang sa muli.",
   "auth.walletHint": "I-sign ang mensahe gamit ang wallet mo. Walang transaction, walang gas.",
-
   "home.title": "Pinakabagong launch",
   "home.subtitle": "Lumalabas dito ang mga bagong coin sa sandaling magawa ang mga ito.",
   "home.king": "King of the Hill",
@@ -82,8 +80,6 @@
   "home.feed.sold": "Nagbenta si {user} ng {amount} na {ticker}",
   "home.feed.created": "Gumawa si {user} ng {ticker}",
   "home.newCoin": "Bagong coin!",
-  "home.animations": "Mga animation",
-
   "coin.mcap": "Market cap",
   "coin.price": "Presyo",
   "coin.volume24h": "24h volume",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} reply",
   "coin.holdersCount": "{n} holder",
   "coin.openCoin": "Buksan ang {name}",
-
   "chart.title": "Live chart",
   "chart.1m": "1m",
   "chart.5m": "5m",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "Bumili si {user} ng {amount} sa {price}",
   "chart.soldAt": "Nagbenta si {user} ng {amount} sa {price}",
   "chart.you": "Ikaw",
-
   "trade.buy": "Bumili",
   "trade.sell": "Magbenta",
   "trade.amount": "Halaga",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Minimum na matatanggap",
   "trade.switchToTokens": "Lumipat sa {ticker}",
   "trade.switchToUsdc": "Lumipat sa USDC",
-
   "comments.title": "Mga komento",
   "comments.trades": "Mga trade",
   "comments.holders": "Top holders",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "hawak ang {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Live",
-
   "holders.rank": "#",
   "holders.holder": "Holder",
   "holders.share": "Bahagi",
   "holders.tokens": "Mga token",
   "holders.curve": "Bonding curve",
   "holders.creator": "creator",
-
   "trades.time": "Oras",
   "trades.type": "Uri",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Presyo",
   "trades.trader": "Trader",
   "trades.empty": "Wala pang trade.",
-
   "create.title": "Gumawa ng token",
   "create.subtitle": "I-launch ang memecoin mo sa ilang segundo. Live ito kaagad sa sarili nitong address na nagtatapos sa \"next\".",
   "create.name": "Pangalan",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Mag-log in para gumawa ng token",
   "create.launchPrice": "Launch price",
   "create.launchMcap": "Launch market cap",
-
   "portfolio.title": "Portfolio",
   "portfolio.total": "Kabuuang halaga",
   "portfolio.cash": "Cash",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "I-edit ang username",
   "portfolio.avatar": "Palitan ang avatar",
   "portfolio.saved": "Na-save ang profile",
-
   "wallet.title": "Wallet",
   "wallet.balance": "Cash balance",
   "wallet.usdcOn": "USDC sa {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Naipadala",
   "wallet.status.failed": "Nabigo",
   "wallet.loginRequired": "Mag-log in para makita ang wallet mo",
-
   "activity.title": "Aktibidad",
   "activity.subtitle": "Bawat trade sa {app}, habang nangyayari.",
   "activity.empty": "Wala pang trade.",
-
   "profile.coins": "Mga ginawang coin",
   "profile.joined": "Sumali noong {date}",
   "profile.notFound": "Hindi mahanap ang user",
-
   "admin.title": "Admin",
   "admin.users": "Mga user",
   "admin.credit": "Mag-credit o mag-debit ng balanse",
@@ -289,14 +274,12 @@
   "admin.search": "Maghanap gamit ang username o email",
   "admin.balanceUpdated": "Na-update ang balanse",
   "admin.creditQueued": "Naka-queue ang credit",
-
   "footer.disclaimer": "Nag-trade ang mga coin sa {app} sa isang internal na bonding curve. Walang financial advice dito.",
   "footer.fee": "{fee} swap fee · {share} ng mga fee ay napupunta sa mga creator",
   "footer.theme": "Theme",
   "footer.settledOn": "USDC sa {chain}",
   "footer.links": "Footer",
   "footer.liveFeed": "Realtime feed: {status}",
-
   "common.loading": "Naglo-load...",
   "common.error": "May nangyaring mali",
   "common.retry": "Subukan ulit",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Kumpirmado ang deposit: {amount}",
   "common.withdrawalSent": "Naipadala ang withdrawal",
   "common.withdrawalFailed": "Nabigo ang withdrawal",
-
   "time.s": "{n}s",
   "time.m": "{n}m",
   "time.h": "{n}h",
   "time.d": "{n}d",
-
   "coin.stats": "Stats",
   "coin.about": "Tungkol",
   "coin.created": "Ginawa",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} sa creator",
   "coin.loadError": "Hindi ma-load ang coin na ito",
   "coin.copyFailed": "Hindi makopya ang address. I-select ito at kopyahin nang manu-mano.",
-
   "create.tickerHint": "2–10 letra o numero, ipinapakita bilang $TICKER.",
   "create.imageResize": "Nire-resize sa {px}×{px} sa browser mo bago i-upload.",
   "create.imageProcessing": "Pinoproseso ang larawan...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Hindi maaaring lumampas sa {max} ang paunang bili.",
   "create.loginHint": "Mag-sign in gamit ang wallet, Google, Apple o email para i-launch ang coin mo.",
   "create.failed": "Hindi magawa ang token",
-
   "portfolio.subtitle": "Ang mga coin, kita at lugi, at trade history mo sa isang lugar.",
   "portfolio.loginHint": "I-track ang holdings, P&L at kita ng creator mo sa isang lugar.",
   "portfolio.loadError": "Hindi ma-load ang portfolio mo",

@@ -21,7 +21,6 @@ import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { LiveTicker } from "@/components/LiveTicker";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
@@ -40,17 +39,8 @@ const SORTS: { key: Sort; labelKey: string; icon: LucideIcon }[] = [
 ];
 const SORT_KEYS = new Set<string>(SORTS.map((s) => s.key));
 const LIST_LIMIT = 60;
-const ANIMATIONS_KEY = "nx_animations";
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
-
-function loadAnimations(): boolean {
-  try {
-    return localStorage.getItem(ANIMATIONS_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Stats strip — a compact horizontal scroller of pill-shaped tiles
@@ -171,15 +161,6 @@ export default function Home() {
   const coins = useQuery<CoinSummary[]>({ queryKey: [listKey], staleTime: 30_000 });
   const recent = useRecentlyCreatedIds();
 
-  const [animations, setAnimations] = useState<boolean>(loadAnimations);
-  useEffect(() => {
-    try {
-      localStorage.setItem(ANIMATIONS_KEY, animations ? "1" : "0");
-    } catch {
-      /* storage unavailable */
-    }
-  }, [animations]);
-
   // "New coin!" toast for coins launched by other people while we are browsing.
   const onCreated = useCallback(
     (coin: CoinSummary) => {
@@ -223,10 +204,6 @@ export default function Home() {
                   {t("home.clearSearch")}
                 </Button>
               )}
-              <label className="hidden items-center gap-2 text-xs text-muted-foreground sm:inline-flex">
-                <Switch checked={animations} onCheckedChange={setAnimations} aria-label={t("home.animations")} />
-                {t("home.animations")}
-              </label>
             </div>
           </div>
 
@@ -281,7 +258,7 @@ export default function Home() {
                   key={coin.id}
                   coin={coin}
                   variant="row"
-                  highlight={animations && recent.has(coin.id)}
+                  highlight={recent.has(coin.id)}
                 />
               ))
             )}

@@ -21,7 +21,6 @@
   "nav.homeAria": "Главная {app}",
   "header.earn": "Получай 10% от объёма своей монеты",
   "header.earnHint": "Создай токен и получай долю с каждого свапа по нему.",
-
   "auth.title": "Добро пожаловать в {app}",
   "auth.subtitle": "Войди, чтобы создавать монеты, покупать и продавать.",
   "auth.wallet": "Подключить кошелёк",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Вы вышли",
   "auth.seeYou": "До следующего раза.",
   "auth.walletHint": "Подпиши сообщение кошельком. Без транзакции, без газа.",
-
   "home.title": "Последние запуски",
   "home.subtitle": "Новые монеты появляются здесь сразу после создания.",
   "home.king": "Король горы",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} продал {amount} {ticker}",
   "home.feed.created": "{user} создал {ticker}",
   "home.newCoin": "Новая монета!",
-  "home.animations": "Анимации",
-
   "coin.mcap": "Капитализация",
   "coin.price": "Цена",
   "coin.volume24h": "Объём за 24ч",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} ответов",
   "coin.holdersCount": "{n} холдеров",
   "coin.openCoin": "Открыть {name}",
-
   "chart.title": "Живой график",
   "chart.1m": "1м",
   "chart.5m": "5м",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} купил {amount} по {price}",
   "chart.soldAt": "{user} продал {amount} по {price}",
   "chart.you": "Ты",
-
   "trade.buy": "Купить",
   "trade.sell": "Продать",
   "trade.amount": "Сумма",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Минимум к получению",
   "trade.switchToTokens": "Переключить на {ticker}",
   "trade.switchToUsdc": "Переключить на USDC",
-
   "comments.title": "Комментарии",
   "comments.trades": "Сделки",
   "comments.holders": "Топ холдеров",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "держит {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Live",
-
   "holders.rank": "#",
   "holders.holder": "Холдер",
   "holders.share": "Доля",
   "holders.tokens": "Токены",
   "holders.curve": "Бондинг-кривая",
   "holders.creator": "создатель",
-
   "trades.time": "Время",
   "trades.type": "Тип",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Цена",
   "trades.trader": "Трейдер",
   "trades.empty": "Сделок пока нет.",
-
   "create.title": "Создать токен",
   "create.subtitle": "Запусти свой мемкоин за секунды. Он мгновенно появится по собственному адресу, заканчивающемуся на \"next\".",
   "create.name": "Название",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Войди, чтобы создать токен",
   "create.launchPrice": "Стартовая цена",
   "create.launchMcap": "Стартовая капитализация",
-
   "portfolio.title": "Портфель",
   "portfolio.total": "Общая стоимость",
   "portfolio.cash": "Баланс",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Изменить имя пользователя",
   "portfolio.avatar": "Сменить аватар",
   "portfolio.saved": "Профиль сохранён",
-
   "wallet.title": "Кошелёк",
   "wallet.balance": "Баланс",
   "wallet.usdcOn": "USDC в сети {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Отправлено",
   "wallet.status.failed": "Ошибка",
   "wallet.loginRequired": "Войди, чтобы увидеть свой кошелёк",
-
   "activity.title": "Активность",
   "activity.subtitle": "Каждая сделка на {app} в реальном времени.",
   "activity.empty": "Сделок пока нет.",
-
   "profile.coins": "Создано монет",
   "profile.joined": "С нами с {date}",
   "profile.notFound": "Пользователь не найден",
-
   "admin.title": "Админ",
   "admin.users": "Пользователи",
   "admin.credit": "Начислить или списать баланс",
@@ -289,14 +274,12 @@
   "admin.search": "Поиск по имени пользователя или почте",
   "admin.balanceUpdated": "Баланс обновлён",
   "admin.creditQueued": "Начисление в очереди",
-
   "footer.disclaimer": "Монеты на {app} торгуются на внутренней бондинг-кривой. Ничто здесь не является финансовым советом.",
   "footer.fee": "Комиссия за свап {fee} · {share} комиссий идут создателям",
   "footer.theme": "Тема",
   "footer.settledOn": "USDC в сети {chain}",
   "footer.links": "Подвал",
   "footer.liveFeed": "Лента в реальном времени: {status}",
-
   "common.loading": "Загрузка...",
   "common.error": "Что-то пошло не так",
   "common.retry": "Повторить",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Пополнение подтверждено: {amount}",
   "common.withdrawalSent": "Вывод отправлен",
   "common.withdrawalFailed": "Вывод не удался",
-
   "time.s": "{n}с",
   "time.m": "{n}м",
   "time.h": "{n}ч",
   "time.d": "{n}д",
-
   "coin.stats": "Статистика",
   "coin.about": "О монете",
   "coin.created": "Создана",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} создателю",
   "coin.loadError": "Не удалось загрузить эту монету",
   "coin.copyFailed": "Не удалось скопировать адрес. Выдели его и скопируй вручную.",
-
   "create.tickerHint": "От 2 до 10 букв или цифр, отображается как $TICKER.",
   "create.imageResize": "Перед загрузкой уменьшается до {px}×{px} в твоём браузере.",
   "create.imageProcessing": "Обработка картинки...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Первая покупка не может превышать {max}.",
   "create.loginHint": "Войди через кошелёк, Google, Apple или почту, чтобы запустить свою монету.",
   "create.failed": "Не удалось создать токен",
-
   "portfolio.subtitle": "Твои монеты, прибыль и убытки и история сделок в одном месте.",
   "portfolio.loginHint": "Следи за своими позициями, P&L и доходом создателя в одном месте.",
   "portfolio.loadError": "Не удалось загрузить твой портфель",

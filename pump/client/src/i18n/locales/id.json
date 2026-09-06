@@ -21,7 +21,6 @@
   "nav.homeAria": "Beranda {app}",
   "header.earn": "Dapatkan 10% dari volume koinmu",
   "header.earnHint": "Buat token dan terima bagian dari setiap swap di dalamnya.",
-
   "auth.title": "Selamat datang di {app}",
   "auth.subtitle": "Masuk untuk membuat koin, membeli, dan menjual.",
   "auth.wallet": "Hubungkan dompet",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Sudah keluar",
   "auth.seeYou": "Sampai jumpa lagi.",
   "auth.walletHint": "Tandatangani pesan dengan dompetmu. Tanpa transaksi, tanpa gas.",
-
   "home.title": "Peluncuran terbaru",
   "home.subtitle": "Koin baru muncul di sini begitu dibuat.",
   "home.king": "King of the Hill",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} menjual {amount} {ticker}",
   "home.feed.created": "{user} membuat {ticker}",
   "home.newCoin": "Koin baru!",
-  "home.animations": "Animasi",
-
   "coin.mcap": "Kapitalisasi pasar",
   "coin.price": "Harga",
   "coin.volume24h": "Volume 24 jam",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} balasan",
   "coin.holdersCount": "{n} holder",
   "coin.openCoin": "Buka {name}",
-
   "chart.title": "Grafik live",
   "chart.1m": "1m",
   "chart.5m": "5m",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} membeli {amount} di {price}",
   "chart.soldAt": "{user} menjual {amount} di {price}",
   "chart.you": "Kamu",
-
   "trade.buy": "Beli",
   "trade.sell": "Jual",
   "trade.amount": "Jumlah",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Minimum diterima",
   "trade.switchToTokens": "Ganti ke {ticker}",
   "trade.switchToUsdc": "Ganti ke USDC",
-
   "comments.title": "Komentar",
   "comments.trades": "Transaksi",
   "comments.holders": "Holder teratas",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "memegang {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Live",
-
   "holders.rank": "#",
   "holders.holder": "Holder",
   "holders.share": "Porsi",
   "holders.tokens": "Token",
   "holders.curve": "Bonding curve",
   "holders.creator": "kreator",
-
   "trades.time": "Waktu",
   "trades.type": "Tipe",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Harga",
   "trades.trader": "Trader",
   "trades.empty": "Belum ada transaksi.",
-
   "create.title": "Buat token",
   "create.subtitle": "Luncurkan memecoin-mu dalam hitungan detik. Langsung live di alamatnya sendiri yang berakhiran \"next\".",
   "create.name": "Nama",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Masuk untuk membuat token",
   "create.launchPrice": "Harga peluncuran",
   "create.launchMcap": "Kapitalisasi pasar saat peluncuran",
-
   "portfolio.title": "Portofolio",
   "portfolio.total": "Total nilai",
   "portfolio.cash": "Saldo",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Ubah nama pengguna",
   "portfolio.avatar": "Ganti avatar",
   "portfolio.saved": "Profil tersimpan",
-
   "wallet.title": "Dompet",
   "wallet.balance": "Saldo tunai",
   "wallet.usdcOn": "USDC di {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Terkirim",
   "wallet.status.failed": "Gagal",
   "wallet.loginRequired": "Masuk untuk melihat dompetmu",
-
   "activity.title": "Aktivitas",
   "activity.subtitle": "Setiap transaksi di {app}, saat terjadi.",
   "activity.empty": "Belum ada transaksi.",
-
   "profile.coins": "Koin dibuat",
   "profile.joined": "Bergabung {date}",
   "profile.notFound": "Pengguna tidak ditemukan",
-
   "admin.title": "Admin",
   "admin.users": "Pengguna",
   "admin.credit": "Kredit atau debit saldo",
@@ -289,14 +274,12 @@
   "admin.search": "Cari berdasarkan nama pengguna atau email",
   "admin.balanceUpdated": "Saldo diperbarui",
   "admin.creditQueued": "Kredit diantrekan",
-
   "footer.disclaimer": "Koin di {app} diperdagangkan pada bonding curve internal. Tidak ada di sini yang merupakan saran keuangan.",
   "footer.fee": "Biaya swap {fee} · {share} dari biaya masuk ke kreator",
   "footer.theme": "Tema",
   "footer.settledOn": "USDC di {chain}",
   "footer.links": "Footer",
   "footer.liveFeed": "Feed realtime: {status}",
-
   "common.loading": "Memuat...",
   "common.error": "Terjadi kesalahan",
   "common.retry": "Coba lagi",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Deposit dikonfirmasi: {amount}",
   "common.withdrawalSent": "Penarikan terkirim",
   "common.withdrawalFailed": "Penarikan gagal",
-
   "time.s": "{n}d",
   "time.m": "{n}m",
   "time.h": "{n}j",
   "time.d": "{n}h",
-
   "coin.stats": "Statistik",
   "coin.about": "Tentang",
   "coin.created": "Dibuat",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} untuk kreator",
   "coin.loadError": "Tidak bisa memuat koin ini",
   "coin.copyFailed": "Tidak bisa menyalin alamat. Pilih dan salin secara manual.",
-
   "create.tickerHint": "2–10 huruf atau angka, ditampilkan sebagai $TICKER.",
   "create.imageResize": "Diubah ke {px}×{px} di browsermu sebelum diunggah.",
   "create.imageProcessing": "Memproses gambar...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Pembelian awal tidak boleh melebihi {max}.",
   "create.loginHint": "Masuk dengan dompet, Google, Apple, atau email untuk meluncurkan koinmu.",
   "create.failed": "Tidak bisa membuat token",
-
   "portfolio.subtitle": "Koin, laba rugi, dan riwayat transaksimu di satu tempat.",
   "portfolio.loginHint": "Pantau kepemilikan, P&L, dan pendapatan kreatormu di satu tempat.",
   "portfolio.loadError": "Tidak bisa memuat portofoliomu",

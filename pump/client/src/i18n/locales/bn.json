@@ -21,7 +21,6 @@
   "nav.homeAria": "{app} হোম",
   "header.earn": "আপনার কয়েনের ভলিউমের ১০% আয় করুন",
   "header.earnHint": "একটি টোকেন তৈরি করুন এবং এর প্রতিটি সোয়াপের অংশ পান।",
-
   "auth.title": "{app}-এ স্বাগতম",
   "auth.subtitle": "কয়েন তৈরি, কেনা ও বেচার জন্য সাইন ইন করুন।",
   "auth.wallet": "ওয়ালেট কানেক্ট করুন",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "লগ আউট হয়েছে",
   "auth.seeYou": "আবার দেখা হবে।",
   "auth.walletHint": "আপনার ওয়ালেট দিয়ে একটি মেসেজ সাইন করুন। কোনো ট্রানজ্যাকশন নেই, গ্যাস নেই।",
-
   "home.title": "সর্বশেষ লঞ্চ",
   "home.subtitle": "নতুন কয়েন তৈরি হওয়ার সাথে সাথেই এখানে দেখা যায়।",
   "home.king": "কিং অফ দ্য হিল",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} {amount}-এর {ticker} বিক্রি করেছেন",
   "home.feed.created": "{user} {ticker} তৈরি করেছেন",
   "home.newCoin": "নতুন কয়েন!",
-  "home.animations": "অ্যানিমেশন",
-
   "coin.mcap": "মার্কেট ক্যাপ",
   "coin.price": "দাম",
   "coin.volume24h": "২৪ ঘণ্টার ভলিউম",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} রিপ্লাই",
   "coin.holdersCount": "{n} হোল্ডার",
   "coin.openCoin": "{name} খুলুন",
-
   "chart.title": "লাইভ চার্ট",
   "chart.1m": "১মি",
   "chart.5m": "৫মি",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} {price} দামে {amount} কিনেছেন",
   "chart.soldAt": "{user} {price} দামে {amount} বিক্রি করেছেন",
   "chart.you": "আপনি",
-
   "trade.buy": "কিনুন",
   "trade.sell": "বেচুন",
   "trade.amount": "পরিমাণ",
@@ -150,7 +144,6 @@
   "trade.minReceived": "সর্বনিম্ন প্রাপ্তি",
   "trade.switchToTokens": "{ticker}-এ যান",
   "trade.switchToUsdc": "USDC-এ যান",
-
   "comments.title": "মন্তব্য",
   "comments.trades": "ট্রেড",
   "comments.holders": "শীর্ষ হোল্ডার",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "{amount} আছে",
   "comments.creatorBadge": "dev",
   "comments.live": "লাইভ",
-
   "holders.rank": "#",
   "holders.holder": "হোল্ডার",
   "holders.share": "অংশ",
   "holders.tokens": "টোকেন",
   "holders.curve": "বন্ডিং কার্ভ",
   "holders.creator": "ক্রিয়েটর",
-
   "trades.time": "সময়",
   "trades.type": "ধরন",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "দাম",
   "trades.trader": "ট্রেডার",
   "trades.empty": "এখনো কোনো ট্রেড নেই।",
-
   "create.title": "টোকেন তৈরি করুন",
   "create.subtitle": "সেকেন্ডেই আপনার মিমকয়েন লঞ্চ করুন। এটি \"next\" দিয়ে শেষ হওয়া নিজস্ব অ্যাড্রেসে সাথে সাথে লাইভ হয়।",
   "create.name": "নাম",
@@ -211,7 +201,6 @@
   "create.loginRequired": "টোকেন তৈরি করতে লগ ইন করুন",
   "create.launchPrice": "লঞ্চ দাম",
   "create.launchMcap": "লঞ্চ মার্কেট ক্যাপ",
-
   "portfolio.title": "পোর্টফোলিও",
   "portfolio.total": "মোট মূল্য",
   "portfolio.cash": "ক্যাশ",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "ইউজারনেম বদলান",
   "portfolio.avatar": "অ্যাভাটার বদলান",
   "portfolio.saved": "প্রোফাইল সেভ হয়েছে",
-
   "wallet.title": "ওয়ালেট",
   "wallet.balance": "ক্যাশ ব্যালেন্স",
   "wallet.usdcOn": "{chain}-এ USDC",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "পাঠানো হয়েছে",
   "wallet.status.failed": "ব্যর্থ",
   "wallet.loginRequired": "ওয়ালেট দেখতে লগ ইন করুন",
-
   "activity.title": "অ্যাক্টিভিটি",
   "activity.subtitle": "{app}-এর প্রতিটি ট্রেড, ঘটার সাথে সাথে।",
   "activity.empty": "এখনো কোনো ট্রেড নেই।",
-
   "profile.coins": "তৈরি করা কয়েন",
   "profile.joined": "{date}-এ যোগ দিয়েছেন",
   "profile.notFound": "ইউজার পাওয়া যায়নি",
-
   "admin.title": "অ্যাডমিন",
   "admin.users": "ইউজার",
   "admin.credit": "ব্যালেন্স ক্রেডিট বা ডেবিট করুন",
@@ -289,14 +274,12 @@
   "admin.search": "ইউজারনেম বা ইমেইল দিয়ে খুঁজুন",
   "admin.balanceUpdated": "ব্যালেন্স আপডেট হয়েছে",
   "admin.creditQueued": "ক্রেডিট সারিতে রাখা হয়েছে",
-
   "footer.disclaimer": "{app}-এর কয়েন একটি অভ্যন্তরীণ বন্ডিং কার্ভে ট্রেড হয়। এখানে কোনো কিছুই আর্থিক পরামর্শ নয়।",
   "footer.fee": "{fee} সোয়াপ ফি · ফির {share} ক্রিয়েটরদের কাছে যায়",
   "footer.theme": "থিম",
   "footer.settledOn": "{chain}-এ USDC",
   "footer.links": "ফুটার",
   "footer.liveFeed": "রিয়েলটাইম ফিড: {status}",
-
   "common.loading": "লোড হচ্ছে...",
   "common.error": "কিছু একটা ভুল হয়েছে",
   "common.retry": "আবার চেষ্টা করুন",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "ডিপোজিট নিশ্চিত: {amount}",
   "common.withdrawalSent": "উইথড্র পাঠানো হয়েছে",
   "common.withdrawalFailed": "উইথড্র ব্যর্থ",
-
   "time.s": "{n}সে",
   "time.m": "{n}মি",
   "time.h": "{n}ঘ",
   "time.d": "{n}দি",
-
   "coin.stats": "পরিসংখ্যান",
   "coin.about": "সম্পর্কে",
   "coin.created": "তৈরি",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} ক্রিয়েটরের কাছে",
   "coin.loadError": "এই কয়েন লোড করা যায়নি",
   "coin.copyFailed": "অ্যাড্রেস কপি করা যায়নি। সিলেক্ট করে নিজে কপি করুন।",
-
   "create.tickerHint": "২–১০টি অক্ষর বা সংখ্যা, $TICKER আকারে দেখানো হয়।",
   "create.imageResize": "আপলোডের আগে আপনার ব্রাউজারে {px}×{px} আকারে রিসাইজ হবে।",
   "create.imageProcessing": "ছবি প্রসেস হচ্ছে...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "প্রাথমিক কেনা {max}-এর বেশি হতে পারবে না।",
   "create.loginHint": "কয়েন লঞ্চ করতে ওয়ালেট, Google, Apple বা ইমেইল দিয়ে সাইন ইন করুন।",
   "create.failed": "টোকেন তৈরি করা যায়নি",
-
   "portfolio.subtitle": "আপনার কয়েন, লাভ-ক্ষতি ও ট্রেড ইতিহাস এক জায়গায়।",
   "portfolio.loginHint": "আপনার হোল্ডিংস, P&L ও ক্রিয়েটর আয় এক জায়গায় ট্র্যাক করুন।",
   "portfolio.loadError": "আপনার পোর্টফোলিও লোড করা যায়নি",

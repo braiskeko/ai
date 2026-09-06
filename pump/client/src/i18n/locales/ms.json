@@ -21,7 +21,6 @@
   "nav.homeAria": "Laman utama {app}",
   "header.earn": "Dapatkan 10% daripada volum coin anda",
   "header.earnHint": "Cipta token dan terima bahagian daripada setiap swap padanya.",
-
   "auth.title": "Selamat datang ke {app}",
   "auth.subtitle": "Log masuk untuk cipta coin, beli dan jual.",
   "auth.wallet": "Sambung wallet",
@@ -62,7 +61,6 @@
   "auth.loggedOut": "Telah log keluar",
   "auth.seeYou": "Jumpa lagi.",
   "auth.walletHint": "Tandatangan mesej dengan wallet anda. Tiada transaksi, tiada gas.",
-
   "home.title": "Pelancaran terkini",
   "home.subtitle": "Coin baharu muncul di sini sebaik sahaja dicipta.",
   "home.king": "King of the Hill",
@@ -82,8 +80,6 @@
   "home.feed.sold": "{user} menjual {amount} {ticker}",
   "home.feed.created": "{user} mencipta {ticker}",
   "home.newCoin": "Coin baharu!",
-  "home.animations": "Animasi",
-
   "coin.mcap": "Market cap",
   "coin.price": "Harga",
   "coin.volume24h": "Volum 24j",
@@ -112,7 +108,6 @@
   "coin.replies": "{n} balasan",
   "coin.holdersCount": "{n} pemegang",
   "coin.openCoin": "Buka {name}",
-
   "chart.title": "Carta langsung",
   "chart.1m": "1m",
   "chart.5m": "5m",
@@ -124,7 +119,6 @@
   "chart.boughtAt": "{user} membeli {amount} pada {price}",
   "chart.soldAt": "{user} menjual {amount} pada {price}",
   "chart.you": "Anda",
-
   "trade.buy": "Beli",
   "trade.sell": "Jual",
   "trade.amount": "Jumlah",
@@ -150,7 +144,6 @@
   "trade.minReceived": "Minimum diterima",
   "trade.switchToTokens": "Tukar ke {ticker}",
   "trade.switchToUsdc": "Tukar ke USDC",
-
   "comments.title": "Komen",
   "comments.trades": "Dagangan",
   "comments.holders": "Pemegang teratas",
@@ -164,14 +157,12 @@
   "comments.holdsTokens": "memegang {amount}",
   "comments.creatorBadge": "dev",
   "comments.live": "Langsung",
-
   "holders.rank": "#",
   "holders.holder": "Pemegang",
   "holders.share": "Bahagian",
   "holders.tokens": "Token",
   "holders.curve": "Bonding curve",
   "holders.creator": "pencipta",
-
   "trades.time": "Masa",
   "trades.type": "Jenis",
   "trades.usdc": "USDC",
@@ -179,7 +170,6 @@
   "trades.price": "Harga",
   "trades.trader": "Trader",
   "trades.empty": "Belum ada dagangan.",
-
   "create.title": "Cipta token",
   "create.subtitle": "Lancarkan memecoin anda dalam beberapa saat. Ia terus aktif pada alamatnya sendiri yang berakhir dengan \"next\".",
   "create.name": "Nama",
@@ -211,7 +201,6 @@
   "create.loginRequired": "Log masuk untuk cipta token",
   "create.launchPrice": "Harga pelancaran",
   "create.launchMcap": "Market cap pelancaran",
-
   "portfolio.title": "Portfolio",
   "portfolio.total": "Jumlah nilai",
   "portfolio.cash": "Tunai",
@@ -232,7 +221,6 @@
   "portfolio.editUsername": "Edit nama pengguna",
   "portfolio.avatar": "Tukar avatar",
   "portfolio.saved": "Profil disimpan",
-
   "wallet.title": "Wallet",
   "wallet.balance": "Baki tunai",
   "wallet.usdcOn": "USDC di {chain}",
@@ -269,15 +257,12 @@
   "wallet.status.sent": "Dihantar",
   "wallet.status.failed": "Gagal",
   "wallet.loginRequired": "Log masuk untuk lihat wallet anda",
-
   "activity.title": "Aktiviti",
   "activity.subtitle": "Setiap dagangan di {app}, sebaik sahaja ia berlaku.",
   "activity.empty": "Belum ada dagangan.",
-
   "profile.coins": "Coin dicipta",
   "profile.joined": "Menyertai {date}",
   "profile.notFound": "Pengguna tidak dijumpai",
-
   "admin.title": "Admin",
   "admin.users": "Pengguna",
   "admin.credit": "Kredit atau debit baki",
@@ -289,14 +274,12 @@
   "admin.search": "Cari mengikut nama pengguna atau e-mel",
   "admin.balanceUpdated": "Baki dikemas kini",
   "admin.creditQueued": "Kredit dibaris",
-
   "footer.disclaimer": "Coin di {app} didagangkan pada bonding curve dalaman. Tiada apa-apa di sini merupakan nasihat kewangan.",
   "footer.fee": "Yuran swap {fee} · {share} daripada yuran diberikan kepada pencipta",
   "footer.theme": "Tema",
   "footer.settledOn": "USDC di {chain}",
   "footer.links": "Pengaki",
   "footer.liveFeed": "Suapan masa nyata: {status}",
-
   "common.loading": "Memuatkan...",
   "common.error": "Ada yang tidak kena",
   "common.retry": "Cuba lagi",
@@ -326,12 +309,10 @@
   "common.depositConfirmed": "Deposit disahkan: {amount}",
   "common.withdrawalSent": "Penarikan dihantar",
   "common.withdrawalFailed": "Penarikan gagal",
-
   "time.s": "{n}s",
   "time.m": "{n}m",
   "time.h": "{n}j",
   "time.d": "{n}h",
-
   "coin.stats": "Statistik",
   "coin.about": "Tentang",
   "coin.created": "Dicipta",
@@ -348,7 +329,6 @@
   "coin.feeToCreator": "{share} kepada pencipta",
   "coin.loadError": "Tidak dapat memuatkan coin ini",
   "coin.copyFailed": "Tidak dapat menyalin alamat. Pilih dan salin secara manual.",
-
   "create.tickerHint": "2–10 huruf atau nombor, dipaparkan sebagai $TICKER.",
   "create.imageResize": "Diubah saiz kepada {px}×{px} dalam pelayar anda sebelum dimuat naik.",
   "create.imageProcessing": "Memproses imej...",
@@ -363,7 +343,6 @@
   "create.initialBuyMax": "Belian awal tidak boleh melebihi {max}.",
   "create.loginHint": "Log masuk dengan wallet, Google, Apple atau e-mel untuk melancarkan coin anda.",
   "create.failed": "Tidak dapat mencipta token",
-
   "portfolio.subtitle": "Coin, untung rugi dan sejarah dagangan anda di satu tempat.",
   "portfolio.loginHint": "Jejak pegangan, P&L dan pendapatan pencipta anda di satu tempat.",
   "portfolio.loadError": "Tidak dapat memuatkan portfolio anda",
