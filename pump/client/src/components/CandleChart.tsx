@@ -3,6 +3,7 @@ import {
   createChart,
   ColorType,
   CrosshairMode,
+  LineStyle,
   TickMarkType,
   type CandlestickData,
   type HistogramData,
@@ -39,6 +40,11 @@ export interface CandleChartProps {
   ticker: string;
   /** Currency the candle values are expressed in (default "SOL"). */
   unit?: ChartUnit;
+  /**
+   * Multiplier applied to every value before it is drawn — pass the SOL/USD rate
+   * together with `unit="USD"` to show a SOL-priced coin in dollars (default 1).
+   */
+  rate?: number;
   /** Supply the "mcap" mode multiplies the price by (default: our own TOTAL_SUPPLY). */
   supply?: number;
   height?: number;
@@ -68,8 +74,14 @@ const INTERVAL_MS: Record<ChartInterval, number> = {
   "1h": 60 * CANDLE_INTERVAL_MS,
 };
 
-/** Only the most recent trades get an avatar marker (performance). */
-const MAX_MARKERS = 60;
+/** Only the most recent trades get an avatar marker (performance, and so the candles stay visible). */
+const MAX_MARKERS = 24;
+/**
+ * Bars shown when the chart first draws. Fitting hundreds of one-minute bars into a phone
+ * width renders every candle sub-pixel — which reads as "the chart is broken" — so the view
+ * opens on a window this wide and the user can scroll or pinch out for the rest.
+ */
+const VISIBLE_BARS = 72;
 /** Gaps between candles are filled with flat candles up to this many bars. */
 const MAX_FILLED_BARS = 3000;
 /** Grid cell (px) used to detect overlapping avatars; overlapping ones stack with STACK_OFFSET. */
@@ -269,9 +281,10 @@ function useChartPalette(): Palette {
 // Marker sizing
 // ---------------------------------------------------------------------------
 
+/** Deliberately small: the avatars annotate the candles, they must not hide them. */
 function markerSize(sol: number): number {
-  const s = 16 + 4 * Math.log2(1 + Math.max(0, sol) / 0.1);
-  return Math.round(Math.min(36, Math.max(18, s)));
+  const s = 13 + 2.5 * Math.log2(1 + Math.max(0, sol) / 0.1);
+  return Math.round(Math.min(24, Math.max(14, s)));
 }
 
 interface MarkerMeta {
@@ -298,6 +311,7 @@ export function CandleChart({
   trades,
   ticker,
   unit = "SOL",
+  rate = 1,
   supply = TOTAL_SUPPLY,
   height = 380,
   mode: modeProp,
@@ -330,7 +344,8 @@ export function CandleChart({
     onIntervalChange?.(i);
   };
 
-  const scale = mode === "mcap" ? (supply > 0 ? supply : TOTAL_SUPPLY) : 1;
+  const conversion = Number.isFinite(rate) && rate > 0 ? rate : 1;
+  const scale = (mode === "mcap" ? (supply > 0 ? supply : TOTAL_SUPPLY) : 1) * conversion;
   const intervalMs = INTERVAL_MS[interval];
 
   // ---- Series data ----------------------------------------------------------
@@ -468,11 +483,12 @@ export function CandleChart({
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: palette.text,
         fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-        fontSize: 11,
+        fontSize: 10,
+        attributionLogo: false,
       },
       grid: {
-        vertLines: { color: palette.grid },
-        horzLines: { color: palette.grid },
+        vertLines: { visible: false },
+        horzLines: { color: palette.grid, style: LineStyle.Dotted },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -480,11 +496,12 @@ export function CandleChart({
         horzLine: { color: palette.text, labelBackgroundColor: "#242a35" },
       },
       rightPriceScale: {
-        borderColor: palette.border,
-        scaleMargins: { top: 0.1, bottom: 0.25 },
+        borderVisible: false,
+        entireTextOnly: true,
+        scaleMargins: { top: 0.12, bottom: 0.22 },
       },
       timeScale: {
-        borderColor: palette.border,
+        borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 4,
@@ -617,7 +634,13 @@ export function CandleChart({
     } else {
       series.setData(candleData);
       volume.setData(volumeData);
-      chart.timeScale().fitContent();
+      // Open on the most recent window rather than the whole history: fitting hundreds of
+      // bars into a phone width makes every candle a hairline (see VISIBLE_BARS).
+      const last = candleData.length - 1;
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, last - VISIBLE_BARS) as Logical,
+        to: (last + 3) as Logical,
+      });
     }
     lastDataRef.current = { key, data: candleData };
     scheduleRef.current();
@@ -647,7 +670,10 @@ export function CandleChart({
     const vars = {
       user: who,
       amount: `${fmtCompactAmount(m.trade.sol)} (${fmtTokens(m.trade.tokens)} ${ticker})`,
-      price: mode === "mcap" ? fmtCompactAmount(m.trade.marketCapSol) : fmtAxisPrice(m.trade.priceSol),
+      price:
+        mode === "mcap"
+          ? fmtCompactAmount(m.trade.marketCapSol * conversion, unit)
+          : fmtAxisPrice(m.trade.priceSol * conversion, unit),
     };
     return m.trade.side === "buy" ? t("chart.boughtAt", vars) : t("chart.soldAt", vars);
   };

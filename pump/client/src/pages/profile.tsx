@@ -44,6 +44,12 @@ function isNotFound(err: unknown): boolean {
   return err instanceof Error && /^404:/.test(err.message);
 }
 
+/** "Aug 2026", or "—" when the stored timestamp is missing or unparseable (date-fns throws on those). */
+function joinedLabel(iso: string | null | undefined): string {
+  const ms = Date.parse(iso ?? "");
+  return Number.isFinite(ms) ? format(new Date(ms), "MMM yyyy") : "—";
+}
+
 /** "4h 48m" / "32m" — average time between a position's first and last trade. */
 function formatHold(minutes: number): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return "—";
@@ -476,7 +482,7 @@ export default function ProfilePage({ username: explicit }: { username?: string 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("profile.avgHold", { time: formatHold(data.avgHoldMinutes) })}</span>
             <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{t("profile.tradeCount", { n: count(data.tradeCount) })}</span>
-            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{t("profile.joined", { date: format(new Date(data.joinedAt), "MMM yyyy") })}</span>
+            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{t("profile.joined", { date: joinedLabel(data.joinedAt) })}</span>
           </div>
         </section>
 

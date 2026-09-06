@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       params.delete("auth_error");
     }
     if (welcome !== null) {
-      toast({ title: t("auth.signedIn"), description: t("auth.subtitle") });
+      // No "you're signed in" toast: landing on the app already says so.
       params.delete("welcome");
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
     }

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ClipboardPaste, Search as SearchIcon, X } from "lucide-react";
 import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
+import { TokenImage } from "@/components/TokenImage";
 import { TraderRow, TraderStripCard } from "@/components/TraderCard";
 import { useT } from "@/i18n";
 import { age, compactUsd, priceUsd, signedPct, useSolUsd } from "@/lib/format";
@@ -103,13 +104,7 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
     // content on touch devices, so the first tap lands on a child and does nothing).
     <div className="flex items-center gap-3 px-4 transition-colors hover:bg-accent/40">
       <Link href={row.href} aria-label={row.name} className="tap flex min-w-0 flex-1 items-center gap-3 py-3">
-        {row.imageUrl ? (
-          <img src={row.imageUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-full bg-muted object-cover" />
-        ) : (
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-muted text-sm font-black text-muted-foreground">
-            {row.ticker.slice(0, 2)}
-          </span>
-        )}
+        <TokenImage src={row.imageUrl} name={row.ticker} size={48} />
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate font-bold uppercase leading-tight">{row.ticker}</span>
@@ -235,10 +230,12 @@ export default function SearchPage() {
   );
 
   return (
-    <PageShell noFooter className="pb-32 md:pb-10">
-      <div className="mx-auto max-w-2xl space-y-5">
-        <SearchField className="hidden md:flex" />
+    <PageShell noFooter className="pt-3 pb-32 md:pt-6 md:pb-10">
+      {/* Outside the stack: on mobile the field lives at the bottom, and a hidden first
+          child would still push the chips down by the stack's gap. */}
+      <SearchField className="mx-auto mb-5 hidden max-w-2xl md:flex" />
 
+      <div className="mx-auto max-w-2xl space-y-5">
         <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="tablist" aria-label={t("search.title")}>
           {(
             [

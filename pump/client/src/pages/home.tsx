@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +19,7 @@ import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCardSkeleton } from "@/components/CoinCard";
+import { TokenImage } from "@/components/TokenImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
@@ -153,7 +154,7 @@ function TopTraders() {
               </div>
               <div className="flex items-center gap-2.5 border-t border-border px-3.5 py-2.5">
                 {token ? (
-                  <img src={token.imageUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-full bg-muted object-cover" />
+                  <TokenImage src={token.imageUrl} name={token.ticker} size={28} />
                 ) : (
                   <span className="h-7 w-7 shrink-0 rounded-full bg-muted" />
                 )}
@@ -199,7 +200,6 @@ function TokenRow({
   fallback: string;
 }) {
   const t = useT();
-  const [failed, setFailed] = useState(false);
   const up = change24h >= 0;
   return (
     <Link
@@ -210,20 +210,7 @@ function TokenRow({
       )}
     >
       <span className="relative shrink-0">
-        {image && !failed ? (
-          <img
-            src={image}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            onError={() => setFailed(true)}
-            className="h-12 w-12 rounded-full bg-muted object-cover"
-          />
-        ) : (
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-sm font-black text-muted-foreground">
-            {fallback.slice(0, 2)}
-          </span>
-        )}
+        <TokenImage src={image} name={fallback} size={48} />
         {verified && (
           <BadgeCheck
             className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background text-primary"

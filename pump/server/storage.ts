@@ -31,6 +31,7 @@ import {
   type CoinDetail,
   type CoinSummary,
   type Comment,
+  type CommentKind,
   type CommentView,
   type CurveState,
   type FeedEntry,
@@ -1124,6 +1125,8 @@ export class Storage {
       ...c,
       user: this.toPublicUser(c.userId) ?? { id: c.userId, username: "unknown", avatarSeed: "unknown", avatarUrl: null, walletAddress: null },
       holding: holding && holding.tokens > TOKEN_EPSILON ? holding.tokens : 0,
+      kind: c.kind ?? "comment",
+      wallet,
     };
   }
 
@@ -1134,7 +1137,7 @@ export class Storage {
       .map((c) => this.toCommentView(c));
   }
 
-  addComment(coinId: number, userId: number, body: string, imageUrl?: string | null): CommentView {
+  addComment(coinId: number, userId: number, body: string, imageUrl?: string | null, kind: CommentKind = "comment"): CommentView {
     const coin = this.mustCoin(coinId);
     this.mustUser(userId);
     const text = body.trim();
@@ -1147,11 +1150,22 @@ export class Storage {
       imageUrl: imageUrl ?? null,
       likes: [],
       createdAt: nowIso(),
+      kind,
     };
     this.state.comments.push(comment);
     this.indexComment(comment);
     this.persist();
     return this.toCommentView(comment);
+  }
+
+  /** When this user last published a thesis on this coin (ms since epoch), or 0. */
+  lastThesisAt(coinId: number, userId: number): number {
+    let last = 0;
+    for (const c of this.coinComments(coinId)) {
+      if (c.userId !== userId || c.kind !== "thesis") continue;
+      last = Math.max(last, Date.parse(c.createdAt) || 0);
+    }
+    return last;
   }
 
   toggleLike(commentId: number, userId: number): CommentView {

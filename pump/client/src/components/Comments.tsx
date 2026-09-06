@@ -104,15 +104,15 @@ export function Comments({ coin, defaultTab = "comments", className }: CommentsP
   const holderCount = coin.holders;
   return (
     <Tabs defaultValue={defaultTab} className={cn("w-full", className)}>
-      <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
+      <TabsList className="h-auto w-full justify-stretch gap-0 rounded-none border-b border-border bg-transparent p-0">
+        <UnderlineTab value="holders">
+          {t("comments.holders")} <Count n={holderCount} />
+        </UnderlineTab>
         <UnderlineTab value="comments">
           {t("comments.title")} <Count n={commentCount} />
         </UnderlineTab>
         <UnderlineTab value="trades">
           {t("comments.trades")} <Count n={coin.buys + coin.sells} />
-        </UnderlineTab>
-        <UnderlineTab value="holders">
-          {t("comments.holders")} <Count n={holderCount} />
         </UnderlineTab>
       </TabsList>
       <TabsContent value="comments" className="mt-4">
@@ -137,7 +137,7 @@ function UnderlineTab({ value, children }: { value: string; children: ReactNode 
   return (
     <TabsTrigger
       value={value}
-      className="relative -mb-px rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-semibold text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+      className="relative -mb-px flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-2 py-3 text-[15px] font-semibold text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-bold data-[state=active]:text-foreground data-[state=active]:shadow-none"
     >
       {children}
     </TabsTrigger>

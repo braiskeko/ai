@@ -6,6 +6,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useLiveUpdates } from "@/lib/useLive";
 import { I18nProvider } from "@/i18n";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import Home from "@/pages/home";
@@ -53,6 +54,15 @@ const SOLANA_RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
 const SolanaConnectionProvider = ConnectionProvider as unknown as (props: ConnectionProviderProps) => JSX.Element;
 
 function Router() {
+  const [location] = useLocation();
+  return (
+    <ErrorBoundary resetKey={location}>
+      <Routes />
+    </ErrorBoundary>
+  );
+}
+
+function Routes() {
   return (
     <Switch>
       <Route path="/" component={Home} />

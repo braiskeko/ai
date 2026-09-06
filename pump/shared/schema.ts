@@ -277,6 +277,18 @@ export interface SentTx {
 // Comments
 // ---------------------------------------------------------------------------
 
+/**
+ * A plain comment, or a "thesis": the argument a holder publishes for the position
+ * they currently have open. Only holders can post one, and only once every
+ * THESIS_COOLDOWN_MS, which is what keeps the holder list readable.
+ */
+export type CommentKind = "comment" | "thesis";
+
+/** Longest a thesis may be (plain comments stay at 500). */
+export const THESIS_MAX_BODY = 1_000;
+/** Minimum time between two theses by the same holder on the same coin. */
+export const THESIS_COOLDOWN_MS = 10 * 60_000;
+
 export interface Comment {
   id: number;
   coinId: number;
@@ -286,11 +298,20 @@ export interface Comment {
   imageUrl: string | null;
   likes: number[];
   createdAt: string;
+  /** absent on comments written before theses existed — read it as "comment" */
+  kind?: CommentKind;
 }
 
 export const commentSchema = z.object({
   body: z.string().trim().min(1).max(500),
   image: z.string().regex(/^data:image\/(png|jpe?g|webp|gif);base64,/).max(1_500_000).optional(),
+  kind: z.literal("comment").optional(),
+});
+
+export const thesisSchema = z.object({
+  body: z.string().trim().min(1).max(THESIS_MAX_BODY),
+  image: z.string().regex(/^data:image\/(png|jpe?g|webp|gif);base64,/).max(1_500_000).optional(),
+  kind: z.literal("thesis"),
 });
 
 // ---------------------------------------------------------------------------
@@ -361,6 +382,10 @@ export interface CommentView extends Comment {
   user: PublicUser;
   /** commenter's holding in this coin (tokens) */
   holding: number;
+  /** always set on the wire, even for rows stored before theses existed */
+  kind: CommentKind;
+  /** the commenter's wallet, so theses can be matched to the holder rows */
+  wallet: string | null;
 }
 
 export interface HolderRow {

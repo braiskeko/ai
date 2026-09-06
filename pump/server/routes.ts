@@ -16,6 +16,8 @@ import {
   TOKEN_DECIMALS,
   TOTAL_SUPPLY,
   commentSchema,
+  thesisSchema,
+  THESIS_COOLDOWN_MS,
   createTxSchema,
   externalQuoteSchema,
   externalSwapTxSchema,
@@ -89,6 +91,7 @@ import {
   sendSignedTx,
   treasuryPubkey,
 } from "./solana";
+import { imageProxy } from "./imgproxy";
 import { UPLOADS_ROOT, deleteImage, saveImage } from "./uploads";
 import * as vanity from "./vanity";
 import { log } from "./vite";
@@ -507,6 +510,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next();
     }),
   );
+
+  // ---- Images -------------------------------------------------------------
+
+  // Token icons live on IPFS gateways and hosts that refuse hot-linking; serving
+  // them from our own origin (cached) is what makes every icon in a list render.
+  app.get("/api/img", wrap(imageProxy));
 
   // ---- Config -------------------------------------------------------------
 
@@ -1050,12 +1059,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userKey = `user:${me.id}`;
       commentLimiter.check(userKey, res, "You're commenting too fast. Please wait a minute.");
       const coin = coinByCa(req.params.ca);
-      const { body, image } = commentSchema.parse(req.body);
+      const isThesis = (req.body as { kind?: unknown } | null)?.kind === "thesis";
+      const { body, image } = isThesis ? thesisSchema.parse(req.body) : commentSchema.parse(req.body);
+
+      if (isThesis) {
+        // A thesis argues for a position, so it needs one — and only one every 10 minutes.
+        const wallet = me.walletAddress;
+        const holding = wallet ? storage.findHolding(wallet, coin.id) : undefined;
+        if (!holding || holding.tokens <= 0) {
+          throw new HttpError(403, `You need an open ${coin.ticker} position to publish a thesis.`);
+        }
+        const waitMs = storage.lastThesisAt(coin.id, me.id) + THESIS_COOLDOWN_MS - Date.now();
+        if (waitMs > 0) {
+          throw new HttpError(429, `You can publish another thesis in ${Math.ceil(waitMs / 60_000)} min.`);
+        }
+      }
 
       const imageUrl = image ? await saveImage(image, "comments", `${coin.id}-${Date.now().toString(36)}`, 800) : undefined;
       let comment: CommentView;
       try {
-        comment = storage.addComment(coin.id, me.id, body, imageUrl);
+        comment = storage.addComment(coin.id, me.id, body, imageUrl, isThesis ? "thesis" : "comment");
       } catch (err) {
         if (imageUrl) void deleteImage(imageUrl);
         throw err;

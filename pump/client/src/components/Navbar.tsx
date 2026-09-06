@@ -111,10 +111,7 @@ export function Navbar() {
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
         <div className="mx-auto flex h-12 w-full max-w-screen-2xl items-center gap-2 px-4 sm:h-14 sm:gap-3">
           <Link href="/" className="flex shrink-0 items-center" aria-label={t("nav.homeAria", { app: appName })}>
-            <span className="wordmark text-2xl leading-none">
-              {appName.toLowerCase()}
-              <span className="text-primary">.</span>
-            </span>
+            <span className="wordmark text-2xl leading-none">{appName.toLowerCase()}</span>
           </Link>
 
           {/* Search stays in the header on desktop; mobile reaches it via the bottom-bar Search tab (pages/search.tsx). */}
@@ -177,12 +174,13 @@ export function Navbar() {
                   </Button>
                 )}
 
+                {/* Desktop only: on mobile the bottom bar's Profile tab is the way in. */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       aria-label={t("nav.account")}
-                      className="flex items-center gap-1 rounded-full p-0.5 transition-colors hover:bg-accent data-[state=open]:bg-accent"
+                      className="hidden items-center gap-1 rounded-full p-0.5 transition-colors hover:bg-accent data-[state=open]:bg-accent sm:flex"
                     >
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />

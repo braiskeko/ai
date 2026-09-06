@@ -25,6 +25,7 @@ import {
 import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartInterval } from "@/components/CandleChart";
+import { TokenImage } from "@/components/TokenImage";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -139,28 +140,7 @@ function externalUrl(kind: "website" | "twitter" | "telegram", raw: string | nul
 // ---------------------------------------------------------------------------
 
 function TokenIcon({ token, size }: { token: ExternalTokenDetail; size: number }) {
-  const [failed, setFailed] = useState(false);
-  if (!token.icon || failed) {
-    return (
-      <div
-        className="grid shrink-0 place-items-center rounded-3xl bg-muted font-black text-muted-foreground"
-        style={{ width: size, height: size, fontSize: size / 3 }}
-        aria-hidden
-      >
-        {token.symbol.slice(0, 2)}
-      </div>
-    );
-  }
-  return (
-    <img
-      src={token.icon}
-      alt=""
-      decoding="async"
-      onError={() => setFailed(true)}
-      className="shrink-0 rounded-3xl bg-muted object-cover shadow-lg"
-      style={{ width: size, height: size }}
-    />
-  );
+  return <TokenImage src={token.icon} name={token.symbol} size={size} className="rounded-3xl shadow-lg" />;
 }
 
 function CopyMint({ mint, className }: { mint: string; className?: string }) {
@@ -943,9 +923,9 @@ export default function TokenPage() {
         </div>
       )}
 
-      {/* Mobile: Buy/Sell push the full-screen keypad (pages/tradeSheet.tsx) instead of a form. */}
+      {/* Mobile: Buy/Sell push the full-screen keypad; Sell only when there is a position. */}
       {data && (
-        <div className="fixed inset-x-0 bottom-[4.5rem] z-30 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
@@ -954,14 +934,16 @@ export default function TokenPage() {
             >
               {t("trade.buy")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(`/sell/${data.mint}`)}
-              className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
-            >
-              {t("trade.sell")}
-            </Button>
+            {data.myTokens > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/sell/${data.mint}`)}
+                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+              >
+                {t("trade.sell")}
+              </Button>
+            )}
           </div>
         </div>
       )}

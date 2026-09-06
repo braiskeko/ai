@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 export function BalanceHeader({ className }: { className?: string }) {
   const t = useT();
   const { user, openLogin } = useAuth();
+  // Signed in is enough to deposit: the account carries its own wallet.
+  const signedIn = Boolean(user);
   const connected = Boolean(user?.walletAddress);
 
   const wallet = useQuery<WalletView>({ queryKey: ["/api/wallet"], staleTime: 20_000, enabled: connected });
@@ -38,7 +40,7 @@ export function BalanceHeader({ className }: { className?: string }) {
           </>
         ) : (
           <>
-            <BigMoney usd={totalSol * solUsd} muted={!connected} />
+            <BigMoney usd={totalSol * solUsd} muted={!signedIn} />
             {connected ? (
               <div className={cn("mt-1 text-sm font-semibold tabular", pnlSol >= 0 ? "text-up" : "text-down")}>
                 {pnlSol >= 0 ? "+" : "-"}
@@ -51,16 +53,16 @@ export function BalanceHeader({ className }: { className?: string }) {
         )}
       </div>
 
-      {connected ? (
+      {signedIn ? (
         <Button asChild size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold">
           <Link href="/wallet">
             <Plus className="h-4 w-4" />
-            {t("home.addFunds")}
+            {t("home.deposit")}
           </Link>
         </Button>
       ) : (
         <Button size="lg" className="tap h-14 shrink-0 rounded-2xl px-8 text-base font-bold" onClick={openLogin}>
-          {t("nav.connect")}
+          {t("nav.login")}
         </Button>
       )}
     </section>

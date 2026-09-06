@@ -27,6 +27,7 @@ import type { CoinDetail, ExternalToken, UnsignedTx } from "@shared/schema";
 import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, SWAP_FEE, TOTAL_SUPPLY } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartInterval, type ChartMode } from "@/components/CandleChart";
+import { TokenImage } from "@/components/TokenImage";
 import { TradePanel } from "@/components/TradePanel";
 import { Comments } from "@/components/Comments";
 import { PublicAvatar } from "@/components/TradesTable";
@@ -179,12 +180,7 @@ function CoinHeader({ coin }: { coin: CoinDetail }) {
         <Link href="/" aria-label={t("common.back")} className="tap -ml-1 shrink-0 text-muted-foreground lg:hidden">
           <ChevronLeft className="h-6 w-6" />
         </Link>
-        <img
-          src={coin.imageUrl}
-          alt=""
-          decoding="async"
-          className="h-11 w-11 shrink-0 rounded-full bg-muted object-cover"
-        />
+        <TokenImage src={coin.imageUrl} name={coin.ticker} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-[22px] font-extrabold leading-tight tracking-tight">{coin.ticker}</h1>
@@ -626,6 +622,7 @@ function ExternalTokenOffer({ mint }: { mint: string }) {
 
 export default function CoinPage() {
   const t = useT();
+  const solUsd = useSolUsd();
   const [, navigate] = useLocation();
   const { ca = "" } = useParams<{ ca: string }>();
   const valid = looksLikeCa(ca);
@@ -637,7 +634,7 @@ export default function CoinPage() {
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
 
-  const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "price"));
+  const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "mcap"));
   const [interval, setInterval_] = useState<ChartInterval>(() => loadPref(CHART_INTERVAL_KEY, INTERVALS, "1m"));
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
@@ -689,6 +686,10 @@ export default function CoinPage() {
                 candles={data.candles}
                 trades={data.recentTrades}
                 ticker={data.ticker}
+                // Prices everywhere else on this page are dollars; the chart follows,
+                // falling back to SOL when the rate has not loaded yet.
+                unit={solUsd > 0 ? "USD" : "SOL"}
+                rate={solUsd > 0 ? solUsd : 1}
                 height={380}
                 mode={mode}
                 onModeChange={onModeChange}
@@ -713,15 +714,19 @@ export default function CoinPage() {
             </aside>
 
             <section className="min-w-0 lg:col-start-1 lg:row-start-2">
-              <Comments coin={data} />
+              <Comments coin={data} defaultTab="holders" />
             </section>
           </div>
         </div>
       )}
 
-      {/* Mobile: Buy/Sell push the full-screen keypad (pages/tradeSheet.tsx) instead of a form. */}
+      {/*
+        Mobile: Buy/Sell push the full-screen keypad (pages/tradeSheet.tsx) instead of a form.
+        Sell only appears once there is something to sell — with no position, Buy takes the
+        full width, the way it does in the reference design.
+      */}
       {data && !data.curve.migrated && (
-        <div className="fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button
               type="button"
@@ -730,14 +735,16 @@ export default function CoinPage() {
             >
               {t("trade.buy")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(`/sell/${data.ca}`)}
-              className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
-            >
-              {t("trade.sell")}
-            </Button>
+            {(data.myHolding?.tokens ?? 0) > 1e-9 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/sell/${data.ca}`)}
+                className="tap h-12 flex-1 rounded-full border-down/50 text-base font-bold text-down hover:bg-down/10"
+              >
+                {t("trade.sell")}
+              </Button>
+            )}
           </div>
         </div>
       )}

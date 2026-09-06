@@ -48,9 +48,7 @@ export function Splash() {
         transition: `opacity ${FADE_MS}ms ease, transform ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
       }}
     >
-      <div className="splash-mark font-display text-6xl font-bold lowercase tracking-tight text-foreground">
-        next<span className="text-primary">.</span>
-      </div>
+      <div className="splash-mark font-display text-6xl font-bold lowercase tracking-tight text-foreground">next</div>
     </div>
   );
 }
