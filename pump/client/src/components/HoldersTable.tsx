@@ -117,7 +117,7 @@ export function HoldersTable({ coin, className }: HoldersTableProps) {
                   <div className="text-[13px] tabular text-muted-foreground">{sharePct(h.share)}</div>
                 ) : (
                   <div className={cn("text-[13px] font-semibold tabular", returnPct >= 0 ? "text-up" : "text-down")}>
-                    {returnPct >= 0 ? "▲" : "▼"} {(Math.abs(returnPct) * 100).toFixed(2)}%
+                    {returnPct >= 0 ? "+" : "-"}{(Math.abs(returnPct) * 100).toFixed(2)}%
                   </div>
                 )}
               </div>

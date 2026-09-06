@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils";
 /**
  * Perpetual markets, busiest first, from Hyperliquid (server/hyperliquid.ts).
  *
- * Read-only for now: the list, the leverage each market allows and what it has
- * done today. Placing an order needs the account's EVM key to sign Hyperliquid's
- * typed-data actions and margin bridged there, which is its own step — so this
- * says what it is rather than showing a Buy button that would not work.
+ * The list, the leverage each market allows and what it has done today. Tapping
+ * one opens its chart, where Long and Short lead to the keypad; sending the order
+ * to Hyperliquid (their typed-data signing, margin bridged there) is the step
+ * still being wired up.
  */
 
 const CATEGORIES: (PerpCategory | "all")[] = ["all", "crypto", "stocks", "commodities", "indices"];
@@ -139,8 +139,7 @@ export function PerpsList({ onlySymbols }: { onlySymbols?: string[] } = {}) {
                 <div className="shrink-0 text-right">
                   <div className="text-[17px] font-bold leading-tight tabular">{priceUsd(market.priceUsd)}</div>
                   <div className={cn("mt-0.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-                    <span className="mr-0.5 align-[0.15em] text-[8px]">{up ? "▲" : "▼"}</span>
-                    {signedPct(Math.abs(market.change24h))}
+                    {signedPct(market.change24h)}
                   </div>
                 </div>
                 </Link>

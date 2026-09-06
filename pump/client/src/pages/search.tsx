@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardPaste, Search as SearchIcon, X } from "lucide-react";
+import { ClipboardPaste, Search as SearchIcon } from "lucide-react";
 import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
 import type { Chain } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
@@ -104,7 +104,7 @@ function fromToken(t: ExternalToken): Row {
   };
 }
 
-function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
+function ResultRow({ row }: { row: Row }) {
   const t = useT();
   return (
     // The whole row is the link (an absolutely positioned overlay link sits *under* the
@@ -143,14 +143,6 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
           )}
         </span>
       </Link>
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label={t("common.close")}
-        className="tap grid h-8 w-8 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
-      >
-        <X className="h-4 w-4" />
-      </button>
     </div>
   );
 }
@@ -165,7 +157,6 @@ export default function SearchPage() {
   const search = useSearch();
   const [chip, setChip] = useState<Chip>("all");
   const [q, setQ] = useState(() => new URLSearchParams(search).get("q") ?? "");
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const recents = useRecentTraderWallets();
 
   const trimmed = q.trim();
@@ -191,13 +182,10 @@ export default function SearchPage() {
   });
   const traders = useQuery<TraderRank[]>({ queryKey: ["/api/traders?range=all&limit=150"], staleTime: 30_000 });
 
-  const rows = useMemo<Row[]>(() => {
-    const list: Row[] = [
-      ...(coins.data ?? []).map((c) => fromCoin(c, solUsd)),
-      ...(tokens.data ?? []).map(fromToken),
-    ];
-    return list.filter((r) => !dismissed.has(r.key));
-  }, [coins.data, tokens.data, solUsd, dismissed]);
+  const rows = useMemo<Row[]>(
+    () => [...(coins.data ?? []).map((c) => fromCoin(c, solUsd)), ...(tokens.data ?? []).map(fromToken)],
+    [coins.data, tokens.data, solUsd],
+  );
 
   const filteredTraders = useMemo<TraderRank[]>(() => {
     const list = traders.data ?? [];
@@ -323,7 +311,7 @@ export default function SearchPage() {
                 <ul className="feed-divide">
                   {rows.map((row) => (
                     <li key={row.key}>
-                      <ResultRow row={row} onDismiss={() => setDismissed((prev) => new Set(prev).add(row.key))} />
+                      <ResultRow row={row} />
                     </li>
                   ))}
                 </ul>

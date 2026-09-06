@@ -88,7 +88,6 @@ export default function PerpPage() {
                     data.change24h >= 0 ? "text-up" : "text-down",
                   )}
                 >
-                  <span className="align-[0.15em] text-[9px]">{data.change24h >= 0 ? "▲" : "▼"}</span>
                   {signedPct(data.change24h)}
                   <span className="font-medium text-muted-foreground">24h</span>
                 </div>

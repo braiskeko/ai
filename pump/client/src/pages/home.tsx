@@ -205,8 +205,7 @@ function TokenRow({
             value={change24h}
             className={cn("mt-0.5 block text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}
           >
-            <span className="mr-0.5 align-[0.15em] text-[8px]">{up ? "▲" : "▼"}</span>
-            {signedPct(Math.abs(change24h))}
+            {signedPct(change24h)}
           </LiveNumber>
         )}
       </span>
