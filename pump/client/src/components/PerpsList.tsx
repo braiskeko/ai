@@ -61,7 +61,7 @@ export function PerpsList({ onlySymbols }: { onlySymbols?: string[] } = {}) {
   return (
     <div>
       {!subset && available.length > 2 && (
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 py-3 sm:mx-0 sm:px-0" role="tablist">
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-3 pt-2 sm:mx-0 sm:px-0" role="tablist">
           {available.map((key) => {
             const active = key === category;
             return (

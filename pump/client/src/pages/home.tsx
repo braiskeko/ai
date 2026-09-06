@@ -99,7 +99,7 @@ function SortPills({
   const t = useT();
   return (
     <div
-      className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 sm:mx-0 sm:px-0"
+      className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-3 pt-2 sm:mx-0 sm:px-0"
       role="tablist"
       aria-label={ariaLabel}
     >
@@ -438,11 +438,11 @@ export default function Home() {
 
         {/* The board's own content starts right under its tabs, not a gap below them. */}
         {board === "perps" ? (
-          <div className="-mt-4">
+          <div className="-mt-6">
             <PerpsList />
           </div>
         ) : (
-        <section className="-mt-4">
+        <section className="-mt-6">
           {q && (
             <div className="mb-3 flex items-center justify-between gap-3">
               <h1 className="min-w-0 truncate text-lg font-bold">{t("home.searchResults", { q })}</h1>
