@@ -1,46 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
-import {
-  AlertTriangle,
-  ChevronDown,
-  ImagePlus,
-  Loader2,
-  Lock,
-  Rocket,
-  Sparkles,
-  Wallet,
-  X,
-} from "lucide-react";
-import type { CoinDetail, CoinSummary, CreateCoinInput, PublicUser } from "@shared/schema";
-import {
-  CREATOR_FEE_SHARE,
-  MAX_CREATOR_ALLOCATION,
-  SWAP_FEE,
-  TOTAL_SUPPLY,
-  VIRTUAL_TOKEN_RESERVE,
-  VIRTUAL_USDC_RESERVE,
-  createCoinSchema,
-} from "@shared/schema";
+import { ChevronDown, ImagePlus, Loader2, Lock, Rocket, Sparkles, Wallet, X } from "lucide-react";
+import type { PreparedCoin, SentTx, UnsignedTx, WalletView } from "@shared/schema";
+import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, LAUNCH_MCAP_USD, SWAP_FEE, prepareCoinSchema } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
-import { CoinCard } from "@/components/CoinCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
+import { useConfig } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
-import { apiRequest } from "@/lib/queryClient";
-import { compactUsd, priceUsd, shortCa, tokens as fmtTokens, usd } from "@/lib/format";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
+import { useWalletTx } from "@/lib/solana";
 import { cn } from "@/lib/utils";
 
-type FormInput = z.input<typeof createCoinSchema>;
+type FormInput = z.input<typeof prepareCoinSchema>;
+type Phase = "idle" | "preparing" | "signing" | "confirming";
 
 const IMAGE_PX = 512;
 /** Stay well below the schema's 2,000,000-char limit. */
@@ -49,38 +30,27 @@ const ACCEPTED_IMAGE_RE = /^image\/(png|jpe?g|webp|gif)$/;
 const NAME_MAX = 32;
 const TICKER_MAX = 10;
 const DESCRIPTION_MAX = 1000;
-const ALLOCATION_WARNING = 0.1;
-const MAX_INITIAL_BUY = 100_000;
+const MAX_INITIAL_BUY_SOL = 1000;
+const DEFAULT_SLIPPAGE_BPS = 500;
+/** Left unspent so the wallet always has SOL for network + swap fees. */
+const FEE_RESERVE_SOL = 0.01;
 
 // ---------------------------------------------------------------------------
-// Curve maths (mirror of server/curve.ts for the live launch preview)
+// Local formatting — lib/format.ts is owned by another agent.
 // ---------------------------------------------------------------------------
 
-interface LaunchPreview {
-  launchPrice: number;
-  launchMcap: number;
-  tokensForSale: number;
-  creatorTokens: number;
-  /** filled when there is an initial buy */
-  buy: { tokensOut: number; fee: number; priceAfter: number; mcapAfter: number } | null;
+function fmtSol(n: number, digits = 4): string {
+  if (!Number.isFinite(n)) return "0";
+  const s = Math.abs(n).toFixed(digits).replace(/\.?0+$/, "");
+  return (n < 0 ? "-" : "") + (s || "0");
 }
 
-function previewLaunch(allocation: number, initialBuy: number): LaunchPreview {
-  const creatorTokens = TOTAL_SUPPLY * allocation;
-  const tokensForSale = TOTAL_SUPPLY - creatorTokens;
-  const U = VIRTUAL_USDC_RESERVE;
-  const T = tokensForSale + VIRTUAL_TOKEN_RESERVE;
-  const launchPrice = U / T;
-  let buy: LaunchPreview["buy"] = null;
-  if (initialBuy > 0) {
-    const fee = initialBuy * SWAP_FEE;
-    const net = initialBuy - fee;
-    const newT = (U * T) / (U + net);
-    const tokensOut = Math.min(tokensForSale, T - newT);
-    const priceAfter = (U + net) / (T - tokensOut);
-    buy = { tokensOut, fee, priceAfter, mcapAfter: priceAfter * TOTAL_SUPPLY };
-  }
-  return { launchPrice, launchMcap: launchPrice * TOTAL_SUPPLY, tokensForSale, creatorTokens, buy };
+function fmtCompactUsd(n: number): string {
+  if (!Number.isFinite(n)) return "$0";
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return `$${(abs / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
+  if (abs >= 1e3) return `$${(abs / 1e3).toFixed(1).replace(/\.0$/, "")}K`;
+  return `$${abs.toFixed(0)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -320,11 +290,34 @@ function EarnBanner() {
   );
 }
 
+/** Simple square preview built from the raw form fields — the shared CoinCard is owned by another agent. */
+function PreviewCard({ name, ticker, description, image }: { name: string; ticker: string; description: string; image: string }) {
+  const t = useT();
+  const displayName = name.trim() || t("create.namePlaceholder").replace(/^e\.g\.\s*/i, "");
+  const displayTicker = ticker.trim().toUpperCase() || t("create.tickerPlaceholder").replace(/^e\.g\.\s*/i, "");
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-3">
+        {image ? (
+          <img src={image} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
+        ) : (
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-muted text-lg font-black text-muted-foreground">
+            {(displayName.trim().charAt(0) || "?").toUpperCase()}
+          </span>
+        )}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-bold">{displayName}</div>
+          <div className="truncate text-xs font-semibold text-primary">${displayTicker}</div>
+        </div>
+      </div>
+      {description.trim() && <p className="mt-3 line-clamp-3 text-xs text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-
-const PLACEHOLDER_CREATOR: PublicUser = { id: 0, username: "you", avatarSeed: "you", avatarUrl: null };
 
 export default function CreatePage() {
   const t = useT();
@@ -332,24 +325,29 @@ export default function CreatePage() {
   const qc = useQueryClient();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading, openLogin } = useAuth();
+  const config = useConfig();
+  const { publicKey, connected, signAndSend } = useWalletTx();
   const [linksOpen, setLinksOpen] = useState(false);
   const [initialBuyRaw, setInitialBuyRaw] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+
+  const walletLinked = !!user?.walletAddress;
+  const canLaunch = walletLinked && connected && !!publicKey;
+
+  const { data: walletView } = useQuery<WalletView | null>({
+    queryKey: ["/api/wallet"],
+    queryFn: getQueryFn<WalletView | null>({ on401: "returnNull" }),
+    enabled: walletLinked,
+    staleTime: 15_000,
+  });
+  const balanceSol = walletView?.balanceSol ?? 0;
+  const spendableSol = Math.max(0, balanceSol - FEE_RESERVE_SOL);
 
   const form = useForm<FormInput>({
     // The resolver validates against the schema's output type; the form works with its input type.
-    resolver: zodResolver(createCoinSchema) as unknown as Resolver<FormInput>,
+    resolver: zodResolver(prepareCoinSchema) as unknown as Resolver<FormInput>,
     mode: "onTouched",
-    defaultValues: {
-      name: "",
-      ticker: "",
-      description: "",
-      image: "",
-      website: "",
-      twitter: "",
-      telegram: "",
-      creatorAllocation: 0,
-      initialBuy: 0,
-    },
+    defaultValues: { name: "", ticker: "", description: "", image: "", website: "", twitter: "", telegram: "" },
   });
   const { register, watch, setValue, handleSubmit, formState } = form;
   const { errors, isSubmitted } = formState;
@@ -358,14 +356,10 @@ export default function CreatePage() {
   const ticker = watch("ticker") ?? "";
   const description = watch("description") ?? "";
   const image = watch("image") ?? "";
-  const allocation = watch("creatorAllocation") ?? 0;
-  const initialBuy = Number(watch("initialBuy") ?? 0) || 0;
 
-  const balance = user?.balance ?? 0;
-  const buyTooLarge = !!user && initialBuy > balance + 1e-9;
-  const buyTooLargeForCap = initialBuy > MAX_INITIAL_BUY;
-
-  const launch = useMemo(() => previewLaunch(allocation, initialBuy), [allocation, initialBuy]);
+  const initialBuySol = Number(initialBuyRaw) || 0;
+  const buyTooLarge = walletLinked && initialBuySol > spendableSol + 1e-9;
+  const buyTooLargeForCap = initialBuySol > MAX_INITIAL_BUY_SOL;
 
   const setImage = useCallback(
     (dataUrl: string) => setValue("image", dataUrl, { shouldDirty: true, shouldValidate: isSubmitted }),
@@ -377,102 +371,64 @@ export default function CreatePage() {
     const firstDot = cleaned.indexOf(".");
     const normalised = firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
     setInitialBuyRaw(normalised);
-    const n = Number(normalised);
-    setValue("initialBuy", Number.isFinite(n) && n >= 0 ? n : 0, { shouldDirty: true });
   };
 
-  // Live preview: a synthetic CoinSummary built from the form values.
-  const preview = useMemo<CoinSummary>(() => {
-    const now = new Date().toISOString();
-    const price = launch.buy ? launch.buy.priceAfter : launch.launchPrice;
-    const marketCap = launch.buy ? launch.buy.mcapAfter : launch.launchMcap;
-    const creator: PublicUser = user
-      ? { id: user.id, username: user.username, avatarSeed: user.avatarSeed, avatarUrl: user.avatarUrl }
-      : PLACEHOLDER_CREATOR;
-    const sold = launch.buy?.tokensOut ?? 0;
-    return {
-      id: 0,
-      ca: "preview",
-      name: name.trim() || t("create.namePlaceholder").replace(/^e\.g\.\s*/i, ""),
-      ticker: ticker.trim().toUpperCase() || t("create.tickerPlaceholder").replace(/^e\.g\.\s*/i, ""),
-      description: description.trim() || t("create.descriptionPlaceholder"),
-      imageUrl: image || placeholderImage(name || ticker || "?"),
-      website: null,
-      twitter: null,
-      telegram: null,
-      creatorId: creator.id,
-      creatorAllocation: allocation,
-      realUsdc: launch.buy ? initialBuy - launch.buy.fee : 0,
-      curveTokens: launch.tokensForSale - sold,
-      circulating: launch.creatorTokens + sold,
-      volume: initialBuy,
-      buys: launch.buy ? 1 : 0,
-      sells: 0,
-      feesCollected: launch.buy?.fee ?? 0,
-      creatorFees: (launch.buy?.fee ?? 0) * CREATOR_FEE_SHARE,
-      graduated: false,
-      graduatedAt: null,
-      createdAt: now,
-      lastTradeAt: launch.buy ? now : null,
-      price,
-      marketCap,
-      progress: 0,
-      holders: allocation > 0 || launch.buy ? 1 : 0,
-      comments: 0,
-      change24h: 0,
-      creator,
-      lastTrade: null,
-    };
-  }, [name, ticker, description, image, allocation, initialBuy, launch, user, t]);
+  const submitting = phase !== "idle";
 
-  const create = useMutation({
-    mutationFn: async (input: CreateCoinInput) => {
-      const res = await apiRequest("POST", "/api/coins", input);
-      return (await res.json()) as CoinDetail;
-    },
-    onSuccess: (coin) => {
-      qc.setQueryData<CoinDetail>([`/api/coins/${coin.ca}`], coin);
-      void qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/coins") });
-      void qc.invalidateQueries({ queryKey: ["/api/me"] });
-      void qc.invalidateQueries({ queryKey: ["/api/portfolio"] });
-      void qc.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({
-        title: `🚀 ${t("create.created", { ticker: `$${coin.ticker}` })}`,
-        description: t("create.createdHint", { ca: shortCa(coin.ca, 6, 6) }),
-      });
-      navigate(`/${coin.ca}`);
-    },
-    onError: (err) => {
-      toast({ variant: "destructive", title: t("create.failed"), description: apiErrorMessage(err, t("common.error")) });
-    },
-  });
-
-  const onSubmit = handleSubmit((values) => {
-    if (!user) {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!user || !canLaunch) {
       openLogin();
       return;
     }
     if (buyTooLarge || buyTooLargeForCap) return;
-    const parsed = createCoinSchema.safeParse(values);
+    const parsed = prepareCoinSchema.safeParse(values);
     if (!parsed.success) {
       toast({ variant: "destructive", title: t("common.error"), description: parsed.error.issues[0]?.message ?? t("common.error") });
       return;
     }
-    create.mutate({
-      ...parsed.data,
-      website: parsed.data.website || undefined,
-      twitter: parsed.data.twitter || undefined,
-      telegram: parsed.data.telegram || undefined,
-    });
+    try {
+      setPhase("preparing");
+      const prepRes = await apiRequest("POST", "/api/coins/prepare", {
+        ...parsed.data,
+        website: parsed.data.website || undefined,
+        twitter: parsed.data.twitter || undefined,
+        telegram: parsed.data.telegram || undefined,
+      });
+      const prepared = (await prepRes.json()) as PreparedCoin;
+
+      const txRes = await apiRequest("POST", "/api/coins/create-tx", {
+        prepareId: prepared.id,
+        wallet: publicKey,
+        initialBuySol,
+        slippageBps: DEFAULT_SLIPPAGE_BPS,
+      });
+      const unsigned = (await txRes.json()) as UnsignedTx;
+
+      setPhase("signing");
+      const sent: SentTx = await signAndSend(unsigned, "create", unsigned.mint, () => setPhase("confirming"));
+
+      void qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/coins") });
+      void qc.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      void qc.invalidateQueries({ queryKey: ["/api/wallet"] });
+      void qc.invalidateQueries({ queryKey: ["/api/stats"] });
+
+      const ca = sent.coin?.ca ?? unsigned.mint;
+      if (!ca) throw new Error(t("create.failed"));
+      toast({ title: `🚀 ${t("create.created", { ticker: `$${parsed.data.ticker}` })}`, description: t("create.createdHint", { ca }) });
+      navigate(`/${ca}`);
+    } catch (err) {
+      toast({ variant: "destructive", title: t("create.failed"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setPhase("idle");
+    }
   });
 
-  // Open the links section automatically when a link field has an error.
-  useEffect(() => {
-    if (errors.website || errors.twitter || errors.telegram) setLinksOpen(true);
-  }, [errors.website, errors.twitter, errors.telegram]);
-
-  const submitting = create.isPending;
-  const allocationPct = Math.round(allocation * 100);
+  const phaseLabel = () => {
+    if (phase === "preparing") return t("create.phasePreparing");
+    if (phase === "signing") return t("trade.signing");
+    if (phase === "confirming") return t("trade.confirming");
+    return t("create.creating");
+  };
 
   return (
     <PageShell>
@@ -482,11 +438,17 @@ export default function CreatePage() {
           <header>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("create.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("create.subtitle")}</p>
+            {(config?.vanityAvailable ?? 0) > 0 && (
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                {t("create.vanityBadge")}
+              </span>
+            )}
           </header>
 
           <EarnBanner />
 
-          {!authLoading && !user && (
+          {!authLoading && !canLaunch && (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
@@ -498,7 +460,7 @@ export default function CreatePage() {
                 </div>
               </div>
               <Button type="button" onClick={openLogin} className="rounded-lg font-semibold">
-                {t("nav.login")}
+                {!user ? t("nav.login") : t("trade.connectWallet")}
               </Button>
             </div>
           )}
@@ -598,65 +560,21 @@ export default function CreatePage() {
               </div>
             </section>
 
-            {/* Economics */}
+            {/* Initial buy + curve facts */}
             <section className="space-y-6 rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <div className="space-y-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <Label htmlFor="coin-allocation" className="text-sm font-semibold">
-                    {t("create.allocation")}
-                  </Label>
-                  <span className="text-right">
-                    <span className="text-xl font-extrabold tabular">{allocationPct}%</span>
-                    <span className="ml-2 text-xs tabular text-muted-foreground">{t("create.allocationTokens", { tokens: fmtTokens(launch.creatorTokens) })}</span>
-                  </span>
-                </div>
-                <Slider
-                  id="coin-allocation"
-                  value={[allocationPct]}
-                  min={0}
-                  max={Math.round(MAX_CREATOR_ALLOCATION * 100)}
-                  step={1}
-                  disabled={submitting}
-                  onValueChange={([v]) => setValue("creatorAllocation", (v ?? 0) / 100, { shouldDirty: true })}
-                  aria-label={t("create.allocation")}
-                  className={cn(allocation > ALLOCATION_WARNING && "[&_[role=slider]]:border-gold [&_.bg-primary]:bg-gold")}
-                />
-                <div className="flex justify-between text-[11px] tabular text-muted-foreground">
-                  <span>0%</span>
-                  <span>{Math.round(MAX_CREATOR_ALLOCATION * 100)}%</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{t("create.allocationHint")}</p>
-                {allocation > ALLOCATION_WARNING && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-gold/10 px-2.5 py-1.5 text-xs font-medium text-gold"
-                  >
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    {t("create.allocationWarning")}
-                  </motion.p>
-                )}
-                {errors.creatorAllocation?.message && (
-                  <p role="alert" className="text-xs font-medium text-destructive">
-                    {errors.creatorAllocation.message}
-                  </p>
-                )}
-              </div>
-
               <div className="space-y-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <Label htmlFor="coin-initial-buy" className="text-sm font-semibold">
                     {t("create.initialBuy")}
                   </Label>
-                  {user && (
+                  {walletLinked && (
                     <span className="inline-flex items-center gap-1 text-xs tabular text-muted-foreground">
                       <Wallet className="h-3 w-3" />
-                      {t("trade.balance")}: <span className="font-semibold text-foreground">{usd(balance)}</span>
+                      {t("trade.balance")}: <span className="font-semibold text-foreground">{fmtSol(balanceSol)} SOL</span>
                     </span>
                   )}
                 </div>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">$</span>
                   <Input
                     id="coin-initial-buy"
                     inputMode="decimal"
@@ -665,12 +583,12 @@ export default function CreatePage() {
                     disabled={submitting}
                     onChange={(e) => setInitialBuy(e.target.value)}
                     aria-invalid={buyTooLarge || buyTooLargeForCap}
-                    className={cn("h-11 rounded-lg pl-7 pr-16 tabular", (buyTooLarge || buyTooLargeForCap) && "border-destructive focus-visible:ring-destructive")}
+                    className={cn("h-11 rounded-lg pr-14 tabular", (buyTooLarge || buyTooLargeForCap) && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">USDC</span>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">SOL</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {[10, 50, 100].map((v) => (
+                  {[0.1, 0.5, 1].map((v) => (
                     <button
                       key={v}
                       type="button"
@@ -678,14 +596,14 @@ export default function CreatePage() {
                       onClick={() => setInitialBuy(String(v))}
                       className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold tabular text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                     >
-                      ${v}
+                      {v} SOL
                     </button>
                   ))}
-                  {user && balance > 0 && (
+                  {walletLinked && spendableSol > 0 && (
                     <button
                       type="button"
                       disabled={submitting}
-                      onClick={() => setInitialBuy((Math.floor(Math.min(balance, MAX_INITIAL_BUY) * 100) / 100).toString())}
+                      onClick={() => setInitialBuy(String(Math.min(spendableSol, MAX_INITIAL_BUY_SOL)))}
                       className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                     >
                       {t("trade.max")}
@@ -704,40 +622,28 @@ export default function CreatePage() {
                 </div>
                 {buyTooLarge ? (
                   <p role="alert" className="text-xs font-medium text-destructive">
-                    {t("create.insufficient", { balance: usd(balance) })}
+                    {t("create.insufficient", { balance: `${fmtSol(balanceSol)} SOL` })}
                   </p>
                 ) : buyTooLargeForCap ? (
                   <p role="alert" className="text-xs font-medium text-destructive">
-                    {t("create.initialBuyMax", { max: usd(MAX_INITIAL_BUY, { digits: 0 }) })}
-                  </p>
-                ) : errors.initialBuy?.message ? (
-                  <p role="alert" className="text-xs font-medium text-destructive">
-                    {errors.initialBuy.message}
+                    {t("create.initialBuyMax", { max: `${MAX_INITIAL_BUY_SOL} SOL` })}
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">{t("create.initialBuyHint")}</p>
                 )}
-                {launch.buy && (
-                  <p className="text-xs tabular text-primary">
-                    {t("create.youReceive", { tokens: fmtTokens(launch.buy.tokensOut), ticker: preview.ticker })}
-                    <span className="text-muted-foreground"> · {t("trade.fee", { percent: `${(SWAP_FEE * 100).toFixed(1)}%` })}: {usd(launch.buy.fee)}</span>
-                  </p>
-                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 sm:grid-cols-4">
-                <Stat label={t("create.launchPrice")} value={priceUsd(launch.launchPrice)} />
-                <Stat label={t("create.launchMcap")} value={compactUsd(launch.launchMcap)} />
-                <Stat label={t("create.forSale")} value={fmtTokens(launch.tokensForSale)} />
-                <Stat
-                  label={t("create.mcapAfterBuy")}
-                  value={launch.buy ? compactUsd(launch.buy.mcapAfter) : "—"}
-                  valueClass={launch.buy ? "text-primary" : "text-muted-foreground"}
-                />
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 sm:grid-cols-3">
+                <Stat label={t("create.launchMcap")} value={fmtCompactUsd(config?.launchMcapUsd ?? LAUNCH_MCAP_USD)} />
+                <Stat label={t("create.graduationMcap")} value={fmtCompactUsd(config?.graduationMcapUsd ?? GRADUATION_MCAP_USD)} />
+                <Stat label={t("create.creatorShare")} value={`${Math.round((config?.creatorFeeShare ?? CREATOR_FEE_SHARE) * 100)}%`} />
               </div>
 
               <p className="text-xs text-muted-foreground">
-                {t("create.feeNotice", { fee: `${(SWAP_FEE * 100).toFixed(1)}%`, share: `${Math.round(CREATOR_FEE_SHARE * 100)}%` })}
+                {t("create.feeNotice", {
+                  fee: `${((config?.swapFee ?? SWAP_FEE) * 100).toFixed(1)}%`,
+                  share: `${Math.round((config?.creatorFeeShare ?? CREATOR_FEE_SHARE) * 100)}%`,
+                })}
               </p>
             </section>
 
@@ -745,7 +651,7 @@ export default function CreatePage() {
               <Button asChild type="button" variant="ghost" className="rounded-lg">
                 <Link href="/">{t("common.cancel")}</Link>
               </Button>
-              {user ? (
+              {canLaunch ? (
                 <Button
                   type="submit"
                   size="lg"
@@ -753,12 +659,12 @@ export default function CreatePage() {
                   className="h-12 rounded-xl px-6 text-base font-bold shadow-[0_0_24px_-6px_hsl(var(--primary)/0.9)]"
                 >
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
-                  {submitting ? t("create.creating") : t("create.submit")}
+                  {submitting ? phaseLabel() : t("create.submit")}
                 </Button>
               ) : (
                 <Button type="button" size="lg" onClick={openLogin} disabled={authLoading} className="h-12 rounded-xl px-6 text-base font-bold">
                   <Lock className="h-4 w-4" />
-                  {t("create.loginRequired")}
+                  {!user ? t("create.loginRequired") : t("trade.connectWallet")}
                 </Button>
               )}
             </div>
@@ -772,69 +678,27 @@ export default function CreatePage() {
             <p className="text-xs text-muted-foreground">{t("create.previewHint")}</p>
           </div>
           <div className="pointer-events-none select-none" aria-hidden>
-            <CoinCard coin={preview} highlight={!!image} />
+            <PreviewCard name={name} ticker={ticker} description={description} image={image} />
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4 text-xs text-muted-foreground">
-            <div className="flex items-center justify-between gap-3 py-1">
-              <span>{t("create.allocation")}</span>
-              <span className="font-semibold tabular text-foreground">
-                {allocationPct}% · {fmtTokens(launch.creatorTokens)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 py-1">
-              <span>{t("create.forSale")}</span>
-              <span className="font-semibold tabular text-foreground">{fmtTokens(launch.tokensForSale)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3 py-1">
-              <span>{t("create.launchMcap")}</span>
-              <span className="font-semibold tabular text-foreground">{compactUsd(launch.launchMcap)}</span>
-            </div>
-            {launch.buy && (
+          {initialBuySol > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-4 text-xs text-muted-foreground">
               <div className="flex items-center justify-between gap-3 py-1">
                 <span>{t("create.initialBuy")}</span>
-                <span className="font-semibold tabular text-primary">
-                  {usd(initialBuy)} → {fmtTokens(launch.buy.tokensOut)} {preview.ticker}
-                </span>
+                <span className="font-semibold tabular text-primary">{fmtSol(initialBuySol)} SOL</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </aside>
       </div>
     </PageShell>
   );
 }
 
-function Stat({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <div className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn("truncate text-sm font-bold tabular", valueClass)}>{value}</div>
+      <div className="truncate text-sm font-bold tabular">{value}</div>
     </div>
   );
-}
-
-/** Inline SVG placeholder shown in the preview card until an image is chosen. */
-function placeholderImage(seed: string): string {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  h >>>= 0;
-  const hue1 = h % 360;
-  const hue2 = (hue1 + 60 + ((h >> 8) % 90)) % 360;
-  const letter = (seed.trim().charAt(0) || "?").toUpperCase();
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
-    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
-    `<stop offset="0" stop-color="hsl(${hue1} 70% 45%)"/><stop offset="1" stop-color="hsl(${hue2} 70% 55%)"/>` +
-    `</linearGradient></defs>` +
-    `<rect width="128" height="128" rx="28" fill="url(#g)"/>` +
-    `<text x="64" y="82" font-family="Inter,system-ui,sans-serif" font-size="60" font-weight="800" fill="rgba(255,255,255,0.92)" text-anchor="middle">${escapeXml(letter)}</text>` +
-    `</svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c] ?? c);
 }

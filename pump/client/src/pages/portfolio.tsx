@@ -8,6 +8,7 @@ import {
   Camera,
   Check,
   Coins,
+  Gift,
   History,
   Loader2,
   LogIn,
@@ -18,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import type { Portfolio, PortfolioHolding, SafeUser } from "@shared/schema";
-import { updateProfileSchema } from "@shared/schema";
+import { TOTAL_SUPPLY, updateProfileSchema } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { PublicAvatar } from "@/components/TradesTable";
@@ -31,7 +32,7 @@ import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { apiRequest } from "@/lib/queryClient";
-import { compactUsd, priceUsd, signedPct, signedUsd, tokens as fmtTokens, usd } from "@/lib/format";
+import { compactUsd, priceSol, priceUsd, signedPct, signedUsd, sol, tokens as fmtTokens, usd, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const AVATAR_PX = 256;
@@ -84,11 +85,11 @@ async function resizeAvatar(file: File): Promise<string> {
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
 
-function PnlText({ value, className }: { value: number; className?: string }) {
-  const neutral = Math.abs(value) < 0.005;
+function PnlText({ valueSol, solUsd, className }: { valueSol: number; solUsd: number; className?: string }) {
+  const neutral = Math.abs(valueSol) < 1e-6;
   return (
-    <span className={cn("tabular font-semibold", neutral ? "text-muted-foreground" : value > 0 ? "text-up" : "text-down", className)}>
-      {signedUsd(value)}
+    <span className={cn("tabular font-semibold", neutral ? "text-muted-foreground" : valueSol > 0 ? "text-up" : "text-down", className)}>
+      {signedUsd(valueSol, solUsd)}
     </span>
   );
 }
@@ -259,11 +260,7 @@ function ProfileCard({ user }: { user: SafeUser }) {
               </button>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {user.provider === "wallet" && user.walletAddress ? (
-                <span className="font-mono text-xs">{user.walletAddress}</span>
-              ) : (
-                user.email
-              )}
+              {user.walletAddress ? <span className="font-mono text-xs">{user.walletAddress}</span> : user.email}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{t("profile.joined", { date: format(new Date(user.createdAt), "MMM d, yyyy") })}</p>
           </>
@@ -292,11 +289,11 @@ function ProfileCard({ user }: { user: SafeUser }) {
 // Holdings
 // ---------------------------------------------------------------------------
 
-function HoldingRow({ h }: { h: PortfolioHolding }) {
+function HoldingRow({ h, solUsd }: { h: PortfolioHolding; solUsd: number }) {
   const t = useT();
-  const avg = h.tokens > 0 ? h.costBasis / h.tokens : 0;
-  const pnlPct = h.costBasis > 0 ? h.unrealizedPnl / h.costBasis : 0;
-  const share = h.coin.circulating > 0 ? h.tokens / h.coin.circulating : 0;
+  const avgSol = h.tokens > 0 ? h.costBasisSol / h.tokens : 0;
+  const pnlPct = h.costBasisSol > 0 ? h.unrealizedPnlSol / h.costBasisSol : 0;
+  const share = h.tokens / TOTAL_SUPPLY;
   return (
     <li className="card-hover rounded-xl border border-border bg-card">
       <Link href={`/${h.coin.ca}`} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:p-4" aria-label={t("coin.openCoin", { name: h.coin.name })}>
@@ -309,25 +306,25 @@ function HoldingRow({ h }: { h: PortfolioHolding }) {
           <div className="mt-0.5 text-xs text-muted-foreground tabular">
             {fmtTokens(h.tokens)} {h.coin.ticker}
             {share > 0.0001 && <span> · {(share * 100).toFixed(2)}%</span>}
-            <span> · {t("portfolio.avgPrice")} {priceUsd(avg)}</span>
-            <span> · {t("coin.price")} {priceUsd(h.coin.price)}</span>
+            <span> · {t("portfolio.avgPrice")} {priceUsd(avgSol * solUsd)}</span>
+            <span> · {t("coin.price")} {priceUsd(h.coin.priceSol * solUsd)}</span>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3 text-right sm:w-[340px]">
           <div>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("portfolio.value")}</div>
-            <div className="font-bold tabular">{usd(h.value)}</div>
+            <div className="font-bold tabular">{usd(h.valueSol, solUsd)}</div>
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("portfolio.pnl")}</div>
             <div>
-              <PnlText value={h.unrealizedPnl} />
+              <PnlText valueSol={h.unrealizedPnlSol} solUsd={solUsd} />
               <div className={cn("text-[11px] tabular", pnlPct >= 0 ? "text-up" : "text-down")}>{signedPct(pnlPct)}</div>
             </div>
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
-            <div className="font-semibold tabular text-primary">{compactUsd(h.coin.marketCap)}</div>
+            <div className="font-semibold tabular text-primary">{compactUsd(h.coin.marketCapSol * solUsd)}</div>
           </div>
         </div>
         <span className="hidden shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold sm:inline-flex">{t("portfolio.trade")}</span>
@@ -336,7 +333,7 @@ function HoldingRow({ h }: { h: PortfolioHolding }) {
   );
 }
 
-function HoldingsList({ holdings }: { holdings: PortfolioHolding[] }) {
+function HoldingsList({ holdings, solUsd }: { holdings: PortfolioHolding[]; solUsd: number }) {
   const t = useT();
   if (holdings.length === 0) {
     return (
@@ -355,11 +352,11 @@ function HoldingsList({ holdings }: { holdings: PortfolioHolding[] }) {
       />
     );
   }
-  const sorted = holdings.slice().sort((a, b) => b.value - a.value);
+  const sorted = holdings.slice().sort((a, b) => b.valueSol - a.valueSol);
   return (
     <ul className="space-y-2">
       {sorted.map((h) => (
-        <HoldingRow key={h.id} h={h} />
+        <HoldingRow key={h.coinId} h={h} solUsd={solUsd} />
       ))}
     </ul>
   );
@@ -369,7 +366,7 @@ function HoldingsList({ holdings }: { holdings: PortfolioHolding[] }) {
 // History
 // ---------------------------------------------------------------------------
 
-function HistoryTable({ trades }: { trades: Portfolio["trades"] }) {
+function HistoryTable({ trades, solUsd }: { trades: Portfolio["trades"]; solUsd: number }) {
   const t = useT();
   if (trades.length === 0) {
     return <EmptyState icon={<History className="h-5 w-5" />} title={t("trades.empty")} hint={t("portfolio.emptyHistory")} />;
@@ -385,7 +382,7 @@ function HistoryTable({ trades }: { trades: Portfolio["trades"] }) {
             <TableHead>{t("trades.type")}</TableHead>
             <TableHead className="text-right">{t("trades.tokens")}</TableHead>
             <TableHead className="text-right">{t("trades.price")}</TableHead>
-            <TableHead className="text-right">{t("trades.usdc")}</TableHead>
+            <TableHead className="text-right">{t("trades.sol")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -411,9 +408,10 @@ function HistoryTable({ trades }: { trades: Portfolio["trades"] }) {
                 <TableCell className="whitespace-nowrap text-right tabular">
                   {fmtTokens(tr.tokens)} <span className="text-muted-foreground">{tr.coin.ticker}</span>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular text-muted-foreground">{priceUsd(tr.price)}</TableCell>
+                <TableCell className="whitespace-nowrap text-right tabular text-muted-foreground">{priceSol(tr.priceSol)}</TableCell>
                 <TableCell className={cn("whitespace-nowrap text-right font-medium tabular", buy ? "text-foreground" : "text-up")}>
-                  {buy ? `-${usd(tr.usdc)}` : `+${usd(tr.usdc)}`}
+                  {buy ? "-" : "+"}
+                  {usd(tr.sol, solUsd)}
                 </TableCell>
               </TableRow>
             );
@@ -449,6 +447,7 @@ function PortfolioSkeleton() {
 
 export default function PortfolioPage() {
   const t = useT();
+  const solUsd = useSolUsd();
   const { user, isLoading: authLoading, openLogin } = useAuth();
 
   const portfolio = useQuery<Portfolio>({
@@ -500,7 +499,7 @@ export default function PortfolioPage() {
   }
 
   const holdings = data.holdings.filter((h) => h.tokens > 1e-9);
-  const totalPnl = data.realizedPnl + data.unrealizedPnl;
+  const totalPnlSol = data.realizedPnlSol + data.unrealizedPnlSol;
 
   return (
     <PageShell>
@@ -515,20 +514,29 @@ export default function PortfolioPage() {
         <ProfileCard user={user} />
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <SummaryTile label={t("portfolio.total")} value={usd(data.totalValue)} />
-          <SummaryTile label={t("portfolio.cash")} value={usd(data.balance)} accent="text-primary" />
-          <SummaryTile label={t("portfolio.holdings")} value={usd(data.holdingsValue)} sub={t("portfolio.holdingsCount", { n: count(holdings.length) })} />
+          <SummaryTile label={t("portfolio.total")} value={usd(data.totalValueSol, solUsd)} sub={sol(data.totalValueSol)} />
+          <SummaryTile label={t("portfolio.cash")} value={usd(data.balanceSol, solUsd)} sub={sol(data.balanceSol)} accent="text-primary" />
+          <SummaryTile
+            label={t("portfolio.holdings")}
+            value={usd(data.holdingsValueSol, solUsd)}
+            sub={t("portfolio.holdingsCount", { n: count(holdings.length) })}
+          />
           <SummaryTile
             label={t("portfolio.pnl")}
-            value={<PnlText value={totalPnl} className="text-xl" />}
+            value={<PnlText valueSol={totalPnlSol} solUsd={solUsd} className="text-xl" />}
             sub={
               <span className="tabular">
-                {t("portfolio.unrealized")} <PnlText value={data.unrealizedPnl} className="font-medium" /> · {t("portfolio.realized")}{" "}
-                <PnlText value={data.realizedPnl} className="font-medium" />
+                {t("portfolio.unrealized")} <PnlText valueSol={data.unrealizedPnlSol} solUsd={solUsd} className="font-medium" /> ·{" "}
+                {t("portfolio.realized")} <PnlText valueSol={data.realizedPnlSol} solUsd={solUsd} className="font-medium" />
               </span>
             }
           />
-          <SummaryTile label={t("portfolio.creatorEarnings")} value={usd(data.creatorEarnings)} accent="text-gold" sub={t("portfolio.creatorEarningsHint")} />
+          <SummaryTile
+            label={t("portfolio.creatorClaimable")}
+            value={usd(data.creatorClaimableSol, solUsd)}
+            accent="text-gold"
+            sub={data.creatorClaimableSol > 0 ? t("portfolio.creatorClaimableHint") : sol(data.creatorClaimableSol)}
+          />
         </div>
 
         <Tabs defaultValue="holdings">
@@ -553,7 +561,7 @@ export default function PortfolioPage() {
           </TabsList>
 
           <TabsContent value="holdings" className="mt-4">
-            <HoldingsList holdings={holdings} />
+            <HoldingsList holdings={holdings} solUsd={solUsd} />
           </TabsContent>
 
           <TabsContent value="created" className="mt-4">
@@ -576,12 +584,20 @@ export default function PortfolioPage() {
                 {data.createdCoins.map((coin) => (
                   <CoinCard key={coin.id} coin={coin} />
                 ))}
+                {data.creatorClaimableSol > 0 && (
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center gap-3 rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm">
+                      <Gift className="h-4 w-4 shrink-0 text-gold" />
+                      <span className="text-muted-foreground">{t("portfolio.creatorClaimableHint")}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
-            <HistoryTable trades={data.trades} />
+            <HistoryTable trades={data.trades} solUsd={solUsd} />
           </TabsContent>
         </Tabs>
       </div>

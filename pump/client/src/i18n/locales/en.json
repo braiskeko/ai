@@ -444,5 +444,28 @@
   "admin.creditFailed": "Could not update balance",
   "admin.creditQueuedHint": "@{username} has not signed up yet. The credit will be applied automatically when they do.",
   "admin.balanceNow": "@{username} now has {amount}.",
-  "admin.amountNonZero": "Enter a non-zero amount."
+  "admin.amountNonZero": "Enter a non-zero amount.",
+
+  "nav.connect": "Connect",
+
+  "auth.walletTitle": "Connect your wallet",
+  "auth.walletLinkSubtitle": "Link a Solana wallet so you can create tokens and trade with your own funds.",
+  "auth.walletNoneDetected": "No Solana wallet detected in this browser.",
+  "auth.getWallet": "Get Phantom",
+  "auth.walletLinked": "Wallet connected",
+  "auth.walletLinkedDesc": "{address} is now linked to your account.",
+
+  "trade.connectWallet": "Connect wallet",
+  "trade.viewOnSolscan": "View on Solscan",
+  "trade.signing": "Confirm in your wallet…",
+  "trade.confirming": "Confirming on-chain…",
+  "trade.completesCurve": "This trade completes the bonding curve — liquidity migrates to Meteora.",
+  "trade.migrated": "Trading has migrated to Meteora",
+  "trade.migratedHint": "This coin's bonding curve is complete. Liquidity now lives in a Meteora DAMM v2 pool.",
+  "trade.viewOnMeteora": "Trade on Meteora",
+
+  "create.vanityBadge": "Your CA will end in \"noxia\"",
+  "create.graduationMcap": "Graduates at",
+  "create.creatorShare": "Your fee share",
+  "create.phasePreparing": "Preparing…"
 }

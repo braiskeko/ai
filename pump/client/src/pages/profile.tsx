@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
 import { useLiveTrades } from "@/lib/useLive";
-import { compactUsd, priceUsd, timeAgo, tokens as fmtTokens, usd } from "@/lib/format";
+import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, useSolUsd, usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import NotFound from "@/pages/not-found";
 
@@ -52,14 +52,15 @@ interface UserTrade {
   id: number;
   at: string;
   side: "buy" | "sell";
-  usdc: number;
+  sol: number;
   tokens: number;
-  price: number;
+  priceSol: number;
   coin: { ca: string; name: string; ticker: string; imageUrl: string };
 }
 
 function RecentTrades({ userId }: { userId: number }) {
   const t = useT();
+  const solUsd = useSolUsd();
   const activity = useQuery<ActivityItem[]>({ queryKey: [ACTIVITY_KEY], staleTime: 15_000 });
   const live = useLiveTrades(200);
 
@@ -67,11 +68,11 @@ function RecentTrades({ userId }: { userId: number }) {
     const byId = new Map<number, UserTrade>();
     for (const { coin, trade } of live) {
       if (trade.userId !== userId) continue;
-      byId.set(trade.id, { id: trade.id, at: trade.createdAt, side: trade.side, usdc: trade.usdc, tokens: trade.tokens, price: trade.price, coin });
+      byId.set(trade.id, { id: trade.id, at: trade.createdAt, side: trade.side, sol: trade.sol, tokens: trade.tokens, priceSol: trade.priceSol, coin });
     }
     for (const a of activity.data ?? []) {
-      if (a.user.id !== userId || byId.has(a.trade.id)) continue;
-      byId.set(a.trade.id, { id: a.trade.id, at: a.trade.createdAt, side: a.trade.side, usdc: a.trade.usdc, tokens: a.trade.tokens, price: a.trade.price, coin: a.coin });
+      if (a.user?.id !== userId || byId.has(a.trade.id)) continue;
+      byId.set(a.trade.id, { id: a.trade.id, at: a.trade.createdAt, side: a.trade.side, sol: a.trade.sol, tokens: a.trade.tokens, priceSol: a.trade.priceSol, coin: a.coin });
     }
     return Array.from(byId.values())
       .sort((a, b) => Date.parse(b.at) - Date.parse(a.at) || b.id - a.id)
@@ -106,14 +107,14 @@ function RecentTrades({ userId }: { userId: number }) {
                   {tr.coin.name} <span className="text-xs font-medium text-muted-foreground">${tr.coin.ticker}</span>
                 </div>
                 <div className="truncate text-xs text-muted-foreground tabular">
-                  {fmtTokens(tr.tokens)} {tr.coin.ticker} · {priceUsd(tr.price)}
+                  {fmtTokens(tr.tokens)} {tr.coin.ticker} · {priceSol(tr.priceSol)}
                 </div>
               </div>
             </Link>
             <div className="shrink-0 text-right">
               <div className={cn("text-sm font-semibold tabular", buy ? "text-up" : "text-down")}>
                 {buy ? "+" : "-"}
-                {usd(tr.usdc)}
+                {usd(tr.sol, solUsd)}
               </div>
               <div className="text-xs text-muted-foreground" title={new Date(tr.at).toLocaleString()}>
                 {timeAgo(tr.at)}
@@ -156,6 +157,7 @@ function ProfileSkeleton() {
 
 export default function ProfilePage() {
   const t = useT();
+  const solUsd = useSolUsd();
   const params = useParams<{ username: string }>();
   const username = decodeURIComponent(params.username ?? "");
   const { user: me } = useAuth();
@@ -195,8 +197,8 @@ export default function ProfilePage() {
   }
 
   const isMe = !!me && me.id === data.user.id;
-  const totalMcap = data.createdCoins.reduce((sum, c) => sum + c.marketCap, 0);
-  const totalVolume = data.createdCoins.reduce((sum, c) => sum + c.volume, 0);
+  const totalMcapSol = data.createdCoins.reduce((sum, c) => sum + c.marketCapSol, 0);
+  const totalVolumeSol = data.createdCoins.reduce((sum, c) => sum + c.volumeSol, 0);
 
   return (
     <PageShell>
@@ -205,7 +207,7 @@ export default function ProfilePage() {
           <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-violet/10 blur-3xl" aria-hidden />
           <div className="relative flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
-            <PublicAvatar user={data.user} size={96} className="ring-4 ring-background shadow-lg" />
+            <PublicAvatar user={data.user} wallet={data.user.walletAddress ?? undefined} size={96} className="ring-4 ring-background shadow-lg" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <h1 className="truncate text-2xl font-extrabold tracking-tight">@{data.user.username}</h1>
@@ -232,8 +234,8 @@ export default function ProfilePage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile icon={<Coins className="h-4 w-4" />} label={t("profile.coins")} value={count(data.createdCoins.length)} />
           <StatTile icon={<PieChart className="h-4 w-4" />} label={t("profile.holdings")} value={count(data.holdingsCount)} />
-          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdMcap")} value={compactUsd(totalMcap)} />
-          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdVolume")} value={compactUsd(totalVolume)} />
+          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdMcap")} value={compactUsd(totalMcapSol * solUsd)} />
+          <StatTile icon={<ActivityIcon className="h-4 w-4" />} label={t("profile.createdVolume")} value={compactUsd(totalVolumeSol * solUsd)} />
         </div>
 
         <section>

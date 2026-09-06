@@ -112,7 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <AuthModal open={loginOpen && !user} onOpenChange={setLoginOpen} />
+      {/*
+       * Open regardless of `user`: a signed-in Google/Apple/email user with no
+       * wallet yet still needs this dialog (in "link a wallet" mode) before they
+       * can create or trade — see AuthModal.
+       */}
+      <AuthModal open={loginOpen} onOpenChange={setLoginOpen} />
     </AuthContext.Provider>
   );
 }

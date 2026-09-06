@@ -1,21 +1,26 @@
 import { randomBytes } from "crypto";
-import { getAddress, isAddress, verifyMessage } from "ethers";
+import bs58 from "bs58";
+import nacl from "tweetnacl";
+import { SOLANA_ADDRESS_RE } from "@shared/schema";
 import { config } from "./config";
 import { HttpError } from "./storage";
 
 /**
- * Sign-In-With-Ethereum style wallet login.
+ * Sign-In-With-Solana style wallet login.
  *
- *  1. GET /api/auth/wallet/nonce?address=0x…  → we issue a random nonce bound to
+ *  1. GET /api/auth/wallet/nonce?address=…  → we issue a random nonce bound to
  *     the address and return the exact message the wallet must sign.
- *  2. The browser calls `personal_sign` on that message.
+ *  2. The browser calls `signMessage(new TextEncoder().encode(message))`.
  *  3. POST /api/auth/wallet {address, signature, nonce} → we rebuild the message
- *     from our stored copy of the nonce (never from client input), recover the
- *     signer with ethers and require it to equal the address.
+ *     from our stored copy of the nonce (never from client input) and verify the
+ *     detached ed25519 signature against the address, which *is* the public key.
  *
  * Nonces live in memory for 10 minutes and are single-use, so a captured
  * signature cannot be replayed. A restart simply invalidates outstanding
  * challenges; the client just asks for a new one.
+ *
+ * The same challenge is used by POST /api/me/wallet to link a wallet to an
+ * existing email / Google / Apple account.
  */
 
 const NONCE_TTL_MS = 10 * 60 * 1000;
@@ -23,7 +28,6 @@ const NONCE_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_NONCES = 50_000;
 
 interface NonceRecord {
-  /** checksummed address the nonce was issued for */
   address: string;
   issuedAt: number;
 }
@@ -48,13 +52,25 @@ sweep.unref();
 
 /** The human-readable challenge shown by the wallet. Rebuilt server-side on verification. */
 export function buildWalletMessage(address: string, nonce: string, issuedAt: number): string {
-  return `Sign in to ${config.appName}\n\nAddress: ${address}\nNonce: ${nonce}\nIssued: ${new Date(issuedAt).toISOString()}`;
+  return (
+    `${config.appName} wants you to sign in with your Solana account:\n${address}\n\n` +
+    `Nonce: ${nonce}\nIssued At: ${new Date(issuedAt).toISOString()}`
+  );
 }
 
-/** Checksummed form of an EVM address, or HttpError 400. */
+/** A valid base58 Solana address, or HttpError 400. Solana addresses are case sensitive. */
 export function normalizeAddress(raw: unknown): string {
-  if (typeof raw !== "string" || !isAddress(raw)) throw new HttpError(400, "Invalid wallet address");
-  return getAddress(raw);
+  if (typeof raw !== "string") throw new HttpError(400, "Invalid wallet address");
+  const address = raw.trim();
+  if (!SOLANA_ADDRESS_RE.test(address)) throw new HttpError(400, "Invalid wallet address");
+  let decoded: Uint8Array;
+  try {
+    decoded = bs58.decode(address);
+  } catch {
+    throw new HttpError(400, "Invalid wallet address");
+  }
+  if (decoded.length !== nacl.sign.publicKeyLength) throw new HttpError(400, "Invalid wallet address");
+  return address;
 }
 
 /** Issue a fresh single-use nonce for `rawAddress` and return it with the message to sign. */
@@ -69,8 +85,8 @@ export function issueWalletNonce(rawAddress: unknown): { nonce: string; message:
 
 /**
  * Verify a signed challenge. Consumes the nonce whether or not verification
- * succeeds (one attempt per challenge). Returns the checksummed address on
- * success; throws HttpError 401 otherwise.
+ * succeeds (one attempt per challenge). Returns the address on success; throws
+ * HttpError 401 otherwise.
  */
 export function verifyWalletLogin(input: { address: string; signature: string; nonce: string }): string {
   const now = Date.now();
@@ -84,7 +100,7 @@ export function verifyWalletLogin(input: { address: string; signature: string; n
 
   let address: string;
   try {
-    address = getAddress(input.address);
+    address = normalizeAddress(input.address);
   } catch {
     throw new HttpError(401, "Invalid wallet address");
   }
@@ -93,15 +109,15 @@ export function verifyWalletLogin(input: { address: string; signature: string; n
   }
 
   const message = buildWalletMessage(record.address, input.nonce, record.issuedAt);
-  let recovered: string;
+  let valid = false;
   try {
-    recovered = verifyMessage(message, input.signature);
+    const signature = bs58.decode(input.signature);
+    if (signature.length !== nacl.sign.signatureLength) throw new Error("bad signature length");
+    valid = nacl.sign.detached.verify(new TextEncoder().encode(message), signature, bs58.decode(address));
   } catch {
     throw new HttpError(401, "Invalid wallet signature");
   }
-  if (getAddress(recovered) !== address) {
-    throw new HttpError(401, "The signature does not match this wallet.");
-  }
+  if (!valid) throw new HttpError(401, "The signature does not match this wallet.");
   return address;
 }
 

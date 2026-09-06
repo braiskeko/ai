@@ -1,24 +1,33 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Activity, Coins, Loader2, Search, ShieldAlert, TrendingUp, Users, type LucideIcon } from "lucide-react";
-import type { AdminUserRow, PlatformStats, SafeUser } from "@shared/schema";
-import { adminCreditSchema } from "@shared/schema";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Activity,
+  CheckCircle2,
+  Coins,
+  Gauge,
+  Loader2,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
+  Users,
+  Wallet,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import type { AdminOverview, UnsignedTx, User } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { compactUsd, dateShort, usd } from "@/lib/format";
+import { useWalletTx } from "@/lib/solana";
+import { apiRequest } from "@/lib/queryClient";
+import { compactUsd, dateShort, shortCa, sol, timeAgo, usd, useSolUsd } from "@/lib/format";
 import NotFound from "@/pages/not-found";
 
 const count = (n: number) => new Intl.NumberFormat("en-US").format(n);
@@ -37,19 +46,22 @@ function ListSkeleton({ rows = 3, height = 40 }: { rows?: number; height?: numbe
 // Platform stats
 // ---------------------------------------------------------------------------
 
-function StatsStrip() {
+function StatsStrip({ overview }: { overview: AdminOverview | undefined }) {
   const t = useT();
-  const { data, isLoading } = useQuery<PlatformStats>({ queryKey: ["/api/stats"], staleTime: 30_000 });
+  const solUsd = useSolUsd();
+  const data = overview?.stats;
   const tiles: { key: string; icon: LucideIcon; value: string | null }[] = [
     { key: "home.stats.coins", icon: Coins, value: data ? count(data.coins) : null },
-    { key: "home.stats.volume", icon: TrendingUp, value: data ? compactUsd(data.volume) : null },
+    { key: "home.stats.volume", icon: TrendingUp, value: data ? compactUsd(data.volumeSol * solUsd) : null },
     { key: "home.stats.traders", icon: Users, value: data ? count(data.traders) : null },
     { key: "home.stats.trades", icon: Activity, value: data ? count(data.trades) : null },
+    { key: "coin.graduated", icon: Sparkles, value: data ? count(data.graduated) : null },
+    { key: "admin.vanityAvailable", icon: Sparkles, value: overview ? count(overview.vanityAvailable) : null },
   ];
   return (
     <section>
       <h2 className="mb-2 text-sm font-bold">{t("admin.stats")}</h2>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-6">
         {tiles.map(({ key, icon: Icon, value }) => (
           <div key={key} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 sm:px-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -57,7 +69,7 @@ function StatsStrip() {
             </span>
             <div className="min-w-0">
               <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t(key)}</div>
-              {isLoading || value === null ? <Skeleton className="mt-1 h-5 w-16" /> : <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>}
+              {value === null ? <Skeleton className="mt-1 h-5 w-16" /> : <div className="truncate text-lg font-bold leading-tight tabular">{value}</div>}
             </div>
           </div>
         ))}
@@ -67,97 +79,150 @@ function StatsStrip() {
 }
 
 // ---------------------------------------------------------------------------
-// Credit form (react-hook-form + adminCreditSchema)
+// Indexer status
 // ---------------------------------------------------------------------------
 
-type CreditForm = z.infer<typeof adminCreditSchema>;
-
-function CreditCard({ prefill, onApplied }: { prefill: string; onApplied: () => void }) {
+function IndexerCard({ overview }: { overview: AdminOverview | undefined }) {
   const t = useT();
-  const { toast } = useToast();
-  const form = useForm<CreditForm>({
-    resolver: zodResolver(adminCreditSchema),
-    mode: "onChange",
-    defaultValues: { username: "", amount: undefined as unknown as number },
-  });
-  const { register, handleSubmit, setValue, reset, formState } = form;
-
-  // A row's "Credit" button fills the username field.
-  useEffect(() => {
-    if (prefill) setValue("username", prefill, { shouldValidate: true, shouldDirty: true });
-  }, [prefill, setValue]);
-
-  const credit = useMutation({
-    mutationFn: async (values: CreditForm) => {
-      const res = await apiRequest("POST", "/api/admin/users/credit", {
-        username: values.username.replace(/^@/, ""),
-        amount: values.amount,
-      });
-      return (await res.json()) as { user: SafeUser | null; queued: boolean };
-    },
-    onSuccess: (result, values) => {
-      void queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/users") });
-      void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      const handle = values.username.replace(/^@/, "");
-      toast({
-        title: result.queued ? t("admin.creditQueued") : t("admin.balanceUpdated"),
-        description: result.queued
-          ? t("admin.creditQueuedHint", { username: handle })
-          : t("admin.balanceNow", { username: result.user?.username ?? handle, amount: usd(result.user?.balance ?? 0) }),
-      });
-      reset({ username: "", amount: undefined as unknown as number });
-      onApplied();
-    },
-    onError: (err) => toast({ variant: "destructive", title: t("admin.creditFailed"), description: apiErrorMessage(err, t("common.error")) }),
-  });
-
-  const { errors, isValid } = formState;
-
+  const indexer = overview?.indexer;
   return (
     <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Coins className="h-4 w-4" />
+          <Gauge className="h-4 w-4" />
         </span>
-        <h2 className="text-base font-bold">{t("admin.credit")}</h2>
+        <h2 className="text-base font-bold">{t("admin.indexer")}</h2>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">{t("admin.creditHint")}</p>
-      <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto]" onSubmit={handleSubmit((values) => credit.mutate(values))} noValidate>
-        <div>
-          <Label htmlFor="credit-username" className="text-xs">
-            {t("admin.username")}
-          </Label>
-          <Input
-            id="credit-username"
-            placeholder="@username"
-            className="mt-1 rounded-lg"
-            autoComplete="off"
-            spellCheck={false}
-            aria-invalid={!!errors.username}
-            {...register("username", { setValueAs: (v: string) => v.trim().replace(/^@/, "") })}
-          />
+      {!indexer ? (
+        <ListSkeleton rows={1} height={64} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.rpcStatus")}</div>
+            <div className={`mt-1 inline-flex items-center gap-1 text-sm font-semibold ${indexer.rpcOk ? "text-up" : "text-down"}`}>
+              {indexer.rpcOk ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+              {indexer.rpcOk ? t("admin.rpcOk") : t("admin.rpcDown")}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.lastSlot")}</div>
+            <div className="mt-1 text-sm font-semibold tabular">{count(indexer.lastSlot)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.subscribedPools")}</div>
+            <div className="mt-1 text-sm font-semibold tabular">{count(indexer.subscribedPools)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("admin.lastSync")}</div>
+            <div className="mt-1 text-sm font-semibold tabular">{indexer.lastSyncAt ? timeAgo(indexer.lastSyncAt) : t("admin.never")}</div>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="credit-amount" className="text-xs">
-            {t("admin.amount")}
-          </Label>
-          <Input
-            id="credit-amount"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            placeholder="1000"
-            className="mt-1 rounded-lg tabular"
-            aria-invalid={!!errors.amount}
-            {...register("amount", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-          />
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Claimable partner (treasury) fees per pool
+// ---------------------------------------------------------------------------
+
+function ClaimableFeesCard({ overview }: { overview: AdminOverview | undefined }) {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { connected, signAndSend } = useWalletTx();
+  const [claimingCa, setClaimingCa] = useState<string | null>(null);
+
+  const rows = overview?.claimable ?? [];
+  const totalPartnerSol = rows.reduce((sum, r) => sum + r.partnerSol, 0);
+
+  const claim = async (ca: string) => {
+    if (claimingCa) return;
+    setClaimingCa(ca);
+    try {
+      if (!connected) throw new Error(t("coin.claimConnectWallet"));
+      const res = await apiRequest("POST", "/api/admin/claim-tx", { ca });
+      const unsigned = (await res.json()) as UnsignedTx;
+      const sent = await signAndSend(unsigned, "claim", ca);
+      toast({
+        title: t("coin.claimSent"),
+        description: (
+          <a href={sent.explorerUrl} target="_blank" rel="noreferrer" className="underline">
+            {t("coin.viewTransaction")}
+          </a>
+        ),
+      });
+      void qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/overview") });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("coin.claimFailed"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setClaimingCa(null);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border p-4">
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gold/15 text-gold">
+            <Wallet className="h-4 w-4" />
+          </span>
+          <h2 className="text-base font-bold">{t("admin.claimableFees")}</h2>
         </div>
-        <Button type="submit" disabled={!isValid || credit.isPending} className="self-end rounded-lg font-semibold">
-          {credit.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-          {t("admin.apply")}
-        </Button>
-      </form>
-      {errors.amount?.message && errors.amount.type !== "invalid_type" && <p className="mt-2 text-xs text-down">{t("admin.amountNonZero")}</p>}
+        {overview && (
+          <span className="text-sm font-semibold tabular text-gold">
+            {usd(totalPartnerSol, solUsd)} <span className="font-normal text-muted-foreground">· {sol(totalPartnerSol)}</span>
+          </span>
+        )}
+      </div>
+      {!overview ? (
+        <div className="p-4">
+          <ListSkeleton rows={3} height={48} />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="p-6 text-center text-sm text-muted-foreground">{t("admin.noClaimable")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table className="min-w-[560px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{t("admin.pool")}</TableHead>
+                <TableHead className="text-right">{t("admin.partnerFees")}</TableHead>
+                <TableHead className="text-right">{t("admin.creatorFees")}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.coin.ca}>
+                  <TableCell className="font-medium">
+                    <Link href={`/${r.coin.ca}`} className="flex items-center gap-2 hover:underline">
+                      <img src={r.coin.imageUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-lg bg-muted object-cover" />
+                      <span className="truncate">{r.coin.name}</span>
+                      <span className="shrink-0 text-xs font-medium text-muted-foreground">${r.coin.ticker}</span>
+                    </Link>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right font-semibold tabular text-gold">{sol(r.partnerSol)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular text-muted-foreground">{sol(r.creatorSol)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={r.partnerSol <= 0 || claimingCa === r.coin.ca}
+                      onClick={() => void claim(r.coin.ca)}
+                    >
+                      {claimingCa === r.coin.ca && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {t("admin.claim")}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </section>
   );
 }
@@ -169,76 +234,71 @@ function CreditCard({ prefill, onApplied }: { prefill: string; onApplied: () => 
 function UsersTab() {
   const t = useT();
   const [search, setSearch] = useState("");
-  const [prefill, setPrefill] = useState("");
   const usersKey = `/api/admin/users?search=${encodeURIComponent(search.trim())}`;
-  const users = useQuery<AdminUserRow[]>({ queryKey: [usersKey], staleTime: 10_000 });
+  const users = useQuery<User[]>({ queryKey: [usersKey], staleTime: 10_000 });
 
   return (
-    <div className="space-y-4">
-      <CreditCard prefill={prefill} onApplied={() => setPrefill("")} />
-
-      <section className="rounded-xl border border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("admin.search")}
-            aria-label={t("admin.search")}
-            className="h-9 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
-          {users.data && <span className="text-xs text-muted-foreground tabular">{t("admin.usersCount", { n: count(users.data.length) })}</span>}
+    <section className="rounded-xl border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border p-3">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("admin.search")}
+          aria-label={t("admin.search")}
+          className="h-9 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        {users.data && <span className="text-xs text-muted-foreground tabular">{t("admin.usersCount", { n: count(users.data.length) })}</span>}
+      </div>
+      {users.isLoading ? (
+        <div className="p-4">
+          <ListSkeleton rows={5} height={40} />
         </div>
-        {users.isLoading ? (
-          <div className="p-4">
-            <ListSkeleton rows={5} height={40} />
-          </div>
-        ) : users.isError ? (
-          <p className="p-4 text-sm text-destructive">{apiErrorMessage(users.error, t("admin.loadError"))}</p>
-        ) : !users.data?.length ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">{t("admin.noUsers")}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table className="min-w-[680px]">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>{t("admin.users")}</TableHead>
-                  <TableHead>{t("admin.email")}</TableHead>
-                  <TableHead className="text-right">{t("admin.balance")}</TableHead>
-                  <TableHead>{t("admin.joined")}</TableHead>
-                  <TableHead />
+      ) : users.isError ? (
+        <p className="p-4 text-sm text-destructive">{apiErrorMessage(users.error, t("admin.loadError"))}</p>
+      ) : !users.data?.length ? (
+        <p className="p-6 text-center text-sm text-muted-foreground">{t("admin.noUsers")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table className="min-w-[680px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{t("admin.users")}</TableHead>
+                <TableHead>{t("admin.wallet")}</TableHead>
+                <TableHead>{t("admin.joined")}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.data.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">
+                    <span className="flex items-center gap-2">
+                      <UserAvatar seed={u.avatarSeed} name={u.username} size={24} />
+                      <Link href={`/u/${encodeURIComponent(u.username)}`} className="hover:underline">
+                        @{u.username}
+                      </Link>
+                      {u.isAdmin && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{t("nav.admin")}</span>
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell className="max-w-[220px] truncate font-mono text-xs text-muted-foreground">
+                    {u.walletAddress ? shortCa(u.walletAddress, 6, 6) : "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button asChild size="sm" variant="ghost" className="rounded-lg">
+                      <Link href={`/u/${encodeURIComponent(u.username)}`}>{t("admin.view")}</Link>
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.data.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">
-                      <span className="flex items-center gap-2">
-                        <UserAvatar seed={String(u.id)} name={u.username} size={24} />
-                        <Link href={`/u/${encodeURIComponent(u.username)}`} className="hover:underline">
-                          @{u.username}
-                        </Link>
-                        {u.isAdmin && (
-                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{t("nav.admin")}</span>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[260px] truncate text-muted-foreground">{u.email}</TableCell>
-                    <TableCell className="text-right font-semibold tabular">{usd(u.balance)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{dateShort(u.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => setPrefill(u.username)}>
-                        {t("admin.creditAction")}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
-    </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -249,6 +309,7 @@ function UsersTab() {
 export default function AdminPage() {
   const t = useT();
   const { isAdmin, isLoading, user } = useAuth();
+  const overview = useQuery<AdminOverview>({ queryKey: ["/api/admin/overview"], staleTime: 15_000, enabled: isAdmin });
 
   if (isLoading) {
     return (
@@ -275,7 +336,9 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <StatsStrip />
+        <StatsStrip overview={overview.data} />
+        <IndexerCard overview={overview.data} />
+        <ClaimableFeesCard overview={overview.data} />
 
         <section>
           <h2 className="mb-2 text-sm font-bold">{t("admin.users")}</h2>

@@ -1,11 +1,10 @@
 import { memo } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Crown, GraduationCap, MessageCircle, Users } from "lucide-react";
+import { GraduationCap, MessageCircle, Users } from "lucide-react";
 import type { CoinSummary } from "@shared/schema";
-import { KING_MCAP } from "@shared/schema";
 import { useT } from "@/i18n";
-import { age, compactUsd, signedPct } from "@/lib/format";
+import { age, compactUsd, signedPct, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/UserAvatar";
 
@@ -13,16 +12,15 @@ export interface CoinCardProps {
   coin: CoinSummary;
   /** entrance animation (scale + glow) for coins that arrive live */
   highlight?: boolean;
-  /** show the 👑 badge */
-  isKing?: boolean;
   className?: string;
 }
 
-function CoinCardInner({ coin, highlight = false, isKing = false, className }: CoinCardProps) {
+function CoinCardInner({ coin, highlight = false, className }: CoinCardProps) {
   const t = useT();
   const [, navigate] = useLocation();
+  const solUsd = useSolUsd();
   const progress = Math.max(0, Math.min(1, coin.progress));
-  const showKing = isKing || (!coin.graduated && coin.marketCap >= KING_MCAP && isKing);
+  const graduated = coin.curve.completed;
 
   const card = (
     <Link
@@ -31,8 +29,7 @@ function CoinCardInner({ coin, highlight = false, isKing = false, className }: C
       className={cn(
         "card-hover group relative flex gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 sm:gap-4 sm:p-4",
         highlight && "glow-primary border-primary/60",
-        coin.graduated && "border-violet/40",
-        showKing && "border-gold/50",
+        graduated && "border-violet/40",
         className,
       )}
     >
@@ -50,16 +47,7 @@ function CoinCardInner({ coin, highlight = false, isKing = false, className }: C
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span className="truncate font-bold leading-tight">{coin.name}</span>
               <span className="shrink-0 text-xs font-semibold text-muted-foreground">${coin.ticker}</span>
-              {showKing && (
-                <span
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-bold text-gold"
-                  title={t("coin.king")}
-                >
-                  <Crown className="h-3 w-3" />
-                  <span className="hidden sm:inline">{t("coin.king")}</span>
-                </span>
-              )}
-              {coin.graduated && (
+              {graduated && (
                 <span
                   className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet/15 px-1.5 py-0.5 text-[10px] font-bold text-violet"
                   title={t("coin.graduated")}
@@ -101,7 +89,7 @@ function CoinCardInner({ coin, highlight = false, isKing = false, className }: C
 
           <div className="shrink-0 text-right">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
-            <div className="text-sm font-bold tabular text-primary">{compactUsd(coin.marketCap)}</div>
+            <div className="text-sm font-bold tabular text-primary">{compactUsd(coin.marketCapSol * solUsd)}</div>
             {Number.isFinite(coin.change24h) && coin.change24h !== 0 && (
               <div className={cn("text-[11px] font-semibold tabular", coin.change24h >= 0 ? "text-up" : "text-down")}>
                 {signedPct(coin.change24h)}
@@ -126,7 +114,7 @@ function CoinCardInner({ coin, highlight = false, isKing = false, className }: C
             <div
               className={cn(
                 "h-full rounded-full transition-[width] duration-500",
-                coin.graduated ? "bg-violet" : "bg-gradient-to-r from-primary/70 to-primary",
+                graduated ? "bg-violet" : "bg-gradient-to-r from-primary/70 to-primary",
               )}
               style={{ width: `${Math.max(2, progress * 100)}%` }}
             />

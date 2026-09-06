@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useSearch } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   Briefcase,
@@ -13,9 +14,11 @@ import {
   User as UserIcon,
   Wallet,
 } from "lucide-react";
+import type { WalletView } from "@shared/schema";
+import { SOLANA_ADDRESS_RE } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { useConfig } from "@/hooks/useConfig";
-import { usd } from "@/lib/format";
+import { getQueryFn } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher, useT } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -39,9 +42,19 @@ const MOBILE_TABS = [
   { href: "/wallet", key: "nav.wallet", icon: Wallet },
 ] as const;
 
-/** Same shape check as server/ca.ts isValidCa (44 base58 chars ending in "noxia"). */
-export const CA_RE = /^[1-9A-HJ-NP-Za-km-z]{39}noxia$/;
-export const looksLikeCa = (s: string) => CA_RE.test(s);
+/** A search term that looks like a mint address (shared/schema.ts SOLANA_ADDRESS_RE). */
+export const looksLikeCa = (s: string) => SOLANA_ADDRESS_RE.test(s);
+
+/** "Ab12…9f3c" — kept local; lib/format.ts (shortCa) is owned by another agent. */
+function shortAddr(a: string): string {
+  return a.length > 10 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a;
+}
+
+function fmtSol(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  const s = Math.abs(n).toFixed(3).replace(/\.?0+$/, "");
+  return (n < 0 ? "-" : "") + (s || "0");
+}
 
 function isActive(location: string, href: string) {
   if (href === "/") return location === "/";
@@ -55,6 +68,14 @@ export function Navbar() {
   const search = useSearch();
   const { user, isLoading, openLogin, logout, isAdmin } = useAuth();
   const appName = config?.appName ?? t("app.name");
+  const walletLinked = !!user?.walletAddress;
+
+  const { data: walletView } = useQuery<WalletView | null>({
+    queryKey: ["/api/wallet"],
+    queryFn: getQueryFn<WalletView | null>({ on401: "returnNull" }),
+    enabled: walletLinked,
+    staleTime: 15_000,
+  });
 
   // Keep the search box in sync with ?q= while browsing the home list.
   const [q, setQ] = useState(() => new URLSearchParams(search).get("q") ?? "");
@@ -128,16 +149,22 @@ export function Navbar() {
               </>
             ) : user ? (
               <>
-                <Link
-                  href="/wallet"
-                  className="hidden flex-col items-end rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-accent sm:flex"
-                >
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("nav.cash")}</span>
-                  <span className="text-sm font-semibold tabular text-primary">{usd(user.balance)}</span>
-                </Link>
-                <Button asChild size="sm" variant="outline" className="hidden rounded-lg font-semibold sm:inline-flex">
-                  <Link href="/wallet">{t("nav.deposit")}</Link>
-                </Button>
+                {walletLinked ? (
+                  <Link
+                    href="/wallet"
+                    className="hidden flex-col items-end rounded-lg px-2 py-1 leading-tight transition-colors hover:bg-accent sm:flex"
+                  >
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {shortAddr(user.walletAddress!)}
+                    </span>
+                    <span className="text-sm font-semibold tabular text-primary">{fmtSol(walletView?.balanceSol ?? 0)} SOL</span>
+                  </Link>
+                ) : (
+                  <Button size="sm" variant="outline" className="hidden rounded-lg font-semibold sm:inline-flex" onClick={openLogin}>
+                    <Wallet className="h-4 w-4" />
+                    {t("nav.connect")}
+                  </Button>
+                )}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -179,7 +206,11 @@ export function Navbar() {
                       <Link href="/wallet" className="flex cursor-pointer items-center gap-2">
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1">{t("nav.wallet")}</span>
-                        <span className="text-xs tabular text-primary">{usd(user.balance)}</span>
+                        {walletLinked ? (
+                          <span className="text-xs tabular text-primary">{fmtSol(walletView?.balanceSol ?? 0)} SOL</span>
+                        ) : (
+                          <span className="text-xs font-medium text-primary">{t("nav.connect")}</span>
+                        )}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

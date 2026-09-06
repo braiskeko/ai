@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ConnectionProvider, WalletProvider, type ConnectionProviderProps } from "@solana/wallet-adapter-react";
 import { queryClient } from "@/lib/queryClient";
 import { useLiveUpdates } from "@/lib/useLive";
 import { I18nProvider } from "@/i18n";
@@ -33,6 +34,19 @@ function LiveUpdates() {
   return null;
 }
 
+// The connection endpoint is required by the wallet-adapter plumbing but is
+// never actually used for RPC calls — the browser never talks to an RPC
+// directly; the server builds/relays/confirms every transaction (see
+// lib/solana.ts). Wallet Standard auto-detects installed wallets (Phantom,
+// Solflare, Backpack, ...), so no adapter list is needed here.
+const SOLANA_RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
+
+// @solana/wallet-adapter-react ships its own (newer) nested @types/react, which
+// TS resolves to a different `ReactNode` than this project's @types/react and
+// then rejects as a JSX component. Re-typing it against our own React types
+// once here avoids a package-manager-level dedupe just for a type mismatch.
+const SolanaConnectionProvider = ConnectionProvider as unknown as (props: ConnectionProviderProps) => JSX.Element;
+
 function Router() {
   return (
     <Switch>
@@ -52,17 +66,21 @@ function Router() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <TooltipProvider delayDuration={200}>
-          <AuthProvider>
-            <LiveUpdates />
-            <ScrollToTop />
-            <Router />
-            <Toaster />
-          </AuthProvider>
-        </TooltipProvider>
-      </I18nProvider>
-    </QueryClientProvider>
+    <SolanaConnectionProvider endpoint={SOLANA_RPC_ENDPOINT}>
+      <WalletProvider wallets={[]} autoConnect>
+        <QueryClientProvider client={queryClient}>
+          <I18nProvider>
+            <TooltipProvider delayDuration={200}>
+              <AuthProvider>
+                <LiveUpdates />
+                <ScrollToTop />
+                <Router />
+                <Toaster />
+              </AuthProvider>
+            </TooltipProvider>
+          </I18nProvider>
+        </QueryClientProvider>
+      </WalletProvider>
+    </SolanaConnectionProvider>
   );
 }

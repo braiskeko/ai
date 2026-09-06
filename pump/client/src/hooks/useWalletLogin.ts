@@ -1,65 +1,81 @@
-import { useCallback, useState } from "react";
-import { BrowserProvider, type Eip1193Provider } from "ethers";
+import { useCallback, useMemo, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletReadyState, type Adapter, type MessageSignerWalletAdapter, type WalletName } from "@solana/wallet-adapter-base";
+import bs58 from "bs58";
 import type { SafeUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useConfig } from "@/hooks/useConfig";
 import { apiErrorMessage } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
 
 /**
- * Sign-In-With-Ethereum style login.
+ * Sign-In-With-Solana: the wallet signs a server-issued challenge.
  *
- *   1. eth_requestAccounts on the provider (injected or WalletConnect)
- *   2. GET  /api/auth/wallet/nonce?address=0x… → { nonce, message }
- *   3. personal_sign(message)
- *   4. POST /api/auth/wallet { address, signature, nonce } → SafeUser
+ *   1. GET  /api/auth/wallet/nonce?address=<base58> → { message, nonce }
+ *   2. signMessage(utf8(message)) (Wallet Standard `signMessage`)
+ *   3. POST /api/auth/wallet { address, signature (base58), nonce } → SafeUser   (fresh login)
+ *      POST /api/me/wallet    { address, signature (base58), nonce } → SafeUser   (link to an
+ *      already-authenticated Google/Apple/email account, so social users can trade too)
  *
- * WalletConnect is loaded with a dynamic import ONLY when the deployment has a
- * project id. The package is not part of this build, so the import is guarded
- * and surfaces "not configured" instead of crashing.
+ * Wallets are read straight off the adapter (not the `useWallet()` context state) right after
+ * connecting, so this never races a React re-render: `select()` is still called so the shared
+ * wallet context (used by lib/solana.ts for signing trades) picks up the same wallet.
  */
 
-export type WalletMethod = "injected" | "walletconnect";
-
-interface WalletProviderLike extends Eip1193Provider {
-  isMetaMask?: boolean;
-  providers?: WalletProviderLike[];
+export interface DetectedWallet {
+  name: string;
+  icon: string;
+  installed: boolean;
 }
 
-/**
- * EIP-1193 provider injected by MetaMask & co. Read via a cast instead of a
- * `declare global` so we never collide with other Window augmentations.
- */
-export function getInjectedProvider(): WalletProviderLike | undefined {
-  if (typeof window === "undefined") return undefined;
-  const eth = (window as unknown as { ethereum?: WalletProviderLike }).ethereum;
-  if (!eth) return undefined;
-  // Several extensions installed: prefer MetaMask, else the first one.
-  if (Array.isArray(eth.providers) && eth.providers.length) {
-    return eth.providers.find((p) => p.isMetaMask) ?? eth.providers[0];
-  }
-  return eth;
-}
-
-const isRejection = (e: unknown) => {
-  const code = typeof e === "object" && e !== null ? (e as { code?: unknown; error?: { code?: unknown } }).code : undefined;
-  const inner = typeof e === "object" && e !== null ? (e as { error?: { code?: unknown } }).error?.code : undefined;
-  if (code === 4001 || inner === 4001 || code === "ACTION_REJECTED") return true;
+const isRejection = (e: unknown): boolean => {
   const msg = e instanceof Error ? e.message.toLowerCase() : "";
-  return msg.includes("user rejected") || msg.includes("user denied") || msg.includes("rejected the request");
+  return msg.includes("reject") || msg.includes("cancel") || msg.includes("denied");
 };
 
-const WALLETCONNECT_PKG = "@walletconnect/ethereum-provider";
+async function fetchChallenge(address: string): Promise<{ message: string; nonce: string }> {
+  const res = await apiRequest("GET", `/api/auth/wallet/nonce?address=${encodeURIComponent(address)}`);
+  return (await res.json()) as { message: string; nonce: string };
+}
+
+interface Challenge {
+  address: string;
+  signature: string;
+  nonce: string;
+}
+
+async function signChallenge(adapter: Adapter): Promise<Challenge> {
+  if (!adapter.connected) await adapter.connect();
+  const pk = adapter.publicKey;
+  if (!pk) throw new Error("Wallet did not return an address.");
+  const signer = adapter as unknown as Partial<MessageSignerWalletAdapter>;
+  if (typeof signer.signMessage !== "function") {
+    throw new Error("This wallet does not support message signing.");
+  }
+  const address = pk.toBase58();
+  const { message, nonce } = await fetchChallenge(address);
+  const signatureBytes = await signer.signMessage(new TextEncoder().encode(message));
+  return { address, signature: bs58.encode(signatureBytes), nonce };
+}
 
 export function useWalletLogin(options: { onSuccess?: (user: SafeUser) => void } = {}) {
   const { onSuccess } = options;
-  const config = useConfig();
   const t = useT();
-  const [busyWith, setBusyWith] = useState<WalletMethod | null>(null);
+  const { wallets, select } = useWallet();
+  const [busyWallet, setBusyWallet] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const walletConnectProjectId = config?.walletConnectProjectId ?? null;
-  const hasInjected = typeof window !== "undefined" && !!getInjectedProvider();
+  /** Installed / loadable wallets, ready to show in the picker (with their icons). */
+  const detected: DetectedWallet[] = useMemo(
+    () =>
+      wallets
+        .filter((w) => w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable)
+        .map((w) => ({
+          name: w.adapter.name,
+          icon: w.adapter.icon,
+          installed: w.readyState === WalletReadyState.Installed,
+        })),
+    [wallets],
+  );
 
   const finish = useCallback(
     (user: SafeUser) => {
@@ -70,113 +86,46 @@ export function useWalletLogin(options: { onSuccess?: (user: SafeUser) => void }
     [onSuccess],
   );
 
-  /** Shared challenge/sign/verify flow for any EIP-1193 provider. */
-  const signInWith = useCallback(
-    async (eip1193: Eip1193Provider): Promise<SafeUser> => {
-      const provider = new BrowserProvider(eip1193);
-      // Prompts the wallet for account access (eth_requestAccounts).
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
+  const clearError = useCallback(() => setError(null), []);
 
-      const nonceRes = await apiRequest("GET", `/api/auth/wallet/nonce?address=${encodeURIComponent(address)}`);
-      const { nonce, message } = (await nonceRes.json()) as { nonce: string; message: string };
-
-      // personal_sign — ethers prefixes and hex-encodes the message correctly.
-      const signature = await signer.signMessage(message);
-
-      const res = await apiRequest("POST", "/api/auth/wallet", { address, signature, nonce });
-      return (await res.json()) as SafeUser;
-    },
-    [],
-  );
-
-  const run = useCallback(
-    async (method: WalletMethod, getProvider: () => Promise<Eip1193Provider | null>) => {
-      if (busyWith) return;
-      setBusyWith(method);
+  const withWallet = useCallback(
+    async (walletName: string, endpoint: "/api/auth/wallet" | "/api/me/wallet") => {
+      const found = wallets.find((w) => w.adapter.name === walletName);
+      if (!found) {
+        setError(t("auth.walletNoProvider"));
+        return;
+      }
+      setBusyWallet(walletName);
       setError(null);
       try {
-        const eip1193 = await getProvider();
-        if (!eip1193) return;
-        const user = await signInWith(eip1193);
+        select(walletName as WalletName);
+        const challenge = await signChallenge(found.adapter);
+        const res = await apiRequest("POST", endpoint, challenge);
+        const user = (await res.json()) as SafeUser;
         finish(user);
       } catch (e) {
         setError(isRejection(e) ? t("auth.walletRejected") : apiErrorMessage(e, t("auth.walletFailed")));
       } finally {
-        setBusyWith(null);
+        setBusyWallet(null);
       }
     },
-    [busyWith, finish, signInWith, t],
+    [wallets, select, finish, t],
   );
 
-  const connectInjected = useCallback(
-    () =>
-      run("injected", async () => {
-        const eth = getInjectedProvider();
-        if (!eth) {
-          setError(t("auth.walletNoProvider"));
-          return null;
-        }
-        return eth;
-      }),
-    [run, t],
-  );
+  /** Fresh sign-in: creates/logs into the account that owns this wallet. */
+  const connectWallet = useCallback((walletName: string) => withWallet(walletName, "/api/auth/wallet"), [withWallet]);
 
-  const connectWalletConnect = useCallback(
-    () =>
-      run("walletconnect", async () => {
-        if (!walletConnectProjectId) {
-          setError(t("auth.notConfigured"));
-          return null;
-        }
-        let mod: {
-          EthereumProvider?: {
-            init: (opts: Record<string, unknown>) => Promise<Eip1193Provider & { connect?: () => Promise<void> }>;
-          };
-        };
-        try {
-          // Non-literal specifier: neither TypeScript nor Vite try to resolve it at build time.
-          const spec = WALLETCONNECT_PKG;
-          mod = (await import(/* @vite-ignore */ spec)) as typeof mod;
-        } catch {
-          setError(t("auth.walletConnectMissing"));
-          return null;
-        }
-        if (!mod.EthereumProvider) {
-          setError(t("auth.walletConnectMissing"));
-          return null;
-        }
-        const chainId = config?.chain.chainId ?? 1;
-        const provider = await mod.EthereumProvider.init({
-          projectId: walletConnectProjectId,
-          chains: [chainId],
-          optionalChains: [chainId],
-          showQrModal: true,
-          metadata: {
-            name: config?.appName ?? "Noxia",
-            description: t("app.tagline"),
-            url: window.location.origin,
-            icons: [`${window.location.origin}/favicon.svg`],
-          },
-        });
-        if (typeof provider.connect === "function") await provider.connect();
-        return provider;
-      }),
-    [run, t, walletConnectProjectId, config?.chain.chainId, config?.appName],
-  );
-
-  const clearError = useCallback(() => setError(null), []);
+  /** Links this wallet to the currently signed-in (Google/Apple/email) account. */
+  const linkWallet = useCallback((walletName: string) => withWallet(walletName, "/api/me/wallet"), [withWallet]);
 
   return {
-    connectInjected,
-    connectWalletConnect,
+    wallets: detected,
+    connectWallet,
+    linkWallet,
     /** true while any wallet flow is in progress */
-    busy: busyWith !== null,
-    busyWith,
+    busy: busyWallet !== null,
+    busyWallet,
     error,
     clearError,
-    hasInjected,
-    walletConnectConfigured: !!walletConnectProjectId,
   };
 }

@@ -1,31 +1,30 @@
 /**
  * Noxia storage layer.
  *
- * The whole application state lives in memory as one plain, JSON-serialisable
- * object (`State`). Every mutation schedules a debounced snapshot through the
- * `Persister` (file or Postgres, see persistence.ts), so the process can be
- * restarted or redeployed without losing data while every read stays a cheap,
- * synchronous in-memory operation.
+ * Everything that is *not* on chain lives here: accounts, the coins we know
+ * about, the trades the indexer has decoded, per-wallet cost basis and the
+ * comment threads. The whole thing is one plain, JSON-serialisable object
+ * (`State`) kept in memory and snapshotted (debounced) to a file or Postgres by
+ * persistence.ts, so every read is a cheap synchronous lookup.
  *
- * Conventions used throughout:
+ * The chain is always the source of truth for money: token balances, SOL
+ * balances and claimable fees are read from RPC (see solana.ts). What we keep
+ * here is the *history* (needed for candles, PnL and feeds), which cannot be
+ * reconstructed from account state alone.
+ *
+ * Conventions:
  *  - timestamps are ISO-8601 strings
- *  - money is USDC with 6 decimals (`round6`)
- *  - prices are USDC per token on a constant-product bonding curve (curve.ts)
- *  - entity objects are mutated in place; the arrays in `state` own them and
- *    the Maps below are pure lookup indexes over the very same objects
- *  - candles are never stored: they are derived from trades and cached per coin
+ *  - amounts are numbers in SOL or whole tokens (never lamports/base units)
+ *  - coins are keyed by mint (`ca`), trades by transaction signature,
+ *    holdings by (wallet, coinId)
+ *  - candles are derived from trades and cached per coin
  */
 import { randomUUID } from "crypto";
-import { getAddress } from "ethers";
 import {
   CANDLE_INTERVAL_MS,
-  GRADUATION_MCAP,
-  SWAP_FEE,
+  SOLANA_ADDRESS_RE,
   TOTAL_SUPPLY,
-  VIRTUAL_TOKEN_RESERVE,
-  VIRTUAL_USDC_RESERVE,
   type ActivityItem,
-  type AdminUserRow,
   type AuthProvider,
   type Candle,
   type Coin,
@@ -33,8 +32,7 @@ import {
   type CoinSummary,
   type Comment,
   type CommentView,
-  type CreateCoinInput,
-  type Deposit,
+  type CurveState,
   type Holding,
   type HolderRow,
   type PlatformStats,
@@ -43,17 +41,10 @@ import {
   type PublicUser,
   type SafeUser,
   type Trade,
-  type TradeQuote,
   type User,
-  type WalletView,
-  type Withdrawal,
-  type WithdrawalStatus,
 } from "@shared/schema";
-import * as curve from "./curve";
-import { generateCa } from "./ca";
 import { config } from "./config";
 import { createBackend, Persister } from "./persistence";
-import { coinImageDataUrl, lcg, seedBots, seedCoins, SEED_PRNG_SEED, type SeedCoin } from "./seed";
 import { log } from "./vite";
 
 // ---------------------------------------------------------------------------
@@ -75,14 +66,42 @@ export interface CoinListFilters {
   sort?: CoinSort;
   search?: string;
   limit?: number;
-  creatorId?: number;
+  creatorWallet?: string;
 }
 
 export type TradeSide = "buy" | "sell";
 
-export interface StorageOptions {
-  /** Derives the on-chain deposit address for a user's HD wallet index. */
-  deriveDepositAddress: (index: number) => string;
+/** Everything the indexer knows about a pool it just read from the chain. */
+export interface ChainCoinInput {
+  ca: string;
+  pool: string;
+  name: string;
+  ticker: string;
+  metadataUri: string;
+  creatorWallet: string;
+  curve: CurveState;
+  createdTx?: string;
+  createdAt?: string;
+  /** filled from our own metadata store when the coin was launched through Noxia */
+  description?: string;
+  imageUrl?: string;
+  website?: string | null;
+  twitter?: string | null;
+  telegram?: string | null;
+}
+
+/** A swap the indexer decoded from a confirmed transaction. */
+export interface TradeInput {
+  coinId: number;
+  signature: string;
+  wallet: string;
+  side: TradeSide;
+  sol: number;
+  tokens: number;
+  feeSol: number;
+  priceSol: number;
+  slot: number;
+  createdAt: string;
 }
 
 /** Next id to hand out for each entity type. */
@@ -90,62 +109,39 @@ interface IdCounters {
   user: number;
   coin: number;
   trade: number;
-  holding: number;
   comment: number;
-  deposit: number;
-  withdrawal: number;
 }
 type IdKind = keyof IdCounters;
 
 /** The complete persisted application state. */
 export interface State {
-  version: 1;
-  /** BIP-39 phrase for deposit-address derivation, generated on first use. */
-  mnemonic: string | null;
-  /** Last block the on-chain deposit watcher has processed. */
-  lastScannedBlock: number | null;
+  version: 2;
   ids: IdCounters;
   users: User[];
   coins: Coin[];
   trades: Trade[];
   holdings: Holding[];
   comments: Comment[];
-  deposits: Deposit[];
-  withdrawals: Withdrawal[];
-  /** platform share of all swap fees ever collected (USDC) */
-  platformRevenue: number;
-  /** admin credits waiting for a user with that (lowercase) username to appear */
-  pendingCredits: Record<string, number>;
-  /** INITIAL_CREDITS entries ("user:amount") that were already applied */
-  appliedCredits: string[];
+  /** pool address -> newest transaction signature already indexed */
+  cursors: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
 // Constants & small helpers
 // ---------------------------------------------------------------------------
 
-const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
-/** Smallest buy accepted (USDC). */
-export const MIN_BUY_USDC = 0.01;
-const MIN_WITHDRAWAL_USDC = 1;
-const FAUCET_COOLDOWN_MS = 10 * MINUTE_MS;
 /** Holdings with fewer tokens than this are treated as empty. */
 const TOKEN_EPSILON = 1e-6;
-/** Tolerance for floating point comparisons of balances / token counts. */
-const DUST = 1e-9;
 /** How many trades the coin page receives. */
 const RECENT_TRADES = 200;
 /** How many holders the coin page receives. */
 const TOP_HOLDERS = 20;
 const DEFAULT_LIST_LIMIT = 60;
-/** Bots start with this much play money; their balance is topped up during the seed simulation. */
-const BOT_BALANCE = 25_000;
 
-const round6 = (n: number): number => Math.round(n * 1e6) / 1e6;
+const round9 = (n: number): number => Math.round(n * 1e9) / 1e9;
 const nowIso = (): string => new Date().toISOString();
-const iso = (ms: number): string => new Date(ms).toISOString();
 const ts = (isoString: string): number => Date.parse(isoString);
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 /** Start of the 1-minute candle bucket containing `ms`. */
@@ -156,45 +152,36 @@ function newestFirst<T extends { id: number; createdAt: string }>(a: T, b: T): n
   return ts(b.createdAt) - ts(a.createdAt) || b.id - a.id;
 }
 
-/** Oldest first, ties broken by id. */
 function oldestFirst<T extends { id: number; createdAt: string }>(a: T, b: T): number {
   return ts(a.createdAt) - ts(b.createdAt) || a.id - b.id;
 }
 
-function holdingKey(userId: number, coinId: number): string {
-  return `${userId}:${coinId}`;
+function holdingKey(wallet: string, coinId: number): string {
+  return `${wallet}:${coinId}`;
 }
 
-/** Empty string / whitespace links become null. */
-function optionalLink(value: string | undefined): string | null {
+/** "7xKX…noxia" — how an unnamed wallet is shown. */
+export function shortAddress(address: string): string {
+  return address.length > 10 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address;
+}
+
+function optionalLink(value: string | null | undefined): string | null {
   const v = value?.trim();
   return v ? v : null;
 }
 
-/** Curve state of a coin (the two fields curve.ts cares about). */
-function curveOf(coin: Coin): curve.CurveState {
-  return { realUsdc: coin.realUsdc, curveTokens: coin.curveTokens };
-}
-
-/** Spot price the coin launched at, before any trade. */
-function launchPrice(coin: Coin): number {
-  return curve.spotPrice(curve.initialCurve(coin.creatorAllocation));
-}
-
-/** Constant-product invariant k = (U + vU)(T + vT) of a coin's curve at launch. */
-function launchInvariant(creatorAllocation: number): number {
-  const s = curve.initialCurve(creatorAllocation);
-  return (s.realUsdc + VIRTUAL_USDC_RESERVE) * (s.curveTokens + VIRTUAL_TOKEN_RESERVE);
-}
-
-/**
- * Market cap at which the curve has sold its last token — the highest price buys can
- * ever push a coin to. Whether that is at or above GRADUATION_MCAP depends on the
- * VIRTUAL_* constants (see the integrator notes / storage tests).
- */
-export function selloutMarketCap(creatorAllocation: number): number {
-  const k = launchInvariant(creatorAllocation);
-  return curve.marketCap({ realUsdc: k / VIRTUAL_TOKEN_RESERVE - VIRTUAL_USDC_RESERVE, curveTokens: 0 });
+export function emptyCurve(): CurveState {
+  return {
+    quoteReserveSol: 0,
+    baseReserve: TOTAL_SUPPLY,
+    priceSol: 0,
+    progress: 0,
+    solToGraduate: 0,
+    completed: false,
+    migrated: false,
+    dammPool: null,
+    slot: 0,
+  };
 }
 
 function coinRef(c: Coin): Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> {
@@ -203,20 +190,14 @@ function coinRef(c: Coin): Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUr
 
 function emptyState(): State {
   return {
-    version: 1,
-    mnemonic: null,
-    lastScannedBlock: null,
-    ids: { user: 1, coin: 1, trade: 1, holding: 1, comment: 1, deposit: 1, withdrawal: 1 },
+    version: 2,
+    ids: { user: 1, coin: 1, trade: 1, comment: 1 },
     users: [],
     coins: [],
     trades: [],
     holdings: [],
     comments: [],
-    deposits: [],
-    withdrawals: [],
-    platformRevenue: 0,
-    pendingCredits: {},
-    appliedCredits: [],
+    cursors: {},
   };
 }
 
@@ -227,22 +208,15 @@ function emptyState(): State {
 /** Shape of a snapshot as it may come back from disk: anything can be missing. */
 interface LooseState {
   version?: number;
-  mnemonic?: string | null;
-  lastScannedBlock?: number | null;
   ids?: Partial<IdCounters>;
   users?: Partial<User>[];
   coins?: Partial<Coin>[];
   trades?: Partial<Trade>[];
   holdings?: Partial<Holding>[];
   comments?: Partial<Comment>[];
-  deposits?: Partial<Deposit>[];
-  withdrawals?: Partial<Withdrawal>[];
-  platformRevenue?: number;
-  pendingCredits?: Record<string, number>;
-  appliedCredits?: string[];
+  cursors?: Record<string, string>;
 }
 
-/** Fills fields missing from a loaded record with sensible defaults. */
 function withDefaults<T extends object>(defaults: T, loaded: Partial<T>): T {
   return { ...defaults, ...loaded };
 }
@@ -253,7 +227,7 @@ function nextIdAfter(items: { id: number }[], stored: number | undefined): numbe
   return Math.max(stored ?? 1, maxId + 1);
 }
 
-function restoreState(json: string): State {
+export function restoreState(json: string): State {
   const parsed: unknown = JSON.parse(json);
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new Error("Snapshot is not a JSON object");
@@ -272,99 +246,86 @@ function restoreState(json: string): State {
         provider: "email",
         walletAddress: null,
         isAdmin: false,
-        balance: 0,
-        creatorEarnings: 0,
-        depositIndex: -1,
-        depositAddress: "",
         createdAt: now,
       },
       u,
     ),
   );
 
-  const coins = (loose.coins ?? []).map((c) => {
-    const creatorAllocation = c.creatorAllocation ?? 0;
-    const initial = curve.initialCurve(creatorAllocation);
-    return withDefaults<Coin>(
+  const coins = (loose.coins ?? []).map((c) =>
+    withDefaults<Coin>(
       {
         id: 0,
         ca: "",
+        pool: "",
         name: "",
         ticker: "",
         description: "",
         imageUrl: "",
+        metadataUri: "",
         website: null,
         twitter: null,
         telegram: null,
-        creatorId: 0,
-        creatorAllocation,
-        realUsdc: 0,
-        curveTokens: initial.curveTokens,
-        circulating: TOTAL_SUPPLY * creatorAllocation,
-        volume: 0,
+        creatorWallet: "",
+        creatorId: null,
+        curve: emptyCurve(),
+        volumeSol: 0,
         buys: 0,
         sells: 0,
-        feesCollected: 0,
-        creatorFees: 0,
-        graduated: false,
-        graduatedAt: null,
+        feesSol: 0,
         createdAt: now,
+        createdTx: "",
         lastTradeAt: null,
       },
       c,
-    );
-  });
+    ),
+  );
+  // A curve object stored by an older build may be missing fields.
+  for (const coin of coins) coin.curve = withDefaults(emptyCurve(), coin.curve ?? {});
 
   const trades = (loose.trades ?? []).map((t) =>
     withDefaults<Trade>(
-      { id: 0, coinId: 0, userId: 0, side: "buy", usdc: 0, tokens: 0, fee: 0, price: 0, marketCap: 0, createdAt: now },
+      {
+        id: 0,
+        coinId: 0,
+        signature: "",
+        wallet: "",
+        userId: null,
+        side: "buy",
+        sol: 0,
+        tokens: 0,
+        feeSol: 0,
+        priceSol: 0,
+        marketCapSol: 0,
+        slot: 0,
+        createdAt: now,
+      },
       t,
     ),
   );
 
   const holdings = (loose.holdings ?? []).map((h) =>
-    withDefaults<Holding>({ id: 0, userId: 0, coinId: 0, tokens: 0, costBasis: 0, realizedPnl: 0 }, h),
+    withDefaults<Holding>({ wallet: "", coinId: 0, tokens: 0, costBasisSol: 0, realizedPnlSol: 0 }, h),
   );
 
   const comments = (loose.comments ?? []).map((c) =>
     withDefaults<Comment>({ id: 0, coinId: 0, userId: 0, body: "", imageUrl: null, likes: [], createdAt: now }, c),
   );
 
-  const deposits = (loose.deposits ?? []).map((d) =>
-    withDefaults<Deposit>({ id: 0, userId: 0, txHash: "", amount: 0, blockNumber: 0, createdAt: now }, d),
-  );
-
-  const withdrawals = (loose.withdrawals ?? []).map((w) => {
-    const createdAt = w.createdAt ?? now;
-    return withDefaults<Withdrawal>(
-      { id: 0, userId: 0, toAddress: "", amount: 0, status: "pending", txHash: null, error: null, createdAt, updatedAt: createdAt },
-      w,
-    );
-  });
-
   return {
-    version: 1,
-    mnemonic: loose.mnemonic ?? null,
-    lastScannedBlock: loose.lastScannedBlock ?? null,
-    platformRevenue: typeof loose.platformRevenue === "number" ? loose.platformRevenue : 0,
-    pendingCredits: loose.pendingCredits ?? {},
-    appliedCredits: loose.appliedCredits ?? [],
+    version: 2,
     ids: {
       user: nextIdAfter(users, loose.ids?.user),
       coin: nextIdAfter(coins, loose.ids?.coin),
       trade: nextIdAfter(trades, loose.ids?.trade),
-      holding: nextIdAfter(holdings, loose.ids?.holding),
       comment: nextIdAfter(comments, loose.ids?.comment),
-      deposit: nextIdAfter(deposits, loose.ids?.deposit),
-      withdrawal: nextIdAfter(withdrawals, loose.ids?.withdrawal),
     },
     users,
     coins,
     trades,
     holdings,
     comments,
-    deposits,
-    withdrawals,
+    cursors: loose.cursors ?? {},
   };
 }
 
@@ -379,51 +340,41 @@ export class Storage {
   // Lookup indexes over the objects held in `state` (rebuilt on restore).
   private usersById = new Map<number, User>();
   private usersByEmail = new Map<string, User>();
-  /** lowercase wallet address -> user */
+  /** wallet address (base58, case sensitive) -> user */
   private usersByWallet = new Map<string, User>();
   private coinsById = new Map<number, Coin>();
   private coinsByCa = new Map<string, Coin>();
+  private coinsByPool = new Map<string, Coin>();
   private holdingsByKey = new Map<string, Holding>();
-  /** coin id -> holdings in that coin (any size, including emptied ones) */
   private holdingsByCoin = new Map<number, Holding[]>();
   /** coin id -> trades in chronological order */
   private tradesByCoin = new Map<number, Trade[]>();
-  /** coin id -> comments in insertion order */
   private commentsByCoin = new Map<number, Comment[]>();
   private commentsById = new Map<number, Comment>();
-  private withdrawalsById = new Map<number, Withdrawal>();
-  private depositTxHashes = new Set<string>();
+  private signatures = new Set<string>();
 
   /** coin id -> derived 1-minute candles; dropped whenever the coin trades. */
   private candleCache = new Map<number, Candle[]>();
 
-  /** userId -> epoch ms of the last faucet claim (intentionally not persisted). */
-  private faucetClaims = new Map<number, number>();
-
-  constructor(private readonly opts: StorageOptions) {}
-
   // -------------------------------------------------------------------------
-  // Lifecycle (used by initStorage)
+  // Lifecycle
   // -------------------------------------------------------------------------
 
-  /** Replaces the in-memory state with a persisted snapshot, filling in any missing fields. */
   restore(json: string): void {
     this.state = restoreState(json);
     this.rebuildIndexes();
   }
 
-  /** Attaches the debounced writer and schedules a first save so migrations / seed data hit disk. */
   bindPersister(persister: Persister): void {
     this.persister = persister;
     persister.schedule();
   }
 
-  /** Returns the live state object. Callers must treat it as read-only. */
+  /** The live state object. Callers must treat it as read-only. */
   snapshot(): State {
     return this.state;
   }
 
-  /** Forces any pending snapshot to be written (used on shutdown). */
   async flush(): Promise<void> {
     await this.persister?.flush();
   }
@@ -442,36 +393,35 @@ export class Storage {
     this.usersByWallet.clear();
     this.coinsById.clear();
     this.coinsByCa.clear();
+    this.coinsByPool.clear();
     this.holdingsByKey.clear();
     this.holdingsByCoin.clear();
     this.tradesByCoin.clear();
     this.commentsByCoin.clear();
     this.commentsById.clear();
-    this.withdrawalsById.clear();
-    this.depositTxHashes.clear();
+    this.signatures.clear();
     this.candleCache.clear();
     for (const u of this.state.users) this.indexUser(u);
     for (const c of this.state.coins) this.indexCoin(c);
     for (const h of this.state.holdings) this.indexHolding(h);
     for (const t of this.state.trades.slice().sort(oldestFirst)) this.indexTrade(t);
     for (const c of this.state.comments) this.indexComment(c);
-    for (const w of this.state.withdrawals) this.withdrawalsById.set(w.id, w);
-    for (const d of this.state.deposits) this.depositTxHashes.add(d.txHash.toLowerCase());
   }
 
   private indexUser(u: User): void {
     this.usersById.set(u.id, u);
     this.usersByEmail.set(u.email.toLowerCase(), u);
-    if (u.walletAddress) this.usersByWallet.set(u.walletAddress.toLowerCase(), u);
+    if (u.walletAddress) this.usersByWallet.set(u.walletAddress, u);
   }
 
   private indexCoin(c: Coin): void {
     this.coinsById.set(c.id, c);
     this.coinsByCa.set(c.ca, c);
+    if (c.pool) this.coinsByPool.set(c.pool, c);
   }
 
   private indexHolding(h: Holding): void {
-    this.holdingsByKey.set(holdingKey(h.userId, h.coinId), h);
+    this.holdingsByKey.set(holdingKey(h.wallet, h.coinId), h);
     let list = this.holdingsByCoin.get(h.coinId);
     if (!list) {
       list = [];
@@ -481,6 +431,7 @@ export class Storage {
   }
 
   private indexTrade(t: Trade): void {
+    this.signatures.add(t.signature);
     let list = this.tradesByCoin.get(t.coinId);
     if (!list) {
       list = [];
@@ -497,18 +448,6 @@ export class Storage {
       this.commentsByCoin.set(c.coinId, list);
     }
     list.push(c);
-  }
-
-  private addUser(u: User): User {
-    this.state.users.push(u);
-    this.indexUser(u);
-    return u;
-  }
-
-  private addCoin(c: Coin): Coin {
-    this.state.coins.push(c);
-    this.indexCoin(c);
-    return c;
   }
 
   private coinTrades(coinId: number): Trade[] {
@@ -535,13 +474,12 @@ export class Storage {
     return this.usersByEmail.get(email.trim().toLowerCase());
   }
 
-  /** Lookup by EVM address (any casing). Returns undefined for malformed addresses. */
+  /** Solana addresses are base58 and case sensitive: no normalisation here. */
   getUserByWallet(address: string): User | undefined {
     if (typeof address !== "string") return undefined;
-    return this.usersByWallet.get(address.trim().toLowerCase());
+    return this.usersByWallet.get(address.trim());
   }
 
-  /** Case-insensitive username lookup. */
   getUserByUsername(username: string): User | undefined {
     const lower = username.trim().replace(/^@/, "").toLowerCase();
     return this.state.users.find((u) => u.username.toLowerCase() === lower);
@@ -555,9 +493,8 @@ export class Storage {
 
   /**
    * Looks a user up by email or creates one. Admin status is granted to emails
-   * listed in ADMIN_EMAILS and, when that list is empty, to the very first real
+   * listed in ADMIN_EMAILS and, when that list is empty, to the very first
    * account on the deployment so a fresh install always has an administrator.
-   * Existing users are re-synced against ADMIN_EMAILS but never demoted.
    */
   findOrCreateUser(email: string, provider: AuthProvider, displayName?: string): { user: User; created: boolean } {
     const normalized = email.trim().toLowerCase();
@@ -582,25 +519,20 @@ export class Storage {
   }
 
   /**
-   * Sign-in with an EVM wallet. The account is keyed by the checksummed address;
-   * its email is the synthetic `${address}@wallet.local` and the handle is derived
-   * from the address ("0xAb12…9f3c" -> "ab12_9f3c", made unique).
+   * Sign-in with a Solana wallet. The account is keyed by the base58 address;
+   * its email is the synthetic `${address}@wallet.local` and the handle is
+   * derived from the address ("7xKXtg…9f3c" -> "7xkx_9f3c", made unique).
    */
   findOrCreateWalletUser(address: string): { user: User; created: boolean } {
-    let checksummed: string;
-    try {
-      checksummed = getAddress(address);
-    } catch {
-      throw new HttpError(400, "Invalid wallet address");
-    }
-    const lower = checksummed.toLowerCase();
-    const email = `${lower}@wallet.local`;
+    const wallet = address.trim();
+    if (!SOLANA_ADDRESS_RE.test(wallet)) throw new HttpError(400, "Invalid wallet address");
+    const email = `${wallet.toLowerCase()}@wallet.local`;
 
-    const existing = this.usersByWallet.get(lower) ?? this.getUserByEmail(email);
+    const existing = this.usersByWallet.get(wallet) ?? this.getUserByEmail(email);
     if (existing) {
-      if (existing.walletAddress !== checksummed) {
-        existing.walletAddress = checksummed;
-        this.usersByWallet.set(lower, existing);
+      if (existing.walletAddress !== wallet) {
+        existing.walletAddress = wallet;
+        this.usersByWallet.set(wallet, existing);
         this.persist();
       }
       return { user: existing, created: false };
@@ -609,13 +541,41 @@ export class Storage {
     const user = this.createUser({
       email,
       provider: "wallet",
-      preferredUsername: `${lower.slice(2, 6)}_${lower.slice(-4)}`,
-      walletAddress: checksummed,
+      preferredUsername: `${wallet.slice(0, 4)}_${wallet.slice(-4)}`.toLowerCase(),
+      walletAddress: wallet,
     });
     return { user, created: true };
   }
 
-  /** Shared account creation: HD wallet index, admin bootstrap, queued credits. */
+  /**
+   * Links a wallet to an existing (email / Google / Apple) account so social
+   * users can trade. A wallet belongs to exactly one account.
+   */
+  linkWallet(userId: number, address: string): User {
+    const wallet = address.trim();
+    if (!SOLANA_ADDRESS_RE.test(wallet)) throw new HttpError(400, "Invalid wallet address");
+    const owner = this.usersByWallet.get(wallet);
+    if (owner && owner.id !== userId) throw new HttpError(409, "That wallet is already linked to another account");
+    const user = this.mustUser(userId);
+    if (user.walletAddress && user.walletAddress !== wallet) this.usersByWallet.delete(user.walletAddress);
+    user.walletAddress = wallet;
+    this.usersByWallet.set(wallet, user);
+    this.claimCoinsFor(user);
+    this.persist();
+    return user;
+  }
+
+  /** Attributes coins and trades already indexed for a wallet to its new owner. */
+  private claimCoinsFor(user: User): void {
+    if (!user.walletAddress) return;
+    for (const coin of this.state.coins) {
+      if (coin.creatorId === null && coin.creatorWallet === user.walletAddress) coin.creatorId = user.id;
+    }
+    for (const trade of this.state.trades) {
+      if (trade.userId === null && trade.wallet === user.walletAddress) trade.userId = user.id;
+    }
+  }
+
   private createUser(input: {
     email: string;
     provider: AuthProvider;
@@ -623,13 +583,9 @@ export class Storage {
     walletAddress: string | null;
   }): User {
     const listedAdmin = config.adminEmails.includes(input.email);
-    // Bots use depositIndex -1; real users get consecutive HD wallet indexes.
-    const realUsers = this.state.users.filter((u) => u.depositIndex >= 0);
-    const depositIndex = realUsers.reduce((mx, u) => Math.max(mx, u.depositIndex), -1) + 1;
-    const depositAddress = this.opts.deriveDepositAddress(depositIndex);
-    const bootstrapAdmin = config.adminEmails.length === 0 && realUsers.length === 0;
+    const bootstrapAdmin = config.adminEmails.length === 0 && this.state.users.length === 0;
 
-    const user = this.addUser({
+    const user: User = {
       id: this.nextId("user"),
       email: input.email,
       username: this.uniqueUsername(input.preferredUsername),
@@ -638,23 +594,20 @@ export class Storage {
       provider: input.provider,
       walletAddress: input.walletAddress,
       isAdmin: listedAdmin || bootstrapAdmin,
-      balance: 0,
-      creatorEarnings: 0,
-      depositIndex,
-      depositAddress,
       createdAt: nowIso(),
-    });
+    };
+    this.state.users.push(user);
+    this.indexUser(user);
     if (bootstrapAdmin) log(`${input.email} is the first account on this deployment and was granted admin`, "storage");
-    this.applyPendingCredit(user);
+    this.claimCoinsFor(user);
     this.persist();
     return user;
   }
 
-  /** Admin listing for the users tab (bots excluded); newest first, optional substring filter. */
-  listUsers(search = "", limit = 50): AdminUserRow[] {
+  /** Admin listing, newest first, optional substring filter over handle/email/wallet. */
+  listUsers(search = "", limit = 50): SafeUser[] {
     const needle = search.trim().replace(/^@/, "").toLowerCase();
     return this.state.users
-      .filter((u) => u.depositIndex >= 0)
       .filter(
         (u) =>
           !needle ||
@@ -664,79 +617,10 @@ export class Storage {
       )
       .sort(newestFirst)
       .slice(0, limit)
-      .map((u) => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        balance: u.balance,
-        isAdmin: u.isAdmin,
-        createdAt: u.createdAt,
-      }));
+      .map((u) => this.toSafeUser(u));
   }
 
-  /**
-   * Adds (or, with a negative amount, removes) USDC from a user's balance. When no
-   * user has that username yet the credit is queued and applied the moment an
-   * account with that username appears (sign-up or rename).
-   */
-  adminCreditBalance(username: string, amount: number): { user: User | null; queued: boolean } {
-    const handle = username.trim().replace(/^@/, "");
-    if (!/^[a-zA-Z0-9_]{3,24}$/.test(handle)) throw new HttpError(400, "Invalid username");
-    if (!Number.isFinite(amount) || amount === 0) throw new HttpError(400, "Amount must be a non-zero number");
-    const user = this.getUserByUsername(handle);
-    if (user) {
-      const next = round6(user.balance + amount);
-      if (next < 0) throw new HttpError(400, `Balance cannot go below zero (current ${user.balance})`);
-      user.balance = next;
-      log(`admin credit: ${amount} USDC -> @${user.username} (balance ${user.balance})`, "storage");
-      this.persist();
-      return { user, queued: false };
-    }
-    if (amount < 0) throw new HttpError(404, `No user named @${handle}`);
-    const key = handle.toLowerCase();
-    this.state.pendingCredits[key] = round6((this.state.pendingCredits[key] ?? 0) + amount);
-    log(`admin credit queued: ${amount} USDC for @${handle} (not registered yet)`, "storage");
-    this.persist();
-    return { user: null, queued: true };
-  }
-
-  /** Applies a queued credit to a user whose username now matches one. */
-  private applyPendingCredit(user: User): void {
-    const key = user.username.toLowerCase();
-    const amount = this.state.pendingCredits[key];
-    if (!amount) return;
-    delete this.state.pendingCredits[key];
-    user.balance = round6(user.balance + amount);
-    log(`applied queued credit of ${amount} USDC to @${user.username}`, "storage");
-  }
-
-  /**
-   * INITIAL_CREDITS="alice:1000,bob:250" — one-off credits given at boot. Each entry is
-   * applied exactly once per deployment (tracked in state.appliedCredits) so restarts
-   * never double-credit.
-   */
-  applyInitialCredits(spec: string): void {
-    for (const raw of spec.split(",")) {
-      const entry = raw.trim();
-      if (!entry) continue;
-      if (this.state.appliedCredits.includes(entry)) continue;
-      const [name, amt] = entry.split(":");
-      const amount = Number(amt);
-      if (!name || !Number.isFinite(amount) || amount <= 0) {
-        log(`ignoring malformed INITIAL_CREDITS entry "${entry}"`, "storage");
-        continue;
-      }
-      try {
-        this.adminCreditBalance(name, amount);
-        this.state.appliedCredits.push(entry);
-        this.persist();
-      } catch (e) {
-        log(`INITIAL_CREDITS "${entry}" failed: ${(e as Error).message}`, "storage");
-      }
-    }
-  }
-
-  /** Sanitises a preferred handle to [a-zA-Z0-9_], 3-24 chars, and makes it unique with a numeric suffix. */
+  /** Sanitises a preferred handle to [a-zA-Z0-9_], 3-24 chars, and makes it unique. */
   private uniqueUsername(preferred: string): string {
     let base = preferred.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
     if (base.length < 3) base = "degen";
@@ -758,12 +642,10 @@ export class Storage {
     const user = this.mustUser(userId);
     if (this.usernameTaken(username, userId)) throw new HttpError(409, "That username is already taken");
     user.username = username;
-    this.applyPendingCredit(user);
     this.persist();
     return user;
   }
 
-  /** Sets (or with null clears) a user's custom avatar. */
   setAvatar(userId: number, imageUrl: string | null): User {
     const user = this.mustUser(userId);
     user.avatarUrl = imageUrl;
@@ -771,22 +653,40 @@ export class Storage {
     return user;
   }
 
-  /** Strips fields that must never leave the server. */
+  /** Nothing is stripped any more (no balances, no deposit index), but keep the seam. */
   toSafeUser(u: User): SafeUser {
-    const { depositIndex: _depositIndex, ...safe } = u;
-    return safe;
+    return { ...u };
   }
 
-  toPublicUser(id: number): PublicUser {
+  toPublicUser(id: number | null): PublicUser | null {
+    if (id === null) return null;
     const u = this.usersById.get(id);
-    return u
-      ? { id: u.id, username: u.username, avatarSeed: u.avatarSeed, avatarUrl: u.avatarUrl }
-      : { id, username: "unknown", avatarSeed: "unknown", avatarUrl: null };
+    if (!u) return null;
+    return { id: u.id, username: u.username, avatarSeed: u.avatarSeed, avatarUrl: u.avatarUrl, walletAddress: u.walletAddress };
+  }
+
+  /** A user for `wallet`, or a synthetic "anonymous wallet" profile. */
+  publicUserForWallet(wallet: string, userId: number | null = null): PublicUser {
+    const known = this.toPublicUser(userId) ?? (wallet ? this.toPublicUser(this.getUserByWallet(wallet)?.id ?? null) : null);
+    if (known) return known;
+    return { id: 0, username: shortAddress(wallet), avatarSeed: wallet || "unknown", avatarUrl: null, walletAddress: wallet || null };
   }
 
   // -------------------------------------------------------------------------
-  // Coins: helpers
+  // Coins
   // -------------------------------------------------------------------------
+
+  findCoinByCa(ca: string): Coin | undefined {
+    return this.coinsByCa.get(ca.trim());
+  }
+
+  findCoinByPool(pool: string): Coin | undefined {
+    return this.coinsByPool.get(pool.trim());
+  }
+
+  getCoin(id: number): Coin | undefined {
+    return this.coinsById.get(id);
+  }
 
   private mustCoin(id: number): Coin {
     const c = this.coinsById.get(id);
@@ -794,74 +694,148 @@ export class Storage {
     return c;
   }
 
-  /** Raw coin record by contract address (no aggregates); handy for resolving ids in routes. */
-  findCoinByCa(ca: string): Coin | undefined {
-    return this.coinsByCa.get(ca.trim());
-  }
-
-  private uniqueCa(): string {
-    for (;;) {
-      const ca = generateCa();
-      if (!this.coinsByCa.has(ca)) return ca;
+  /**
+   * Adds or refreshes a coin from what the indexer read on chain. Only fields the
+   * chain owns are overwritten; description/image/links stay as they were unless
+   * the caller passes new ones (they come from our own metadata store).
+   */
+  upsertCoinFromChain(input: ChainCoinInput): { coin: Coin; created: boolean } {
+    const existing = this.coinsByCa.get(input.ca);
+    if (existing) {
+      existing.pool = input.pool;
+      existing.name = input.name || existing.name;
+      existing.ticker = input.ticker || existing.ticker;
+      existing.metadataUri = input.metadataUri || existing.metadataUri;
+      existing.creatorWallet = input.creatorWallet || existing.creatorWallet;
+      if (existing.creatorId === null) existing.creatorId = this.getUserByWallet(existing.creatorWallet)?.id ?? null;
+      if (input.description !== undefined) existing.description = input.description;
+      if (input.imageUrl !== undefined) existing.imageUrl = input.imageUrl;
+      if (input.website !== undefined) existing.website = optionalLink(input.website);
+      if (input.twitter !== undefined) existing.twitter = optionalLink(input.twitter);
+      if (input.telegram !== undefined) existing.telegram = optionalLink(input.telegram);
+      if (input.createdTx && !existing.createdTx) existing.createdTx = input.createdTx;
+      this.coinsByPool.set(existing.pool, existing);
+      this.setCurve(existing, input.curve);
+      return { coin: existing, created: false };
     }
+
+    const coin: Coin = {
+      id: this.nextId("coin"),
+      ca: input.ca,
+      pool: input.pool,
+      name: input.name || input.ticker || shortAddress(input.ca),
+      ticker: input.ticker,
+      description: input.description ?? "",
+      imageUrl: input.imageUrl ?? "",
+      metadataUri: input.metadataUri,
+      website: optionalLink(input.website),
+      twitter: optionalLink(input.twitter),
+      telegram: optionalLink(input.telegram),
+      creatorWallet: input.creatorWallet,
+      creatorId: this.getUserByWallet(input.creatorWallet)?.id ?? null,
+      curve: input.curve,
+      volumeSol: 0,
+      buys: 0,
+      sells: 0,
+      feesSol: 0,
+      createdAt: input.createdAt ?? nowIso(),
+      createdTx: input.createdTx ?? "",
+      lastTradeAt: null,
+    };
+    this.state.coins.push(coin);
+    this.indexCoin(coin);
+    this.persist();
+    return { coin, created: true };
   }
 
-  /** Volume traded in the last 24 hours. Trades are chronological, so scan from the end. */
+  /** Writes a fresh curve reading. Returns true when the coin just graduated. */
+  setCurve(coin: Coin, curve: CurveState): boolean {
+    const wasCompleted = coin.curve.completed;
+    coin.curve = curve;
+    this.candleCache.delete(coin.id);
+    this.persist();
+    return !wasCompleted && curve.completed;
+  }
+
+  /** Metadata edits that come from our own store rather than the chain. */
+  applyLocalMetadata(
+    ca: string,
+    meta: { description?: string; imageUrl?: string; website?: string | null; twitter?: string | null; telegram?: string | null },
+  ): void {
+    const coin = this.coinsByCa.get(ca);
+    if (!coin) return;
+    if (meta.description !== undefined) coin.description = meta.description;
+    if (meta.imageUrl !== undefined) coin.imageUrl = meta.imageUrl;
+    if (meta.website !== undefined) coin.website = optionalLink(meta.website);
+    if (meta.twitter !== undefined) coin.twitter = optionalLink(meta.twitter);
+    if (meta.telegram !== undefined) coin.telegram = optionalLink(meta.telegram);
+    this.persist();
+  }
+
+  /** Volume (SOL) traded in the last 24 hours. Trades are chronological. */
   private volume24h(coinId: number, now: number): number {
     const cutoff = now - DAY_MS;
     const trades = this.coinTrades(coinId);
     let volume = 0;
-    for (let i = trades.length - 1; i >= 0 && ts(trades[i].createdAt) >= cutoff; i--) volume += trades[i].usdc;
+    for (let i = trades.length - 1; i >= 0 && ts(trades[i].createdAt) >= cutoff; i--) volume += trades[i].sol;
     return volume;
   }
 
   /**
-   * Relative price change versus 24 hours ago (0.25 = +25%). The reference is
-   * the price after the latest trade at or before the cutoff, or the launch
-   * price when the coin had not traded by then.
+   * Relative price change versus 24 hours ago (0.25 = +25%). The reference is the
+   * price after the newest trade at or before the cutoff; coins that had not
+   * traded by then are measured from their first known price.
    */
   private change24h(coin: Coin, price: number, now: number): number {
     const cutoff = now - DAY_MS;
-    let reference = launchPrice(coin);
-    for (const t of this.coinTrades(coin.id)) {
+    const trades = this.coinTrades(coin.id);
+    if (trades.length === 0) return 0;
+    let reference = trades[0].priceSol;
+    for (const t of trades) {
       if (ts(t.createdAt) > cutoff) break;
-      reference = t.price;
+      reference = t.priceSol;
     }
     return reference > 0 ? price / reference - 1 : 0;
   }
 
+  /** Wallets our index believes still hold tokens of the coin. */
   private holderCount(coinId: number): number {
     let n = 0;
     for (const h of this.coinHoldings(coinId)) if (h.tokens > TOKEN_EPSILON) n++;
     return n;
   }
 
-  private withUser(t: Trade): Trade & { user: PublicUser } {
+  private withUser(t: Trade): Trade & { user: PublicUser | null } {
     return { ...t, user: this.toPublicUser(t.userId) };
   }
 
-  private summarize(coin: Coin, now = Date.now()): CoinSummary {
-    const state = curveOf(coin);
-    const price = curve.spotPrice(state);
-    const marketCap = curve.marketCap(state);
+  summarize(coin: Coin, now = Date.now()): CoinSummary {
     const trades = this.coinTrades(coin.id);
     const last = trades.length ? trades[trades.length - 1] : null;
+    const priceSol = coin.curve.priceSol;
     return {
       ...coin,
-      price,
-      marketCap,
-      progress: clamp(marketCap / GRADUATION_MCAP, 0, 1),
+      priceSol,
+      marketCapSol: priceSol * TOTAL_SUPPLY,
+      progress: clamp(coin.curve.progress, 0, 1),
       holders: this.holderCount(coin.id),
       comments: this.coinComments(coin.id).length,
-      change24h: this.change24h(coin, price, now),
-      creator: this.toPublicUser(coin.creatorId),
+      change24h: this.change24h(coin, priceSol, now),
+      creator: this.publicUserForWallet(coin.creatorWallet, coin.creatorId),
       lastTrade: last ? this.withUser(last) : null,
     };
   }
 
-  private detail(coin: Coin, viewerId?: number): CoinDetail {
+  /**
+   * The coin page. `viewerWallet` fills `myHolding` from the indexed cost basis;
+   * routes.ts overlays the chain balance and the real top-holder list.
+   */
+  getCoinDetail(ca: string, viewerWallet?: string | null): CoinDetail | undefined {
+    const coin = this.coinsByCa.get(ca.trim());
+    if (!coin) return undefined;
+
     const trades = this.coinTrades(coin.id);
-    const recentTrades: (Trade & { user: PublicUser })[] = [];
+    const recentTrades: (Trade & { user: PublicUser | null })[] = [];
     for (let i = trades.length - 1; i >= 0 && recentTrades.length < RECENT_TRADES; i--) recentTrades.push(this.withUser(trades[i]));
 
     const commentsList = this.coinComments(coin.id)
@@ -873,21 +847,30 @@ export class Storage {
       .filter((h) => h.tokens > TOKEN_EPSILON)
       .sort((a, b) => b.tokens - a.tokens)
       .slice(0, TOP_HOLDERS)
-      .map((h) => ({
-        user: this.toPublicUser(h.userId),
-        tokens: h.tokens,
-        share: h.tokens / TOTAL_SUPPLY,
-        isCreator: h.userId === coin.creatorId,
-      }));
+      .map((h) => this.holderRow(coin, h.wallet, h.tokens));
 
-    const mine = viewerId !== undefined ? this.findHolding(viewerId, coin.id) : undefined;
+    const mine = viewerWallet ? this.findHolding(viewerWallet, coin.id) : undefined;
     return {
       ...this.summarize(coin),
       candles: this.getCandles(coin.id),
       recentTrades,
       commentsList,
       topHolders,
-      myHolding: mine && mine.tokens > TOKEN_EPSILON ? { ...mine } : null,
+      myHolding: mine && (mine.tokens > TOKEN_EPSILON || mine.costBasisSol > 0) ? { ...mine } : null,
+      creatorClaimableSol: 0,
+    };
+  }
+
+  /** One row of the holders table (`isCurve` is set by the caller for the vault). */
+  holderRow(coin: Coin, wallet: string, tokens: number, isCurve = false): HolderRow {
+    const user = this.getUserByWallet(wallet);
+    return {
+      wallet,
+      user: user ? this.toPublicUser(user.id) : null,
+      tokens,
+      share: TOTAL_SUPPLY > 0 ? tokens / TOTAL_SUPPLY : 0,
+      isCreator: wallet === coin.creatorWallet,
+      isCurve,
     };
   }
 
@@ -896,13 +879,10 @@ export class Storage {
       c.name.toLowerCase().includes(needle) ||
       c.ticker.toLowerCase().includes(needle) ||
       c.ca.toLowerCase() === needle ||
+      c.pool.toLowerCase() === needle ||
       c.description.toLowerCase().includes(needle)
     );
   }
-
-  // -------------------------------------------------------------------------
-  // Coins: queries
-  // -------------------------------------------------------------------------
 
   listCoins(filters: CoinListFilters = {}): CoinSummary[] {
     const now = Date.now();
@@ -912,8 +892,8 @@ export class Storage {
 
     const list: CoinSummary[] = [];
     for (const c of this.state.coins) {
-      if (filters.creatorId !== undefined && c.creatorId !== filters.creatorId) continue;
-      if (sort === "graduated" && !c.graduated) continue;
+      if (filters.creatorWallet !== undefined && c.creatorWallet !== filters.creatorWallet) continue;
+      if (sort === "graduated" && !c.curve.completed) continue;
       if (needle && !this.matchesSearch(c, needle)) continue;
       list.push(this.summarize(c, now));
     }
@@ -923,13 +903,13 @@ export class Storage {
         list.sort(newestFirst);
         break;
       case "mcap":
-        list.sort((a, b) => b.marketCap - a.marketCap || newestFirst(a, b));
+        list.sort((a, b) => b.marketCapSol - a.marketCapSol || newestFirst(a, b));
         break;
       case "volume":
-        list.sort((a, b) => b.volume - a.volume || newestFirst(a, b));
+        list.sort((a, b) => b.volumeSol - a.volumeSol || newestFirst(a, b));
         break;
       case "graduated":
-        list.sort((a, b) => ts(b.graduatedAt ?? b.createdAt) - ts(a.graduatedAt ?? a.createdAt) || b.id - a.id);
+        list.sort((a, b) => b.progress - a.progress || newestFirst(a, b));
         break;
       case "trending": {
         // 24h volume, boosted for coins launched in the last day so fresh launches surface.
@@ -939,7 +919,9 @@ export class Storage {
           const boost = 1 + Math.max(0, 1 - ageHours / 24);
           score.set(s.id, this.volume24h(s.id, now) * boost);
         }
-        list.sort((a, b) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0) || b.marketCap - a.marketCap || newestFirst(a, b));
+        list.sort(
+          (a, b) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0) || b.marketCapSol - a.marketCapSol || newestFirst(a, b),
+        );
         break;
       }
     }
@@ -947,35 +929,8 @@ export class Storage {
   }
 
   /**
-   * King of the Hill: the non-graduated coin with the highest market cap, provided
-   * it is at or above KING_MCAP — otherwise simply the highest-cap open coin.
-   * Null when there are no open coins at all.
-   */
-  getKing(): CoinSummary | null {
-    let best: Coin | null = null;
-    let bestCap = -1;
-    for (const c of this.state.coins) {
-      if (c.graduated) continue;
-      const cap = curve.marketCap(curveOf(c));
-      if (cap > bestCap) {
-        best = c;
-        bestCap = cap;
-      }
-    }
-    // KING_MCAP only changes how the client badges the coin; the top open coin is returned either way.
-    return best ? this.summarize(best) : null;
-  }
-
-  /** Full coin page. `viewerId` fills `myHolding`. */
-  getCoinByCa(ca: string, viewerId?: number): CoinDetail | undefined {
-    const coin = this.coinsByCa.get(ca.trim());
-    if (!coin) return undefined;
-    return this.detail(coin, viewerId);
-  }
-
-  /**
-   * 1-minute OHLC candles (USDC per token) derived from the coin's trades, starting
-   * with a synthetic launch candle at the creation price. Cached until the next trade.
+   * 1-minute OHLC candles (SOL per token) derived from the coin's trades.
+   * Cached until the coin trades again or its curve state is refreshed.
    */
   getCandles(coinId: number): Candle[] {
     const coin = this.mustCoin(coinId);
@@ -988,25 +943,31 @@ export class Storage {
   }
 
   private buildCandles(coin: Coin): Candle[] {
-    const launch = launchPrice(coin);
+    const trades = this.coinTrades(coin.id);
+    if (trades.length === 0) {
+      const price = coin.curve.priceSol;
+      return [{ t: bucketStart(ts(coin.createdAt)), o: price, h: price, l: price, c: price, v: 0 }];
+    }
+    // Launch candle so the chart starts at the coin's creation, at the first traded price.
+    const launch = trades[0].priceSol;
     const candles: Candle[] = [{ t: bucketStart(ts(coin.createdAt)), o: launch, h: launch, l: launch, c: launch, v: 0 }];
-    for (const t of this.coinTrades(coin.id)) {
+    for (const t of trades) {
       const bucket = bucketStart(ts(t.createdAt));
       const last = candles[candles.length - 1];
       if (bucket <= last.t) {
         // Same minute as the previous candle (or a clock hiccup): fold the trade in.
-        last.h = Math.max(last.h, t.price);
-        last.l = Math.min(last.l, t.price);
-        last.c = t.price;
-        last.v = round6(last.v + t.usdc);
+        last.h = Math.max(last.h, t.priceSol);
+        last.l = Math.min(last.l, t.priceSol);
+        last.c = t.priceSol;
+        last.v = round9(last.v + t.sol);
       } else {
         candles.push({
           t: bucket,
           o: last.c,
-          h: Math.max(last.c, t.price),
-          l: Math.min(last.c, t.price),
-          c: t.price,
-          v: round6(t.usdc),
+          h: Math.max(last.c, t.priceSol),
+          l: Math.min(last.c, t.priceSol),
+          c: t.priceSol,
+          v: round9(t.sol),
         });
       }
     }
@@ -1014,225 +975,99 @@ export class Storage {
   }
 
   // -------------------------------------------------------------------------
-  // Coins: creation
+  // Trades & holdings
   // -------------------------------------------------------------------------
 
-  /**
-   * Launches a coin: mints the creator allocation, optionally executes the creator's
-   * first buy through the curve (paid from their balance) and records the launch.
-   * `imageUrl` is the already-stored image (routes handle the upload).
-   */
-  createCoin(creator: User, input: CreateCoinInput, imageUrl: string): { coin: CoinDetail; trade: Trade | null } {
-    const user = this.mustUser(creator.id);
-    const allocation = clamp(Number(input.creatorAllocation) || 0, 0, 1);
-    const initialBuy = round6(Math.max(0, Number(input.initialBuy) || 0));
-    if (initialBuy > 0 && initialBuy < MIN_BUY_USDC) throw new HttpError(400, `Minimum initial buy is ${MIN_BUY_USDC} USDC`);
-    if (initialBuy > user.balance + DUST) throw new HttpError(400, "Insufficient balance for the initial buy");
-
-    const now = nowIso();
-    const initial = curve.initialCurve(allocation);
-    const coin = this.addCoin({
-      id: this.nextId("coin"),
-      ca: this.uniqueCa(),
-      name: input.name.trim(),
-      ticker: input.ticker.trim().toUpperCase(),
-      description: input.description.trim(),
-      imageUrl,
-      website: optionalLink(input.website),
-      twitter: optionalLink(input.twitter),
-      telegram: optionalLink(input.telegram),
-      creatorId: user.id,
-      creatorAllocation: allocation,
-      realUsdc: initial.realUsdc,
-      curveTokens: initial.curveTokens,
-      circulating: 0,
-      volume: 0,
-      buys: 0,
-      sells: 0,
-      feesCollected: 0,
-      creatorFees: 0,
-      graduated: false,
-      graduatedAt: null,
-      createdAt: now,
-      lastTradeAt: null,
-    });
-
-    const minted = TOTAL_SUPPLY * allocation;
-    if (minted > 0) {
-      const holding = this.getOrCreateHolding(user.id, coin.id);
-      holding.tokens += minted;
-      coin.circulating += minted;
-    }
-
-    let trade: Trade | null = null;
-    if (initialBuy > 0) {
-      const swap = curve.quoteBuy(curveOf(coin), Math.min(initialBuy, round6(this.maxBuy(coin))));
-      if (swap.amountOut > DUST) trade = this.settle(coin, user, "buy", swap, now);
-    }
-
-    this.persist();
-    return { coin: this.detail(coin, user.id), trade };
+  findHolding(wallet: string, coinId: number): Holding | undefined {
+    return this.holdingsByKey.get(holdingKey(wallet, coinId));
   }
 
-  // -------------------------------------------------------------------------
-  // Trading
-  // -------------------------------------------------------------------------
-
-  private findHolding(userId: number, coinId: number): Holding | undefined {
-    return this.holdingsByKey.get(holdingKey(userId, coinId));
-  }
-
-  private getOrCreateHolding(userId: number, coinId: number): Holding {
-    const existing = this.findHolding(userId, coinId);
+  private getOrCreateHolding(wallet: string, coinId: number): Holding {
+    const existing = this.findHolding(wallet, coinId);
     if (existing) return existing;
-    const created: Holding = { id: this.nextId("holding"), userId, coinId, tokens: 0, costBasis: 0, realizedPnl: 0 };
+    const created: Holding = { wallet, coinId, tokens: 0, costBasisSol: 0, realizedPnlSol: 0 };
     this.state.holdings.push(created);
     this.indexHolding(created);
     return created;
   }
 
-  /**
-   * Largest buy (USDC, fee included) the curve can still fill, i.e. the cost of every
-   * remaining token; 0 once the curve is sold out. Buys are capped to it so a trader
-   * never pays for tokens the curve does not have.
-   */
-  private maxBuy(coin: Coin): number {
-    if (coin.curveTokens <= TOKEN_EPSILON) return 0;
-    return Math.max(0, curve.usdcForTokens(curveOf(coin), coin.curveTokens));
-  }
-
-  /** Validates an order and prices it against the current curve state. */
-  private prepareSwap(coin: Coin, user: User, side: TradeSide, amount: number): curve.SwapResult {
-    if (!Number.isFinite(amount) || amount <= 0) throw new HttpError(400, "Amount must be a positive number");
-    const state = curveOf(coin);
-    let swap: curve.SwapResult;
-    if (side === "buy") {
-      const usdc = round6(amount);
-      if (usdc < MIN_BUY_USDC) throw new HttpError(400, `Minimum buy is ${MIN_BUY_USDC} USDC`);
-      if (usdc > user.balance + DUST) throw new HttpError(400, "Insufficient balance");
-      const maxIn = round6(this.maxBuy(coin));
-      if (maxIn < MIN_BUY_USDC) throw new HttpError(400, "The bonding curve is sold out");
-      // A buy larger than what is left simply buys out the curve; the rest stays in the balance.
-      swap = curve.quoteBuy(state, Math.min(usdc, maxIn));
-    } else {
-      const owned = this.findHolding(user.id, coin.id)?.tokens ?? 0;
-      if (owned <= TOKEN_EPSILON) throw new HttpError(400, "You don't hold this coin");
-      if (amount > owned * (1 + 1e-9) + DUST) throw new HttpError(400, "You don't own that many tokens");
-      swap = curve.quoteSell(state, Math.min(amount, owned));
-    }
-    if (swap.amountOut <= DUST) throw new HttpError(400, "Trade too small");
-    return swap;
-  }
-
-  private toQuote(side: TradeSide, swap: curve.SwapResult): TradeQuote {
-    return {
-      side,
-      amountIn: swap.amountIn,
-      amountOut: swap.amountOut,
-      fee: swap.fee,
-      priceBefore: swap.priceBefore,
-      priceAfter: swap.priceAfter,
-      priceImpact: swap.priceImpact,
-      marketCapAfter: curve.marketCap(swap.next),
-    };
-  }
-
-  /** Prices an order without executing it. `amount` is USDC for buys, tokens for sells. */
-  quote(coinId: number, userId: number, side: TradeSide, amount: number): TradeQuote {
-    const coin = this.mustCoin(coinId);
-    const user = this.mustUser(userId);
-    return this.toQuote(side, this.prepareSwap(coin, user, side, amount));
+  hasSignature(signature: string): boolean {
+    return this.signatures.has(signature);
   }
 
   /**
-   * Executes an order. `amount` is USDC to spend (fee included) for buys and tokens
-   * to sell for sells. `minOut` is the slippage guard: minimum tokens (buy) or USDC
-   * (sell) the trader accepts; a worse fill is rejected with 400 "Price moved".
+   * Records a swap the indexer decoded. Returns null when the signature was
+   * already indexed (the indexer, the log subscription and /api/tx/send all
+   * race to be first).
    */
-  trade(coinId: number, userId: number, side: TradeSide, amount: number, minOut?: number): { trade: Trade; coin: CoinSummary; user: User } {
-    const coin = this.mustCoin(coinId);
-    const user = this.mustUser(userId);
-    const swap = this.prepareSwap(coin, user, side, amount);
-    if (minOut !== undefined && Number.isFinite(minOut) && minOut > 0 && swap.amountOut < minOut) {
-      throw new HttpError(400, "Price moved, try again");
-    }
-    const trade = this.settle(coin, user, side, swap, nowIso());
-    this.persist();
-    return { trade, coin: this.summarize(coin), user };
-  }
+  recordTrade(input: TradeInput): { trade: Trade; coin: Coin } | null {
+    if (this.signatures.has(input.signature)) return null;
+    const coin = this.mustCoin(input.coinId);
+    const wallet = input.wallet;
+    const user = wallet ? this.getUserByWallet(wallet) : undefined;
 
-  /**
-   * Applies a priced swap to the ledger: trader balance and holding (average-cost
-   * accounting), creator fee, platform revenue, curve state, coin statistics,
-   * graduation and the trade log. Shared by live trading and the seed simulation.
-   */
-  private settle(coin: Coin, user: User, side: TradeSide, swap: curve.SwapResult, at: string): Trade {
-    const holding = this.getOrCreateHolding(user.id, coin.id);
-    let usdc: number;
-    let tokens: number;
+    const sol = round9(Math.max(0, input.sol));
+    const tokens = Math.max(0, input.tokens);
+    const holding = this.getOrCreateHolding(wallet, coin.id);
 
-    if (side === "buy") {
-      usdc = round6(swap.amountIn);
-      tokens = swap.amountOut;
-      user.balance = round6(user.balance - usdc);
+    if (input.side === "buy") {
       holding.tokens += tokens;
-      holding.costBasis = round6(holding.costBasis + usdc);
-      coin.circulating += tokens;
+      holding.costBasisSol = round9(holding.costBasisSol + sol);
       coin.buys += 1;
     } else {
-      tokens = swap.amountIn;
-      usdc = round6(swap.amountOut);
       const fraction = holding.tokens > 0 ? Math.min(1, tokens / holding.tokens) : 1;
-      const costOfSold = round6(holding.costBasis * fraction);
-      user.balance = round6(user.balance + usdc);
-      holding.realizedPnl = round6(holding.realizedPnl + usdc - costOfSold);
-      holding.costBasis = round6(holding.costBasis - costOfSold);
-      holding.tokens -= tokens;
+      const costOfSold = round9(holding.costBasisSol * fraction);
+      holding.realizedPnlSol = round9(holding.realizedPnlSol + sol - costOfSold);
+      holding.costBasisSol = round9(Math.max(0, holding.costBasisSol - costOfSold));
+      holding.tokens = Math.max(0, holding.tokens - tokens);
       if (holding.tokens < TOKEN_EPSILON) {
         holding.tokens = 0;
-        holding.costBasis = 0;
+        holding.costBasisSol = 0;
       }
-      coin.circulating = Math.max(0, coin.circulating - tokens);
       coin.sells += 1;
     }
 
-    // Fee split: the creator is paid instantly, the rest is platform revenue.
-    const creator = this.usersById.get(coin.creatorId);
-    if (creator && swap.creatorFee > 0) {
-      creator.balance = round6(creator.balance + swap.creatorFee);
-      creator.creatorEarnings = round6(creator.creatorEarnings + swap.creatorFee);
-    }
-    this.state.platformRevenue = round6(this.state.platformRevenue + swap.platformFee);
-
-    coin.realUsdc = swap.next.realUsdc;
-    coin.curveTokens = Math.max(0, swap.next.curveTokens);
-    coin.volume = round6(coin.volume + usdc);
-    coin.feesCollected = round6(coin.feesCollected + swap.fee);
-    coin.creatorFees = round6(coin.creatorFees + swap.creatorFee);
-    coin.lastTradeAt = at;
-
-    const marketCap = curve.marketCap(swap.next);
-    if (!coin.graduated && marketCap >= GRADUATION_MCAP) {
-      coin.graduated = true;
-      coin.graduatedAt = at;
-    }
+    coin.volumeSol = round9(coin.volumeSol + sol);
+    coin.feesSol = round9(coin.feesSol + input.feeSol);
+    coin.lastTradeAt = input.createdAt;
 
     const trade: Trade = {
       id: this.nextId("trade"),
       coinId: coin.id,
-      userId: user.id,
-      side,
-      usdc,
+      signature: input.signature,
+      wallet,
+      userId: user?.id ?? null,
+      side: input.side,
+      sol,
       tokens,
-      fee: swap.fee,
-      price: swap.priceAfter,
-      marketCap,
-      createdAt: at,
+      feeSol: round9(input.feeSol),
+      priceSol: input.priceSol,
+      marketCapSol: input.priceSol * TOTAL_SUPPLY,
+      slot: input.slot,
+      createdAt: input.createdAt,
     };
     this.state.trades.push(trade);
     this.indexTrade(trade);
+    // Trades arrive newest-last in normal operation, but a backfill can insert
+    // older ones; keep the per-coin list chronological for the candle builder.
+    const list = this.tradesByCoin.get(coin.id);
+    if (list && list.length > 1 && ts(list[list.length - 2].createdAt) > ts(trade.createdAt)) list.sort(oldestFirst);
     this.candleCache.delete(coin.id);
-    return trade;
+    this.persist();
+    return { trade, coin };
+  }
+
+  // -------------------------------------------------------------------------
+  // Indexer cursors
+  // -------------------------------------------------------------------------
+
+  getCursor(pool: string): string | undefined {
+    return this.state.cursors[pool];
+  }
+
+  setCursor(pool: string, signature: string): void {
+    this.state.cursors[pool] = signature;
+    this.persist();
   }
 
   // -------------------------------------------------------------------------
@@ -1240,8 +1075,21 @@ export class Storage {
   // -------------------------------------------------------------------------
 
   private toCommentView(c: Comment): CommentView {
-    const holding = this.findHolding(c.userId, c.coinId);
-    return { ...c, user: this.toPublicUser(c.userId), holding: holding && holding.tokens > TOKEN_EPSILON ? holding.tokens : 0 };
+    const user = this.usersById.get(c.userId);
+    const wallet = user?.walletAddress ?? null;
+    const holding = wallet ? this.findHolding(wallet, c.coinId) : undefined;
+    return {
+      ...c,
+      user: this.toPublicUser(c.userId) ?? { id: c.userId, username: "unknown", avatarSeed: "unknown", avatarUrl: null, walletAddress: null },
+      holding: holding && holding.tokens > TOKEN_EPSILON ? holding.tokens : 0,
+    };
+  }
+
+  listComments(coinId: number): CommentView[] {
+    return this.coinComments(coinId)
+      .slice()
+      .sort(newestFirst)
+      .map((c) => this.toCommentView(c));
   }
 
   addComment(coinId: number, userId: number, body: string, imageUrl?: string | null): CommentView {
@@ -1275,144 +1123,22 @@ export class Storage {
     return this.toCommentView(comment);
   }
 
-  /** Contract address of the coin a comment belongs to (for WebSocket frames). */
+  /** Mint of the coin a comment belongs to (for WebSocket frames). */
   getCommentCoinCa(commentId: number): string | undefined {
     const comment = this.commentsById.get(commentId);
     return comment ? this.coinsById.get(comment.coinId)?.ca : undefined;
   }
 
   // -------------------------------------------------------------------------
-  // Wallet
-  // -------------------------------------------------------------------------
-
-  getWallet(userId: number): WalletView {
-    const user = this.mustUser(userId);
-    return {
-      balance: user.balance,
-      depositAddress: user.depositAddress,
-      deposits: this.state.deposits.filter((d) => d.userId === userId).sort(newestFirst),
-      withdrawals: this.state.withdrawals.filter((w) => w.userId === userId).sort(newestFirst),
-      chain: config.chain,
-    };
-  }
-
-  /** Returns the stored deposit mnemonic, generating and persisting one on first use. */
-  getOrCreateMnemonic(generate: () => string): string {
-    if (this.state.mnemonic) return this.state.mnemonic;
-    this.state.mnemonic = generate();
-    this.persist();
-    return this.state.mnemonic;
-  }
-
-  getLastScannedBlock(): number | null {
-    return this.state.lastScannedBlock;
-  }
-
-  setLastScannedBlock(n: number): void {
-    this.state.lastScannedBlock = n;
-    this.persist();
-  }
-
-  /** Every address the deposit watcher should monitor (bots have none). */
-  listDepositAddresses(): { address: string; userId: number }[] {
-    return this.state.users.filter((u) => u.depositAddress !== "").map((u) => ({ address: u.depositAddress, userId: u.id }));
-  }
-
-  /** Credits a confirmed on-chain deposit exactly once per transaction hash. */
-  recordDeposit(userId: number, txHash: string, amount: number, blockNumber: number): Deposit | null {
-    const hash = txHash.toLowerCase();
-    if (this.depositTxHashes.has(hash)) return null;
-    const user = this.mustUser(userId);
-    const deposit: Deposit = {
-      id: this.nextId("deposit"),
-      userId,
-      txHash,
-      amount: round6(amount),
-      blockNumber,
-      createdAt: nowIso(),
-    };
-    user.balance = round6(user.balance + deposit.amount);
-    this.state.deposits.push(deposit);
-    this.depositTxHashes.add(hash);
-    this.persist();
-    return deposit;
-  }
-
-  getWithdrawal(id: number): Withdrawal | undefined {
-    return this.withdrawalsById.get(id);
-  }
-
-  /** Debits the balance immediately; the chain worker later marks the request sent or failed. */
-  requestWithdrawal(userId: number, toAddress: string, amount: number): Withdrawal {
-    const user = this.mustUser(userId);
-    if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL_USDC) {
-      throw new HttpError(400, `Minimum withdrawal is ${MIN_WITHDRAWAL_USDC} USDC`);
-    }
-    const usdc = round6(amount);
-    if (usdc > user.balance + DUST) throw new HttpError(400, "Insufficient balance");
-
-    const now = nowIso();
-    const withdrawal: Withdrawal = {
-      id: this.nextId("withdrawal"),
-      userId,
-      toAddress,
-      amount: usdc,
-      status: "pending",
-      txHash: null,
-      error: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    user.balance = round6(user.balance - usdc);
-    this.state.withdrawals.push(withdrawal);
-    this.withdrawalsById.set(withdrawal.id, withdrawal);
-    this.persist();
-    return withdrawal;
-  }
-
-  /** Updates a withdrawal's status; a transition into "failed" refunds the debited amount. */
-  updateWithdrawal(id: number, patch: { status: WithdrawalStatus; txHash?: string | null; error?: string | null }): Withdrawal {
-    const w = this.withdrawalsById.get(id);
-    if (!w) throw new HttpError(404, "Withdrawal not found");
-    if (patch.status === "failed" && w.status !== "failed") {
-      const user = this.usersById.get(w.userId);
-      if (user) user.balance = round6(user.balance + w.amount);
-    }
-    w.status = patch.status;
-    if (patch.txHash !== undefined) w.txHash = patch.txHash;
-    if (patch.error !== undefined) w.error = patch.error;
-    w.updatedAt = nowIso();
-    this.persist();
-    return w;
-  }
-
-  listWithdrawals(status?: WithdrawalStatus): Withdrawal[] {
-    return this.state.withdrawals.filter((w) => status === undefined || w.status === status).sort(newestFirst);
-  }
-
-  /** Testnet-only play money, at most once every ten minutes per user. */
-  faucet(userId: number, amount = 1000): User {
-    if (!config.chain.testnet) throw new HttpError(403, "Faucet is only available on testnets");
-    const user = this.mustUser(userId);
-    if (!Number.isFinite(amount) || amount <= 0) throw new HttpError(400, "Invalid faucet amount");
-
-    const last = this.faucetClaims.get(userId);
-    if (last !== undefined && Date.now() - last < FAUCET_COOLDOWN_MS) {
-      const minutes = Math.ceil((FAUCET_COOLDOWN_MS - (Date.now() - last)) / MINUTE_MS);
-      throw new HttpError(429, `Faucet already used, try again in ${minutes} min`);
-    }
-    this.faucetClaims.set(userId, Date.now());
-    user.balance = round6(user.balance + amount);
-    this.persist();
-    return user;
-  }
-
-  // -------------------------------------------------------------------------
   // Aggregates
   // -------------------------------------------------------------------------
 
-  getPortfolio(userId: number): Portfolio {
-    const user = this.mustUser(userId);
+  /**
+   * Portfolio of a wallet, from the indexed history. `balanceSol`,
+   * `creatorClaimableSol` and the exact token balances come from the chain and
+   * are filled in by routes.ts.
+   */
+  getPortfolio(wallet: string | null): Portfolio {
     const now = Date.now();
     const summaries = new Map<number, CoinSummary>();
     const summaryOf = (c: Coin): CoinSummary => {
@@ -1424,45 +1150,52 @@ export class Storage {
       return s;
     };
 
-    let holdingsValue = 0;
-    let unrealizedPnl = 0;
-    let realizedPnl = 0;
+    let holdingsValueSol = 0;
+    let unrealizedPnlSol = 0;
+    let realizedPnlSol = 0;
     const holdings: PortfolioHolding[] = [];
-    for (const h of this.state.holdings) {
-      if (h.userId !== userId) continue;
-      realizedPnl += h.realizedPnl;
-      if (h.tokens <= TOKEN_EPSILON) continue;
-      const coin = this.coinsById.get(h.coinId);
-      if (!coin) continue;
-      const summary = summaryOf(coin);
-      const value = round6(summary.price * h.tokens);
-      const pnl = round6(value - h.costBasis);
-      holdingsValue += value;
-      unrealizedPnl += pnl;
-      holdings.push({ ...h, coin: summary, value, unrealizedPnl: pnl });
+    if (wallet) {
+      for (const h of this.state.holdings) {
+        if (h.wallet !== wallet) continue;
+        realizedPnlSol += h.realizedPnlSol;
+        if (h.tokens <= TOKEN_EPSILON) continue;
+        const coin = this.coinsById.get(h.coinId);
+        if (!coin) continue;
+        const summary = summaryOf(coin);
+        const valueSol = round9(summary.priceSol * h.tokens);
+        const pnl = round9(valueSol - h.costBasisSol);
+        holdingsValueSol += valueSol;
+        unrealizedPnlSol += pnl;
+        holdings.push({ ...h, coin: summary, valueSol, unrealizedPnlSol: pnl });
+      }
     }
-    holdings.sort((a, b) => b.value - a.value);
+    holdings.sort((a, b) => b.valueSol - a.valueSol);
 
     const trades: Portfolio["trades"] = [];
-    for (const t of this.state.trades.filter((t) => t.userId === userId).sort(newestFirst)) {
-      const coin = this.coinsById.get(t.coinId);
-      if (!coin) continue;
-      trades.push({ ...t, coin: coinRef(coin) });
+    if (wallet) {
+      for (const t of this.state.trades.filter((t) => t.wallet === wallet).sort(newestFirst)) {
+        const coin = this.coinsById.get(t.coinId);
+        if (!coin) continue;
+        trades.push({ ...t, coin: coinRef(coin) });
+      }
     }
 
-    const createdCoins = this.state.coins
-      .filter((c) => c.creatorId === userId)
-      .sort(newestFirst)
-      .map((c) => summaryOf(c));
+    const createdCoins = wallet
+      ? this.state.coins
+          .filter((c) => c.creatorWallet === wallet)
+          .sort(newestFirst)
+          .map((c) => summaryOf(c))
+      : [];
 
-    holdingsValue = round6(holdingsValue);
+    holdingsValueSol = round9(holdingsValueSol);
     return {
-      balance: user.balance,
-      holdingsValue,
-      totalValue: round6(user.balance + holdingsValue),
-      realizedPnl: round6(realizedPnl),
-      unrealizedPnl: round6(unrealizedPnl),
-      creatorEarnings: user.creatorEarnings,
+      wallet,
+      balanceSol: 0,
+      holdingsValueSol,
+      totalValueSol: holdingsValueSol,
+      realizedPnlSol: round9(realizedPnlSol),
+      unrealizedPnlSol: round9(unrealizedPnlSol),
+      creatorClaimableSol: 0,
       holdings,
       trades,
       createdCoins,
@@ -1481,247 +1214,54 @@ export class Storage {
     return items;
   }
 
+  getCoinTrades(coinId: number, limit = RECENT_TRADES): (Trade & { user: PublicUser | null })[] {
+    const trades = this.coinTrades(coinId);
+    const out: (Trade & { user: PublicUser | null })[] = [];
+    for (let i = trades.length - 1; i >= 0 && out.length < limit; i--) out.push(this.withUser(trades[i]));
+    return out;
+  }
+
   getStats(): PlatformStats {
-    const traders = new Set<number>();
-    let volume = 0;
+    const traders = new Set<string>();
+    let volumeSol = 0;
+    let graduated = 0;
     for (const t of this.state.trades) {
-      traders.add(t.userId);
-      volume += t.usdc;
+      if (t.wallet) traders.add(t.wallet);
+      volumeSol += t.sol;
     }
+    for (const c of this.state.coins) if (c.curve.completed) graduated++;
     return {
       coins: this.state.coins.length,
-      volume: round6(volume),
+      volumeSol: round9(volumeSol),
       traders: traders.size,
       trades: this.state.trades.length,
+      graduated,
     };
   }
 
   /** Public profile page data, or undefined when no such user exists. */
-  getPublicProfile(username: string): { user: PublicUser; createdCoins: CoinSummary[]; joinedAt: string; holdingsCount: number } | undefined {
+  getPublicProfile(
+    username: string,
+  ): { user: PublicUser; coins: CoinSummary[]; trades: (Trade & { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> })[] } | undefined {
     const user = this.getUserByUsername(username);
     if (!user) return undefined;
     const now = Date.now();
-    const createdCoins = this.state.coins
-      .filter((c) => c.creatorId === user.id)
+    const wallet = user.walletAddress;
+    const coins = this.state.coins
+      .filter((c) => c.creatorId === user.id || (wallet !== null && c.creatorWallet === wallet))
       .sort(newestFirst)
       .map((c) => this.summarize(c, now));
-    let holdingsCount = 0;
-    for (const h of this.state.holdings) if (h.userId === user.id && h.tokens > TOKEN_EPSILON) holdingsCount++;
-    return { user: this.toPublicUser(user.id), createdCoins, joinedAt: user.createdAt, holdingsCount };
-  }
 
-  // -------------------------------------------------------------------------
-  // Seed data (fresh deployments only)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Populates an empty state with bot traders and the demo coins from seed.ts,
-   * including a simulated trading history so charts and feeds look alive.
-   * Fully deterministic given the same clock, thanks to the seeded PRNG.
-   */
-  seed(): void {
-    const now = Date.now();
-    const rand = lcg(SEED_PRNG_SEED);
-    const oldestCoinMs = Math.max(0, ...seedCoins.map((s) => s.ageHours)) * HOUR_MS + 7 * DAY_MS;
-
-    const bots = seedBots.map((bot) =>
-      this.addUser({
-        id: this.nextId("user"),
-        email: `${bot.name}@bots.noxia.local`,
-        username: bot.name,
-        avatarSeed: bot.name,
-        avatarUrl: coinImageDataUrl(bot.emoji, bot.colors),
-        provider: "email",
-        walletAddress: null,
-        isAdmin: false,
-        balance: BOT_BALANCE,
-        creatorEarnings: 0,
-        depositIndex: -1,
-        depositAddress: "",
-        createdAt: iso(now - oldestCoinMs),
-      }),
-    );
-
-    seedCoins.forEach((s, i) => this.seedCoin(s, bots, bots[i % bots.length], rand, now));
-    log(`seeded ${this.state.coins.length} coins, ${this.state.trades.length} trades`, "storage");
-    if (selloutMarketCap(0) < GRADUATION_MCAP) {
-      log(
-        `WARNING: with the current VIRTUAL_* reserves a coin sells out at a market cap of ${Math.round(selloutMarketCap(0))} USDC, ` +
-          `below GRADUATION_MCAP (${GRADUATION_MCAP}) - no coin can ever graduate`,
-        "storage",
-      );
+    const trades: (Trade & { coin: Pick<Coin, "id" | "ca" | "name" | "ticker" | "imageUrl"> })[] = [];
+    for (const t of this.state.trades.slice().sort(newestFirst)) {
+      if (t.userId !== user.id && (!wallet || t.wallet !== wallet)) continue;
+      const coin = this.coinsById.get(t.coinId);
+      if (!coin) continue;
+      trades.push({ ...t, coin: coinRef(coin) });
+      if (trades.length >= 100) break;
     }
-    this.persist();
-  }
-
-  private seedCoin(s: SeedCoin, bots: User[], creator: User, rand: () => number, now: number): void {
-    const createdMs = now - s.ageHours * HOUR_MS;
-    const createdAt = iso(createdMs);
-    const allocation = clamp(s.creatorAllocation, 0, 1);
-    const initial = curve.initialCurve(allocation);
-    const pickBot = (): User => bots[Math.floor(rand() * bots.length)];
-
-    const coin = this.addCoin({
-      id: this.nextId("coin"),
-      ca: this.uniqueCa(),
-      name: s.name,
-      ticker: s.ticker,
-      description: s.description,
-      imageUrl: coinImageDataUrl(s.emoji, s.colors),
-      website: s.website ?? null,
-      twitter: s.twitter ?? null,
-      telegram: s.telegram ?? null,
-      creatorId: creator.id,
-      creatorAllocation: allocation,
-      realUsdc: initial.realUsdc,
-      curveTokens: initial.curveTokens,
-      circulating: 0,
-      volume: 0,
-      buys: 0,
-      sells: 0,
-      feesCollected: 0,
-      creatorFees: 0,
-      graduated: false,
-      graduatedAt: null,
-      createdAt,
-      lastTradeAt: null,
-    });
-    const minted = TOTAL_SUPPLY * allocation;
-    if (minted > 0) {
-      this.getOrCreateHolding(creator.id, coin.id).tokens += minted;
-      coin.circulating += minted;
-    }
-
-    // The story's final market cap is a fraction of the sold-out cap, so it is always reachable
-    // whatever the VIRTUAL_* constants are; the real USDC needed for it follows from the invariant.
-    const k = launchInvariant(allocation);
-    const launchMcap = curve.marketCap(initial);
-    const targetMcap = launchMcap + clamp(s.targetProgress, 0, 1) * (selloutMarketCap(allocation) - launchMcap);
-    const targetUsdc = Math.max(0, Math.sqrt((targetMcap / TOTAL_SUPPLY) * k) - VIRTUAL_USDC_RESERVE);
-    const shape = seedShape(s.shape ?? "steady");
-
-    // Trades span the coin's life; the last one lands a couple of minutes before "now".
-    const span = Math.max(MINUTE_MS, now - createdMs - 2 * MINUTE_MS);
-    const steps = Math.max(1, Math.floor(s.trades));
-    for (let step = 0; step < steps; step++) {
-      const progress = (step + 1) / steps;
-      const at = iso(createdMs + (span * (step + rand())) / steps);
-      const noise = 1 + (rand() - 0.5) * 0.3;
-      const pathUsdc = Math.max(0, targetUsdc * shape(progress) * noise);
-      const diff = pathUsdc - coin.realUsdc;
-      if (diff > 0) {
-        const gross = clamp((diff / (1 - SWAP_FEE)) * (0.5 + rand()), 3, 5000);
-        this.seedBuy(coin, pickBot(), gross, at);
-      } else {
-        const seller = this.seedPickSeller(coin, bots, rand);
-        if (seller) {
-          // Tokens that bring the curve back down to the path, then trimmed at random.
-          const needed = k / (pathUsdc + VIRTUAL_USDC_RESERVE) - (coin.curveTokens + VIRTUAL_TOKEN_RESERVE);
-          const tokens = Math.min(seller.holding.tokens, Math.max(0, needed) * (0.4 + rand() * 0.8));
-          if (tokens > 1) this.seedSell(coin, seller.bot, tokens, at);
-          else this.seedBuy(coin, pickBot(), 3 + rand() * 25, at);
-        } else {
-          this.seedBuy(coin, pickBot(), 3 + rand() * 25, at);
-        }
-      }
-    }
-
-    // Land on the story's market cap with one calibration trade a minute ago.
-    const finalAt = iso(now - MINUTE_MS);
-    const diff = targetUsdc - coin.realUsdc;
-    if (diff > 0.01) {
-      this.seedBuy(coin, pickBot(), diff / (1 - SWAP_FEE), finalAt);
-    } else if (diff < -0.01) {
-      const seller = this.seedPickSeller(coin, bots, rand);
-      if (seller) {
-        const needed = k / (targetUsdc + VIRTUAL_USDC_RESERVE) - (coin.curveTokens + VIRTUAL_TOKEN_RESERVE);
-        const tokens = Math.min(seller.holding.tokens, Math.max(0, needed));
-        if (tokens > 1) this.seedSell(coin, seller.bot, tokens, finalAt);
-      }
-    }
-
-    for (const body of s.comments) {
-      const comment: Comment = {
-        id: this.nextId("comment"),
-        coinId: coin.id,
-        userId: pickBot().id,
-        body,
-        imageUrl: null,
-        likes: [],
-        createdAt: iso(createdMs + rand() * span),
-      };
-      const likers = Math.floor(rand() * 4);
-      for (let i = 0; i < likers; i++) {
-        const bot = pickBot();
-        if (!comment.likes.includes(bot.id)) comment.likes.push(bot.id);
-      }
-      this.state.comments.push(comment);
-      this.indexComment(comment);
-    }
-  }
-
-  /** Seed-only buy of `gross` USDC (fee included). Mirrors trade() without validation; bots never run dry. */
-  private seedBuy(coin: Coin, bot: User, gross: number, at: string): void {
-    const usdc = round6(Math.min(gross, this.maxBuy(coin)));
-    if (usdc < MIN_BUY_USDC) return;
-    const swap = curve.quoteBuy(curveOf(coin), usdc);
-    if (swap.amountOut <= DUST) return;
-    this.settle(coin, bot, "buy", swap, at);
-    bot.balance = Math.max(500, bot.balance);
-  }
-
-  /** Seed-only sale of `tokens` tokens by a bot that holds them. */
-  private seedSell(coin: Coin, bot: User, tokens: number, at: string): void {
-    const holding = this.findHolding(bot.id, coin.id);
-    if (!holding || holding.tokens <= TOKEN_EPSILON) return;
-    const amount = Math.min(tokens, holding.tokens);
-    const swap = curve.quoteSell(curveOf(coin), amount);
-    if (swap.amountOut <= DUST) return;
-    this.settle(coin, bot, "sell", swap, at);
-  }
-
-  /** A random bot holding tokens of the coin, weighted towards the larger bags (never the creator's launch bag). */
-  private seedPickSeller(coin: Coin, bots: User[], rand: () => number): { bot: User; holding: Holding } | null {
-    const candidates: { bot: User; holding: Holding }[] = [];
-    for (const bot of bots) {
-      const holding = this.findHolding(bot.id, coin.id);
-      // Creators keep their allocation in the demo data; they only sell what they bought.
-      if (!holding || holding.tokens <= TOKEN_EPSILON || bot.id === coin.creatorId) continue;
-      candidates.push({ bot, holding });
-    }
-    if (!candidates.length) return null;
-    const total = candidates.reduce((sum, c) => sum + c.holding.tokens, 0);
-    let r = rand() * total;
-    for (const c of candidates) {
-      r -= c.holding.tokens;
-      if (r <= 0) return c;
-    }
-    return candidates[candidates.length - 1];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Module-level helpers that need no instance state
-// ---------------------------------------------------------------------------
-
-/** Shape of a seeded coin's real-USDC path over its life, as a fraction of the final value. */
-function seedShape(shape: NonNullable<SeedCoin["shape"]>): (p: number) => number {
-  switch (shape) {
-    case "pump":
-      // Quiet accumulation, then a late vertical move.
-      return (p) => Math.pow(p, 2.4);
-    case "early":
-      // Launch hype that fades into a plateau.
-      return (p) => 1 - Math.pow(1 - p, 2.5);
-    case "chop":
-      // Grinds up with several visible pullbacks.
-      return (p) => Math.max(0.02, p + 0.28 * Math.sin(p * Math.PI * 5) * (1 - p) * p * 2);
-    case "dump":
-      // Peaks around two thirds of the way in, then bleeds to the final level.
-      return (p) => (p < 0.65 ? (2.2 * p) / 0.65 : 2.2 - (1.2 * (p - 0.65)) / 0.35);
-    case "steady":
-    default:
-      return (p) => p;
+    const publicUser = this.toPublicUser(user.id);
+    return publicUser ? { user: publicUser, coins, trades } : undefined;
   }
 }
 
@@ -1732,14 +1272,12 @@ function seedShape(shape: NonNullable<SeedCoin["shape"]>): (p: number) => number
 export let storage: Storage;
 
 /**
- * Creates the storage singleton, loads the persisted snapshot (or seeds demo
- * data when there is none) and wires up debounced persistence.
- *
- * `storage` is assigned before anything is loaded because chain.ts reaches
- * back into it (getOrCreateMnemonic) from `deriveDepositAddress`.
+ * Creates the storage singleton, loads the persisted snapshot and wires up
+ * debounced persistence. Demo data is only fabricated when SEED_DEMO=1 and no
+ * real DBC config is set (see seed.ts).
  */
-export async function initStorage(opts: StorageOptions): Promise<Storage> {
-  const instance = new Storage(opts);
+export async function initStorage(): Promise<Storage> {
+  const instance = new Storage();
   storage = instance;
 
   const backend = createBackend();
@@ -1749,15 +1287,9 @@ export async function initStorage(opts: StorageOptions): Promise<Storage> {
     const s = instance.snapshot();
     log(`loaded state from ${backend.name}: ${s.users.length} users, ${s.coins.length} coins, ${s.trades.length} trades`, "storage");
   } else {
-    if (config.seedDemo) {
-      log(`no snapshot in ${backend.name}, seeding demo data`, "storage");
-      instance.seed();
-    } else {
-      log(`no snapshot in ${backend.name}, starting empty (SEED_DEMO=0)`, "storage");
-    }
+    log(`no snapshot in ${backend.name}, starting empty`, "storage");
   }
 
   instance.bindPersister(new Persister(backend, () => instance.snapshot()));
-  if (config.initialCredits) instance.applyInitialCredits(config.initialCredits);
   return instance;
 }

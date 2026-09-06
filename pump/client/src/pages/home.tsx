@@ -7,7 +7,6 @@ import {
   Coins,
   Flame,
   GraduationCap,
-  MessageCircle,
   PlusCircle,
   RefreshCw,
   Search,
@@ -18,11 +17,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CoinSummary, PlatformStats } from "@shared/schema";
-import { GRADUATION_MCAP } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CoinCard, CoinCardSkeleton } from "@/components/CoinCard";
 import { LiveTicker } from "@/components/LiveTicker";
-import { PublicAvatar } from "@/components/TradesTable";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -30,7 +27,7 @@ import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { useLiveEvent, useRecentlyCreatedIds } from "@/lib/useLive";
-import { age, compactUsd, signedPct } from "@/lib/format";
+import { compactUsd, useSolUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Sort = "new" | "trending" | "mcap" | "volume" | "graduated";
@@ -62,11 +59,12 @@ function loadAnimations(): boolean {
 
 function StatsStrip() {
   const t = useT();
+  const solUsd = useSolUsd();
   const { data, isLoading } = useQuery<PlatformStats>({ queryKey: ["/api/stats"], staleTime: 30_000 });
 
   const tiles: { key: string; icon: LucideIcon; value: string | null }[] = [
     { key: "home.stats.coins", icon: Coins, value: data ? count(data.coins) : null },
-    { key: "home.stats.volume", icon: TrendingUp, value: data ? compactUsd(data.volume) : null },
+    { key: "home.stats.volume", icon: TrendingUp, value: data ? compactUsd(data.volumeSol * solUsd) : null },
     { key: "home.stats.traders", icon: Users, value: data ? count(data.traders) : null },
     { key: "home.stats.trades", icon: Activity, value: data ? count(data.trades) : null },
   ];
@@ -91,8 +89,6 @@ function StatsStrip() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Page
@@ -128,7 +124,7 @@ export default function Home() {
   const listKey = useMemo(() => {
     const p = new URLSearchParams();
     if (sort !== "new") p.set("sort", sort);
-    if (q) p.set("search", q);
+    if (q) p.set("q", q);
     p.set("limit", String(LIST_LIMIT));
     return `/api/coins?${p.toString()}`;
   }, [sort, q]);
@@ -304,5 +300,3 @@ function EmptyState({
     </div>
   );
 }
-
-export { GRADUATION_MCAP as HOME_GRADUATION_MCAP };

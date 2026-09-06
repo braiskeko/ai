@@ -16,8 +16,13 @@ export interface WalletTx {
    * sign it, re-serializes it (the mint / other partial signers already applied
    * server-side stay intact) and posts it to POST /api/tx/send for the server to
    * relay, confirm and index.
+   *
+   * `onSigned` (optional) fires the instant the wallet returns a signature, i.e.
+   * right as the flow moves from "waiting on the wallet" to "confirming
+   * on-chain" — callers use it to flip a signing/confirming UI phase without
+   * needing a different return shape.
    */
-  signAndSend(unsigned: UnsignedTx, kind: TxKind, ca?: string): Promise<SentTx>;
+  signAndSend(unsigned: UnsignedTx, kind: TxKind, ca?: string, onSigned?: () => void): Promise<SentTx>;
 }
 
 /**
@@ -30,12 +35,13 @@ export function useWalletTx(): WalletTx {
   const { publicKey, connected, connecting, signTransaction } = useWallet();
 
   const signAndSend = useCallback(
-    async (unsigned: UnsignedTx, kind: TxKind, ca?: string): Promise<SentTx> => {
+    async (unsigned: UnsignedTx, kind: TxKind, ca?: string, onSigned?: () => void): Promise<SentTx> => {
       if (!signTransaction) {
         throw new Error("Connect a Solana wallet that supports transaction signing.");
       }
       const tx = Transaction.from(Buffer.from(unsigned.tx, "base64"));
       const signed = await signTransaction(tx);
+      onSigned?.();
       const serialized = signed.serialize({ requireAllSignatures: false, verifySignatures: false });
       const body: SendTxInput = {
         tx: Buffer.from(serialized).toString("base64"),

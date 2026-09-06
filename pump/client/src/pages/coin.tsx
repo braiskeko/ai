@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -8,12 +8,13 @@ import {
   ArrowUpRight,
   Check,
   Clock,
+  Coins,
   Copy,
-  Crown,
   ExternalLink,
   Globe,
   GraduationCap,
   Info,
+  Loader2,
   MessageCircle,
   RefreshCw,
   Send,
@@ -21,8 +22,8 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import type { CoinDetail, CoinSummary } from "@shared/schema";
-import { CREATOR_FEE_SHARE, GRADUATION_MCAP, SWAP_FEE, TOTAL_SUPPLY } from "@shared/schema";
+import type { CoinDetail, UnsignedTx } from "@shared/schema";
+import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, SWAP_FEE, TOTAL_SUPPLY } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartInterval, type ChartMode } from "@/components/CandleChart";
 import { TradePanel } from "@/components/TradePanel";
@@ -35,20 +36,24 @@ import NotFound from "@/pages/not-found";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
-import { age, compactUsd, dateShort, priceUsd, shortCa, signedPct, signedUsd, tokens as fmtTokens, usd } from "@/lib/format";
+import { useWalletTx } from "@/lib/solana";
+import {
+  age,
+  compactUsd,
+  dateShort,
+  looksLikeCa,
+  priceSol,
+  priceUsd,
+  shortCa,
+  signedPct,
+  signedUsd,
+  sol,
+  tokens as fmtTokens,
+  usd,
+  useSolUsd,
+} from "@/lib/format";
+import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// CA validation (mirrors server/ca.ts: 44 base58 chars ending in "noxia")
-// ---------------------------------------------------------------------------
-
-const CA_LENGTH = 44;
-const CA_SUFFIX = "noxia";
-const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/;
-
-export function looksLikeCa(s: string): boolean {
-  return s.length === CA_LENGTH && s.endsWith(CA_SUFFIX) && BASE58_RE.test(s);
-}
 
 const CHART_MODE_KEY = "nx_chart_mode";
 const CHART_INTERVAL_KEY = "nx_chart_interval";
@@ -155,11 +160,13 @@ function CopyCa({ ca, className }: { ca: string; className?: string }) {
 // Header
 // ---------------------------------------------------------------------------
 
-function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
+function CoinHeader({ coin }: { coin: CoinDetail }) {
   const t = useT();
+  const solUsd = useSolUsd();
   useTick(30_000);
   const up = coin.change24h >= 0;
   const progress = Math.max(0, Math.min(1, coin.progress));
+  const graduated = coin.curve.completed;
 
   return (
     <motion.section
@@ -168,11 +175,9 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
         "relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-5",
-        isKing ? "border-gold/40 glow-gold" : coin.graduated ? "border-violet/40" : "border-border",
+        graduated ? "border-violet/40" : "border-border",
       )}
     >
-      {isKing && <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gold/10 blur-3xl" aria-hidden />}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <img
           src={coin.imageUrl}
@@ -185,13 +190,7 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{coin.name}</h1>
             <span className="text-base font-semibold text-muted-foreground">${coin.ticker}</span>
-            {isKing && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-bold text-gold">
-                <Crown className="h-3 w-3" />
-                {t("coin.king")}
-              </span>
-            )}
-            {coin.graduated && (
+            {graduated && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet/15 px-2 py-0.5 text-[11px] font-bold text-violet">
                 <GraduationCap className="h-3 w-3" />
                 {t("coin.graduated")}
@@ -218,13 +217,15 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.mcap")}</div>
-              <div className={cn("text-2xl font-extrabold tabular leading-tight", isKing ? "text-gold" : "text-primary")}>
-                {compactUsd(coin.marketCap)}
+              <div className="text-2xl font-extrabold tabular leading-tight text-primary">
+                {compactUsd(coin.marketCapSol * solUsd)}
               </div>
+              <div className="text-[11px] tabular text-muted-foreground">{sol(coin.marketCapSol)}</div>
             </div>
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.price")}</div>
-              <div className="text-lg font-bold tabular leading-tight">{priceUsd(coin.price)}</div>
+              <div className="text-lg font-bold tabular leading-tight">{priceUsd(coin.priceSol * solUsd)}</div>
+              <div className="text-[11px] tabular text-muted-foreground">{priceSol(coin.priceSol)}</div>
             </div>
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.change24h")}</div>
@@ -235,7 +236,8 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
             </div>
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.volume")}</div>
-              <div className="text-lg font-bold tabular leading-tight">{compactUsd(coin.volume)}</div>
+              <div className="text-lg font-bold tabular leading-tight">{compactUsd(coin.volumeSol * solUsd)}</div>
+              <div className="text-[11px] tabular text-muted-foreground">{sol(coin.volumeSol)}</div>
             </div>
           </div>
 
@@ -245,17 +247,17 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
                 {t("coin.progress")}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex text-muted-foreground hover:text-foreground" aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP) })}>
+                    <button type="button" className="inline-flex text-muted-foreground hover:text-foreground" aria-label={t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}>
                       <Info className="h-3 w-3" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs text-xs">
-                    {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP) })}
+                    {t("coin.progressHint", { mcap: compactUsd(GRADUATION_MCAP_USD) })}
                   </TooltipContent>
                 </Tooltip>
               </span>
-              <span className={cn("tabular font-semibold", coin.graduated ? "text-violet" : "text-foreground")}>
-                {coin.graduated ? t("coin.graduated") : t("common.progressTo", { percent: `${Math.round(progress * 100)}%` })}
+              <span className={cn("tabular font-semibold", graduated ? "text-violet" : "text-foreground")}>
+                {graduated ? t("coin.graduated") : t("coin.solToGraduate", { amount: sol(coin.curve.solToGraduate) })}
               </span>
             </div>
             <div
@@ -267,18 +269,15 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
               aria-label={t("coin.progress")}
             >
               <motion.div
-                className={cn(
-                  "h-full rounded-full",
-                  coin.graduated ? "bg-violet" : isKing ? "bg-gradient-to-r from-gold/70 to-gold" : "bg-gradient-to-r from-primary/70 to-primary",
-                )}
+                className={cn("h-full rounded-full", graduated ? "bg-violet" : "bg-gradient-to-r from-primary/70 to-primary")}
                 initial={false}
                 animate={{ width: `${Math.max(2, progress * 100)}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
               />
             </div>
             <div className="mt-1 flex justify-between text-[11px] tabular text-muted-foreground">
-              <span>{compactUsd(coin.marketCap)}</span>
-              <span>{compactUsd(GRADUATION_MCAP)}</span>
+              <span>{compactUsd(coin.marketCapSol * solUsd)}</span>
+              <span>{compactUsd(GRADUATION_MCAP_USD)}</span>
             </div>
           </div>
         </div>
@@ -288,7 +287,7 @@ function CoinHeader({ coin, isKing }: { coin: CoinDetail; isKing: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Side cards: stats, my position, about & links
+// Side cards: stats, my position, creator claim, about & links
 // ---------------------------------------------------------------------------
 
 function StatRow({ icon: Icon, label, value, valueClass }: { icon?: LucideIcon; label: string; value: ReactNode; valueClass?: string }) {
@@ -305,7 +304,8 @@ function StatRow({ icon: Icon, label, value, valueClass }: { icon?: LucideIcon; 
 
 function StatsCard({ coin }: { coin: CoinDetail }) {
   const t = useT();
-  const curveShare = Math.max(0, Math.min(1, coin.curveTokens / TOTAL_SUPPLY));
+  const solUsd = useSolUsd();
+  const curveShare = Math.max(0, Math.min(1, coin.curve.baseReserve / TOTAL_SUPPLY));
   const total = coin.buys + coin.sells;
   const buyShare = total > 0 ? coin.buys / total : 0.5;
 
@@ -314,7 +314,7 @@ function StatsCard({ coin }: { coin: CoinDetail }) {
       <h2 className="text-sm font-bold">{t("coin.stats")}</h2>
       <div className="mt-1 divide-y divide-border">
         <StatRow icon={Users} label={t("coin.holders")} value={count(coin.holders)} />
-        <StatRow icon={Activity} label={t("coin.volume")} value={compactUsd(coin.volume)} />
+        <StatRow icon={Activity} label={t("coin.volume")} value={compactUsd(coin.volumeSol * solUsd)} />
         <StatRow icon={MessageCircle} label={t("comments.title")} value={count(Math.max(coin.comments, coin.commentsList.length))} />
         <div className="py-2 text-sm">
           <div className="flex items-center justify-between gap-3">
@@ -333,8 +333,7 @@ function StatsCard({ coin }: { coin: CoinDetail }) {
           </div>
         </div>
         <StatRow label={t("coin.supplyInCurveLabel")} value={pctText(curveShare)} />
-        <StatRow label={t("coin.usdcInCurve")} value={usd(coin.realUsdc)} />
-        <StatRow label={t("coin.creatorHoldsLabel")} value={pctText(coin.creatorAllocation, coin.creatorAllocation > 0 && coin.creatorAllocation < 0.01 ? 2 : 0)} />
+        <StatRow label={t("coin.solInCurve")} value={sol(coin.curve.quoteReserveSol)} />
         <StatRow label={t("coin.totalSupply")} value={fmtTokens(TOTAL_SUPPLY)} />
         <StatRow
           label={t("coin.fee")}
@@ -352,13 +351,14 @@ function StatsCard({ coin }: { coin: CoinDetail }) {
 
 function MyPositionCard({ coin }: { coin: CoinDetail }) {
   const t = useT();
+  const solUsd = useSolUsd();
   const { user } = useAuth();
   const h = coin.myHolding;
   if (!user || !h || h.tokens <= 1e-9) return null;
 
-  const value = h.tokens * coin.price;
-  const unrealized = value - h.costBasis;
-  const pnlPct = h.costBasis > 0 ? unrealized / h.costBasis : 0;
+  const valueSol = h.tokens * coin.priceSol;
+  const unrealizedSol = valueSol - h.costBasisSol;
+  const pnlPct = h.costBasisSol > 0 ? unrealizedSol / h.costBasisSol : 0;
   const share = h.tokens / TOTAL_SUPPLY;
 
   return (
@@ -377,20 +377,107 @@ function MyPositionCard({ coin }: { coin: CoinDetail }) {
         </div>
         <div className="text-right">
           <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("coin.value")}</div>
-          <div className="text-xl font-extrabold tabular leading-tight text-primary">{usd(value)}</div>
+          <div className="text-xl font-extrabold tabular leading-tight text-primary">{usd(valueSol, solUsd)}</div>
+          <div className="text-[11px] tabular text-muted-foreground">{sol(valueSol)}</div>
         </div>
       </div>
       <div className="mt-3 divide-y divide-border/60 border-t border-border/60">
-        <StatRow label={t("coin.costBasis")} value={usd(h.costBasis)} />
+        <StatRow label={t("coin.costBasis")} value={usd(h.costBasisSol, solUsd)} />
         <StatRow
           label={t("coin.unrealized")}
-          value={`${signedUsd(unrealized)} (${signedPct(pnlPct)})`}
-          valueClass={unrealized >= 0 ? "text-up" : "text-down"}
+          value={`${signedUsd(unrealizedSol, solUsd)} (${signedPct(pnlPct)})`}
+          valueClass={unrealizedSol >= 0 ? "text-up" : "text-down"}
         />
-        {h.realizedPnl !== 0 && (
-          <StatRow label={t("coin.realized")} value={signedUsd(h.realizedPnl)} valueClass={h.realizedPnl >= 0 ? "text-up" : "text-down"} />
+        {h.realizedPnlSol !== 0 && (
+          <StatRow label={t("coin.realized")} value={signedUsd(h.realizedPnlSol, solUsd)} valueClass={h.realizedPnlSol >= 0 ? "text-up" : "text-down"} />
         )}
       </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Creator "claim fees" card
+// ---------------------------------------------------------------------------
+
+function CreatorClaimCard({ coin }: { coin: CoinDetail }) {
+  const t = useT();
+  const solUsd = useSolUsd();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { connected, signAndSend } = useWalletTx();
+  const [claiming, setClaiming] = useState(false);
+
+  const isCreator = !!user?.walletAddress && user.walletAddress === coin.creatorWallet;
+  if (!isCreator || coin.creatorClaimableSol <= 0) return null;
+
+  const claim = async () => {
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      if (!connected) throw new Error(t("coin.claimConnectWallet"));
+      const res = await apiRequest("POST", `/api/coins/${coin.ca}/claim-tx`, {});
+      const unsigned = (await res.json()) as UnsignedTx;
+      const sent = await signAndSend(unsigned, "claim", coin.ca);
+      toast({
+        title: t("coin.claimSent"),
+        description: (
+          <a href={sent.explorerUrl} target="_blank" rel="noreferrer" className="underline">
+            {t("coin.viewTransaction")}
+          </a>
+        ),
+      });
+      void qc.invalidateQueries({ queryKey: [`/api/coins/${coin.ca}`] });
+      void qc.invalidateQueries({ queryKey: ["/api/portfolio"] });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("coin.claimFailed"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-gold/40 bg-gold/5 p-4">
+      <h2 className="inline-flex items-center gap-1.5 text-sm font-bold text-gold">
+        <Coins className="h-4 w-4" />
+        {t("coin.creatorFees")}
+      </h2>
+      <p className="mt-1 text-xs text-muted-foreground">{t("coin.creatorFeesHint", { share: pctText(CREATOR_FEE_SHARE, 0) })}</p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xl font-extrabold tabular leading-tight text-gold">{usd(coin.creatorClaimableSol, solUsd)}</div>
+          <div className="text-[11px] tabular text-muted-foreground">{sol(coin.creatorClaimableSol)}</div>
+        </div>
+        <Button onClick={() => void claim()} disabled={claiming} className="rounded-lg font-semibold">
+          {claiming && <Loader2 className="h-4 w-4 animate-spin" />}
+          {t("coin.claimFees")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Migrated coin: link out to the Meteora DAMM v2 pool instead of the trade panel
+// ---------------------------------------------------------------------------
+
+function MigratedCard({ coin }: { coin: CoinDetail }) {
+  const t = useT();
+  if (!coin.curve.dammPool) return null;
+  return (
+    <section className="rounded-2xl border border-violet/40 bg-violet/5 p-5 text-center">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-violet/15 text-violet">
+        <GraduationCap className="h-6 w-6" />
+      </div>
+      <h2 className="mt-3 text-base font-bold">{t("coin.migratedTitle")}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("coin.migratedHint")}</p>
+      <Button asChild className="mt-4 w-full rounded-lg font-semibold">
+        <a href={`https://app.meteora.ag/dammv2/${coin.curve.dammPool}`} target="_blank" rel="noopener noreferrer">
+          {t("coin.tradeOnMeteora")}
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      </Button>
     </section>
   );
 }
@@ -532,8 +619,6 @@ export default function CoinPage() {
     return <NotFound title={t("coin.notFound")} hint={t("coin.notFoundHint", { app: t("app.name") })} />;
   }
 
-  const isKing = false;
-
   return (
     <PageShell wide>
       {coin.isLoading || !data ? (
@@ -544,7 +629,7 @@ export default function CoinPage() {
         )
       ) : (
         <div className="space-y-6">
-          <CoinHeader coin={data} isKing={isKing} />
+          <CoinHeader coin={data} />
 
           {/*
             Grid: on lg the aside spans both rows of the left column (chart, tabs) and sticks.
@@ -566,7 +651,8 @@ export default function CoinPage() {
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
-              <TradePanel coin={data} />
+              {data.curve.migrated ? <MigratedCard coin={data} /> : <TradePanel coin={data} />}
+              <CreatorClaimCard coin={data} />
               <MyPositionCard coin={data} />
               <StatsCard coin={data} />
               <AboutCard coin={data} />

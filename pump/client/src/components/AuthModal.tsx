@@ -4,8 +4,8 @@ import type { SafeUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useConfig } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
-import { apiErrorMessage } from "@/hooks/useAuth";
-import { useWalletLogin } from "@/hooks/useWalletLogin";
+import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
+import { useWalletLogin, type DetectedWallet } from "@/hooks/useWalletLogin";
 import { useTheme } from "@/components/ThemeToggle";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -105,6 +105,11 @@ function loadScript(src: string): Promise<void> {
   return p;
 }
 
+/** "Ab12…9f3c" — used only for the toast after linking a wallet (lib/format.ts is owned by another agent). */
+function shortAddr(a: string): string {
+  return a.length > 10 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -116,7 +121,11 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   const { toast } = useToast();
   const { isDark } = useTheme();
   const t = useT();
+  const { user } = useAuth();
   const appName = config?.appName ?? t("app.name");
+  // A signed-in (Google/Apple/email) user with no wallet yet opens this same dialog to link
+  // one — in that mode we hide the social/email options entirely.
+  const linkingWallet = !!user;
 
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -132,16 +141,23 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   const appleClientId = config?.appleClientId ?? null;
 
   const finishLogin = useCallback(
-    (user: SafeUser) => {
-      queryClient.setQueryData(["/api/me"], user);
+    (u: SafeUser) => {
+      queryClient.setQueryData(["/api/me"], u);
       void queryClient.invalidateQueries();
       onOpenChange(false);
-      toast({ title: t("auth.welcomeBack", { name: user.username }), description: t("auth.signedIn") });
+      if (linkingWallet) {
+        toast({
+          title: t("auth.walletLinked"),
+          description: t("auth.walletLinkedDesc", { address: u.walletAddress ? shortAddr(u.walletAddress) : "" }),
+        });
+      } else {
+        toast({ title: t("auth.welcomeBack", { name: u.username }), description: t("auth.signedIn") });
+      }
     },
-    [onOpenChange, toast, t],
+    [onOpenChange, toast, t, linkingWallet],
   );
 
-  const wallet = useWalletLogin({ onSuccess: finishLogin });
+  const walletLogin = useWalletLogin({ onSuccess: finishLogin });
 
   // Reset transient state whenever the dialog is closed.
   useEffect(() => {
@@ -151,7 +167,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     setDevLink(null);
     setError(null);
     setBusyProvider(null);
-    wallet.clearError();
+    walletLogin.clearError();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -161,8 +177,8 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       setError(null);
       try {
         const res = await apiRequest("POST", `/api/auth/${provider}`, { credential });
-        const user = (await res.json()) as SafeUser;
-        finishLogin(user);
+        const u = (await res.json()) as SafeUser;
+        finishLogin(u);
       } catch (e) {
         setError(apiErrorMessage(e, t("auth.providerFailed", { provider: provider === "google" ? "Google" : "Apple" })));
       } finally {
@@ -174,7 +190,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
 
   // Google Identity Services button
   useEffect(() => {
-    if (!open || !googleClientId) return;
+    if (!open || linkingWallet || !googleClientId) return;
     let cancelled = false;
     setGoogleReady(false);
     loadScript(GOOGLE_SDK)
@@ -212,11 +228,11 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     return () => {
       cancelled = true;
     };
-  }, [open, googleClientId, isDark, exchangeCredential, t]);
+  }, [open, linkingWallet, googleClientId, isDark, exchangeCredential, t]);
 
   // Sign in with Apple
   useEffect(() => {
-    if (!open || !appleClientId) return;
+    if (!open || linkingWallet || !appleClientId) return;
     let cancelled = false;
     setAppleReady(false);
     loadScript(APPLE_SDK)
@@ -236,7 +252,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     return () => {
       cancelled = true;
     };
-  }, [open, appleClientId, t]);
+  }, [open, linkingWallet, appleClientId, t]);
 
   const signInWithApple = async () => {
     if (!window.AppleID) return;
@@ -266,8 +282,8 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       if (config?.instantEmailLogin) {
         // Pre-launch mode: the email alone creates the account and signs in.
         const res = await apiRequest("POST", "/api/auth/email", { email: address });
-        const user = (await res.json()) as SafeUser;
-        finishLogin(user);
+        const u = (await res.json()) as SafeUser;
+        finishLogin(u);
         return;
       }
       const res = await apiRequest("POST", "/api/auth/magic", { email: address });
@@ -287,8 +303,15 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
     setError(null);
   };
 
-  const anyBusy = busyProvider !== null || wallet.busy || sending;
-  const shownError = error ?? wallet.error;
+  const anyBusy = busyProvider !== null || walletLogin.busy || sending;
+  const shownError = error ?? walletLogin.error;
+
+  const pickWallet = useCallback(
+    (name: string) => {
+      void (linkingWallet ? walletLogin.linkWallet(name) : walletLogin.connectWallet(name));
+    },
+    [linkingWallet, walletLogin],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,14 +323,32 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
                 N
               </div>
               <DialogTitle className="text-xl font-bold tracking-tight">
-                {sentTo ? t("auth.checkEmail") : t("auth.title", { app: appName })}
+                {sentTo
+                  ? t("auth.checkEmail")
+                  : linkingWallet
+                    ? t("auth.walletTitle")
+                    : t("auth.title", { app: appName })}
               </DialogTitle>
               <DialogDescription>
-                {sentTo ? t("auth.sentLink", { email: sentTo }) : t("auth.subtitle")}
+                {sentTo
+                  ? t("auth.sentLink", { email: sentTo })
+                  : linkingWallet
+                    ? t("auth.walletLinkSubtitle")
+                    : t("auth.subtitle")}
               </DialogDescription>
             </DialogHeader>
 
-            {sentTo ? (
+            {linkingWallet ? (
+              <div className="mt-6 space-y-3">
+                <WalletList wallets={walletLogin.wallets} busyWallet={walletLogin.busyWallet} disabled={walletLogin.busy} onPick={pickWallet} />
+                {walletLogin.busy && <p className="text-center text-xs text-muted-foreground">{t("auth.walletSign")}</p>}
+                {shownError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {shownError}
+                  </p>
+                )}
+              </div>
+            ) : sentTo ? (
               <div className="mt-6 space-y-4">
                 {devLink && (
                   <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
@@ -342,32 +383,9 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
               </div>
             ) : (
               <div className="mt-6 space-y-3">
-                {/* Browser wallet */}
-                <ProviderButton
-                  icon={<Wallet className="h-[18px] w-[18px] text-primary" />}
-                  label={t("auth.walletInjected")}
-                  onClick={() => void wallet.connectInjected()}
-                  loading={wallet.busyWith === "injected"}
-                  disabled={anyBusy}
-                  emphasis
-                />
-
-                {/* WalletConnect */}
-                {wallet.walletConnectConfigured ? (
-                  <ProviderButton
-                    icon={<WalletConnectIcon />}
-                    label={t("auth.walletConnect")}
-                    onClick={() => void wallet.connectWalletConnect()}
-                    loading={wallet.busyWith === "walletconnect"}
-                    disabled={anyBusy}
-                  />
-                ) : (
-                  <NotConfigured label={t("auth.notConfigured")}>
-                    <ProviderButton icon={<WalletConnectIcon />} label={t("auth.walletConnect")} disabled />
-                  </NotConfigured>
-                )}
-
-                {wallet.busyWith && <p className="text-center text-xs text-muted-foreground">{t("auth.walletSign")}</p>}
+                {/* Solana wallets (Wallet Standard auto-detects Phantom / Solflare / Backpack / …) */}
+                <WalletList wallets={walletLogin.wallets} busyWallet={walletLogin.busyWallet} disabled={anyBusy} onPick={pickWallet} />
+                {walletLogin.busy && <p className="text-center text-xs text-muted-foreground">{t("auth.walletSign")}</p>}
 
                 {/* Google */}
                 {googleClientId ? (
@@ -462,6 +480,52 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
 // Pieces
 // ---------------------------------------------------------------------------
 
+/** Detected Solana wallets (Phantom / Solflare / Backpack / …), or a link to install one. */
+function WalletList({
+  wallets,
+  busyWallet,
+  disabled,
+  onPick,
+}: {
+  wallets: DetectedWallet[];
+  busyWallet: string | null;
+  disabled: boolean;
+  onPick: (name: string) => void;
+}) {
+  const t = useT();
+  if (wallets.length === 0) {
+    return (
+      <div className="space-y-2.5 rounded-xl border border-dashed border-border p-4 text-center">
+        <Wallet className="mx-auto h-5 w-5 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">{t("auth.walletNoneDetected")}</p>
+        <a
+          href="https://phantom.app/download"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          {t("auth.getWallet")}
+        </a>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {wallets.map((w) => (
+        <ProviderButton
+          key={w.name}
+          icon={<img src={w.icon} alt="" className="h-[18px] w-[18px] rounded-sm" />}
+          label={w.name}
+          onClick={() => onPick(w.name)}
+          loading={busyWallet === w.name}
+          disabled={disabled}
+          emphasis
+        />
+      ))}
+    </div>
+  );
+}
+
 function ProviderButton({
   icon,
   label,
@@ -507,17 +571,6 @@ function NotConfigured({ children, label }: { children: ReactNode; label: string
       </TooltipTrigger>
       <TooltipContent side="top">{label}</TooltipContent>
     </Tooltip>
-  );
-}
-
-function WalletConnectIcon() {
-  return (
-    <svg viewBox="0 0 32 32" className="h-[18px] w-[18px]" aria-hidden>
-      <path
-        fill="#3B99FC"
-        d="M9.6 11.9c3.5-3.4 9.3-3.4 12.8 0l.4.4c.2.2.2.5 0 .6l-1.5 1.4c-.1.1-.2.1-.3 0l-.6-.6c-2.5-2.4-6.5-2.4-9 0l-.6.6c-.1.1-.2.1-.3 0l-1.5-1.4c-.2-.2-.2-.5 0-.6l.6-.4zm15.8 2.9 1.3 1.3c.2.2.2.5 0 .6l-5.9 5.7c-.2.2-.5.2-.6 0L16 18.3c0-.1-.1-.1-.2 0l-4.2 4.1c-.2.2-.5.2-.6 0l-5.9-5.7c-.2-.2-.2-.5 0-.6l1.3-1.3c.2-.2.5-.2.6 0l4.2 4.1c0 .1.1.1.2 0l4.2-4.1c.2-.2.5-.2.6 0l4.2 4.1c0 .1.1.1.2 0l4.2-4.1c.2-.2.4-.2.6 0z"
-      />
-    </svg>
   );
 }
 

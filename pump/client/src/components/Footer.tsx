@@ -61,8 +61,8 @@ export function Footer() {
             {chain && (
               <>
                 {" "}
-                {t("footer.settledOn", { chain: chain.name })}
-                {chain.testnet ? ` (${t("wallet.testnet").toLowerCase()})` : ""}.
+                {t("footer.settledOn", { chain: "Solana" })}
+                {chain.testnet ? ` (${chain.cluster})` : ""}.
               </>
             )}
             {config && (

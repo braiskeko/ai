@@ -6,13 +6,13 @@ import { Activity as ActivityIcon, ArrowDownRight, ArrowUpRight, RefreshCw, Spar
 import type { ActivityItem, CoinSummary, PublicUser } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { LiveDot } from "@/components/Footer";
-import { PublicAvatar } from "@/components/TradesTable";
+import { PublicAvatar, TraderName } from "@/components/TradesTable";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
 import { useLiveEvent, useLiveTrades } from "@/lib/useLive";
-import { compactUsd, priceUsd, timeAgo, tokens as fmtTokens, usd } from "@/lib/format";
+import { compactUsd, priceSol, timeAgo, tokens as fmtTokens, useSolUsd, usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -31,8 +31,8 @@ interface CoinRef {
 }
 
 type FeedItem =
-  | { kind: "trade"; key: string; at: number; user: PublicUser; coin: CoinRef; side: "buy" | "sell"; usdc: number; tokens: number; price: number }
-  | { kind: "created"; key: string; at: number; user: PublicUser; coin: CoinRef; marketCap: number };
+  | { kind: "trade"; key: string; at: number; user: PublicUser | null; wallet: string; coin: CoinRef; side: "buy" | "sell"; sol: number; tokens: number; priceSol: number }
+  | { kind: "created"; key: string; at: number; user: PublicUser; coin: CoinRef; marketCapSol: number };
 
 const ACTIVITY_KEY = "/api/activity?limit=60";
 const COINS_KEY = "/api/coins?limit=60";
@@ -48,36 +48,38 @@ const FILTERS: { key: Filter; labelKey: string; icon: LucideIcon }[] = [
 
 const coinRef = (c: CoinRef): CoinRef => ({ id: c.id, ca: c.ca, name: c.name, ticker: c.ticker, imageUrl: c.imageUrl });
 
-function tradeItem(trade: ActivityItem["trade"], user: PublicUser, coin: CoinRef): FeedItem {
+function tradeItem(trade: ActivityItem["trade"], user: PublicUser | null, coin: CoinRef): FeedItem {
   return {
     kind: "trade",
     key: `t${trade.id}`,
     at: Date.parse(trade.createdAt),
     user,
+    wallet: trade.wallet,
     coin: coinRef(coin),
     side: trade.side,
-    usdc: trade.usdc,
+    sol: trade.sol,
     tokens: trade.tokens,
-    price: trade.price,
+    priceSol: trade.priceSol,
   };
 }
 
 function createdItem(coin: CoinSummary): FeedItem {
-  return { kind: "created", key: `c${coin.id}`, at: Date.parse(coin.createdAt), user: coin.creator, coin: coinRef(coin), marketCap: coin.marketCap };
+  return { kind: "created", key: `c${coin.id}`, at: Date.parse(coin.createdAt), user: coin.creator, coin: coinRef(coin), marketCapSol: coin.marketCapSol };
 }
 
 // ---------------------------------------------------------------------------
 // Rows
 // ---------------------------------------------------------------------------
 
-function FeedRow({ item, isNew }: { item: FeedItem; isNew: boolean }) {
+function FeedRow({ item, isNew, solUsd }: { item: FeedItem; isNew: boolean; solUsd: number }) {
   const t = useT();
   const { user: me } = useAuth();
-  const mine = !!me && me.id === item.user.id;
-  const name = mine ? t("chart.you") : `@${item.user.username}`;
+  const mine = item.kind === "trade" ? !!me?.walletAddress && me.walletAddress === item.wallet : !!me && me.id === item.user.id;
 
   const tone = item.kind === "created" ? "created" : item.side;
   const flash = tone === "buy" ? "rgba(34,197,94,0.16)" : tone === "sell" ? "rgba(244,63,94,0.16)" : "rgba(167,139,250,0.18)";
+  const avatarUser = item.user;
+  const profileHref = item.user ? `/u/${encodeURIComponent(item.user.username)}` : null;
 
   return (
     <motion.li
@@ -88,15 +90,27 @@ function FeedRow({ item, isNew }: { item: FeedItem; isNew: boolean }) {
       transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
       className="flex items-center gap-3 border-b border-border p-3 transition-colors last:border-b-0 hover:bg-accent/40 sm:p-4"
     >
-      <Link href={`/u/${encodeURIComponent(item.user.username)}`} className="shrink-0" aria-label={name}>
-        <PublicAvatar user={item.user} size={36} />
-      </Link>
+      {profileHref ? (
+        <Link href={profileHref} className="shrink-0">
+          <PublicAvatar user={avatarUser} wallet={item.kind === "trade" ? item.wallet : undefined} size={36} />
+        </Link>
+      ) : (
+        <span className="shrink-0">
+          <PublicAvatar user={null} wallet={item.kind === "trade" ? item.wallet : undefined} size={36} />
+        </span>
+      )}
 
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-snug">
-          <Link href={`/u/${encodeURIComponent(item.user.username)}`} className="font-semibold hover:underline">
-            {name}
-          </Link>{" "}
+          {profileHref ? (
+            <Link href={profileHref} className="font-semibold hover:underline">
+              <TraderName user={item.user} wallet={item.kind === "trade" ? item.wallet : ""} mine={mine} />
+            </Link>
+          ) : (
+            <span className="font-semibold">
+              <TraderName user={null} wallet={item.kind === "trade" ? item.wallet : ""} mine={mine} />
+            </span>
+          )}{" "}
           {item.kind === "created" ? (
             <span className="font-medium text-violet">{t("activity.created")}</span>
           ) : (
@@ -104,7 +118,7 @@ function FeedRow({ item, isNew }: { item: FeedItem; isNew: boolean }) {
               <span className={cn("font-medium", item.side === "buy" ? "text-up" : "text-down")}>
                 {item.side === "buy" ? t("activity.bought") : t("activity.sold")}
               </span>{" "}
-              <span className="tabular font-semibold">{compactUsd(item.usdc)}</span> <span className="text-muted-foreground">{t("activity.of")}</span>
+              <span className="tabular font-semibold">{compactUsd(item.sol * solUsd)}</span> <span className="text-muted-foreground">{t("activity.of")}</span>
             </>
           )}{" "}
           <Link href={`/${item.coin.ca}`} className="inline-flex max-w-full items-center gap-1 align-middle font-bold hover:underline">
@@ -116,11 +130,11 @@ function FeedRow({ item, isNew }: { item: FeedItem; isNew: boolean }) {
         <p className="mt-0.5 text-xs text-muted-foreground tabular">
           {item.kind === "created" ? (
             <>
-              {t("coin.mcap")} {compactUsd(item.marketCap)}
+              {t("coin.mcap")} {compactUsd(item.marketCapSol * solUsd)}
             </>
           ) : (
             <>
-              {fmtTokens(item.tokens)} {item.coin.ticker} · {t("trades.price")} {priceUsd(item.price)}
+              {fmtTokens(item.tokens)} {item.coin.ticker} · {t("trades.price")} {priceSol(item.priceSol)}
             </>
           )}
         </p>
@@ -135,7 +149,7 @@ function FeedRow({ item, isNew }: { item: FeedItem; isNew: boolean }) {
         ) : (
           <div className={cn("tabular text-sm font-semibold", item.side === "buy" ? "text-up" : "text-down")}>
             {item.side === "buy" ? "+" : "-"}
-            {usd(item.usdc)}
+            {usd(item.sol, solUsd)}
           </div>
         )}
         <div className="mt-0.5 text-xs text-muted-foreground" title={new Date(item.at).toLocaleString()}>
@@ -182,6 +196,7 @@ function Empty({ title, body, action }: { title: string; body?: string; action?:
 
 export default function ActivityPage() {
   const t = useT();
+  const solUsd = useSolUsd();
   const [filter, setFilter] = useState<Filter>("all");
 
   const activity = useQuery<ActivityItem[]>({ queryKey: [ACTIVITY_KEY], staleTime: 15_000 });
@@ -305,7 +320,7 @@ export default function ActivityPage() {
           <ul className="overflow-hidden rounded-xl border border-border bg-card">
             <AnimatePresence initial={false}>
               {visible.map((item) => (
-                <FeedRow key={item.key} item={item} isNew={liveTradeKeys.has(item.key) || freshKeys.has(item.key)} />
+                <FeedRow key={item.key} item={item} isNew={liveTradeKeys.has(item.key) || freshKeys.has(item.key)} solUsd={solUsd} />
               ))}
             </AnimatePresence>
           </ul>

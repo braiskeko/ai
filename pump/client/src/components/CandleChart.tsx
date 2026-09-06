@@ -18,6 +18,7 @@ import { CANDLE_INTERVAL_MS, TOTAL_SUPPLY } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
+import { shortCa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -26,10 +27,10 @@ import { cn } from "@/lib/utils";
 
 export type ChartInterval = "1m" | "5m" | "15m" | "1h";
 export type ChartMode = "price" | "mcap";
-export type LiveTrade = Trade & { user: PublicUser };
+export type LiveTrade = Trade & { user: PublicUser | null };
 
 export interface CandleChartProps {
-  /** 1-minute OHLC candles (USDC per token). Any order; aggregated client-side. */
+  /** 1-minute OHLC candles (SOL per token). Any order; aggregated client-side. */
   candles: Candle[];
   /** Trades to draw as avatar markers (any order; only the last MAX_MARKERS are drawn). */
   trades: LiveTrade[];
@@ -93,22 +94,22 @@ function fromChartTime(t: number): Date {
 // ---------------------------------------------------------------------------
 
 function fmtAxisPrice(p: number): string {
-  if (!Number.isFinite(p) || p <= 0) return "$0";
+  if (!Number.isFinite(p) || p <= 0) return "0 SOL";
   if (p >= 1000) return fmtCompactUsd(p);
-  if (p >= 1) return `$${p.toFixed(2)}`;
-  if (p >= 0.01) return `$${p.toFixed(4)}`;
+  if (p >= 1) return `${p.toFixed(4)} SOL`;
+  if (p >= 0.01) return `${p.toFixed(6)} SOL`;
   const decimals = Math.min(12, -Math.floor(Math.log10(p)) + 2);
-  return `$${p.toFixed(decimals)}`;
+  return `${p.toFixed(decimals)} SOL`;
 }
 
 function fmtCompactUsd(n: number): string {
-  if (!Number.isFinite(n)) return "$0";
+  if (!Number.isFinite(n)) return "0 SOL";
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}$${trimZeros((abs / 1e9).toFixed(2))}B`;
-  if (abs >= 1e6) return `${sign}$${trimZeros((abs / 1e6).toFixed(2))}M`;
-  if (abs >= 1e3) return `${sign}$${trimZeros((abs / 1e3).toFixed(1))}K`;
-  return `${sign}$${abs.toFixed(2)}`;
+  if (abs >= 1e9) return `${sign}${trimZeros((abs / 1e9).toFixed(2))}B SOL`;
+  if (abs >= 1e6) return `${sign}${trimZeros((abs / 1e6).toFixed(2))}M SOL`;
+  if (abs >= 1e3) return `${sign}${trimZeros((abs / 1e3).toFixed(1))}K SOL`;
+  return `${sign}${abs.toFixed(4)} SOL`;
 }
 
 function trimZeros(s: string): string {
@@ -259,8 +260,8 @@ function useChartPalette(): Palette {
 // Marker sizing
 // ---------------------------------------------------------------------------
 
-function markerSize(usdc: number): number {
-  const s = 16 + 4 * Math.log2(1 + Math.max(0, usdc) / 10);
+function markerSize(sol: number): number {
+  const s = 16 + 4 * Math.log2(1 + Math.max(0, sol) / 0.1);
   return Math.round(Math.min(36, Math.max(18, s)));
 }
 
@@ -346,12 +347,12 @@ export function CandleChart({
     const byId = new Map<number, LiveTrade>();
     for (const tr of trades) byId.set(tr.id, tr);
     const list = Array.from(byId.values())
-      .filter((tr) => Number.isFinite(tr.price) && tr.price > 0)
+      .filter((tr) => Number.isFinite(tr.priceSol) && tr.priceSol > 0)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id - b.id)
       .slice(-MAX_MARKERS);
     return list.map((tr) => {
       const bucketMs = bucketStart(new Date(tr.createdAt).getTime(), intervalMs);
-      return { trade: tr, time: toChartTime(bucketMs), bucketMs, value: tr.price * scale, size: markerSize(tr.usdc) };
+      return { trade: tr, time: toChartTime(bucketMs), bucketMs, value: tr.priceSol * scale, size: markerSize(tr.sol) };
     });
   }, [trades, intervalMs, scale]);
 
@@ -623,11 +624,16 @@ export function CandleChart({
   const hovered = hover ? markers.find((m) => m.trade.id === hover.id) : undefined;
   const hoveredPos = hovered ? placedRef.current.get(hovered.trade.id) : undefined;
   const tooltipText = (m: MarkerMeta) => {
-    const who = user && user.id === m.trade.userId ? t("chart.you") : `@${m.trade.user.username}`;
+    const who =
+      user && user.walletAddress && user.walletAddress === m.trade.wallet
+        ? t("chart.you")
+        : m.trade.user
+          ? `@${m.trade.user.username}`
+          : shortCa(m.trade.wallet, 4, 4);
     const vars = {
       user: who,
-      amount: `${fmtCompactUsd(m.trade.usdc)} (${fmtTokens(m.trade.tokens)} ${ticker})`,
-      price: mode === "mcap" ? fmtCompactUsd(m.trade.marketCap) : fmtAxisPrice(m.trade.price),
+      amount: `${fmtCompactUsd(m.trade.sol)} (${fmtTokens(m.trade.tokens)} ${ticker})`,
+      price: mode === "mcap" ? fmtCompactUsd(m.trade.marketCapSol) : fmtAxisPrice(m.trade.priceSol),
     };
     return m.trade.side === "buy" ? t("chart.boughtAt", vars) : t("chart.soldAt", vars);
   };
@@ -702,7 +708,7 @@ export function CandleChart({
                       )}
                       style={{ width: m.size, height: m.size }}
                     >
-                      <MarkerAvatar user={m.trade.user} size={m.size} />
+                      <MarkerAvatar user={m.trade.user} wallet={m.trade.wallet} size={m.size} />
                     </motion.div>
                   </div>
                 );
@@ -755,8 +761,8 @@ function ToggleButton({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function MarkerAvatar({ user, size }: { user: PublicUser; size: number }) {
-  if (user.avatarUrl) {
+function MarkerAvatar({ user, wallet, size }: { user: PublicUser | null; wallet: string; size: number }) {
+  if (user?.avatarUrl) {
     return (
       <img
         src={user.avatarUrl}
@@ -769,7 +775,7 @@ function MarkerAvatar({ user, size }: { user: PublicUser; size: number }) {
       />
     );
   }
-  return <UserAvatar seed={user.avatarSeed} name={user.username} size={size} />;
+  return <UserAvatar seed={user?.avatarSeed ?? wallet} name={user?.username ?? wallet} size={size} />;
 }
 
 export default CandleChart;
