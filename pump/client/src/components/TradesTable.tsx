@@ -6,10 +6,10 @@ import type { PublicUser, Trade } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
-import { priceUsd, timeAgo, tokens as fmtTokens, usd } from "@/lib/format";
+import { priceSol, shortCa, timeAgo, tokens as fmtTokens, sol } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type TradeWithUser = Trade & { user: PublicUser };
+export type TradeWithUser = Trade & { user: PublicUser | null };
 
 export interface TradesTableProps {
   trades: TradeWithUser[];
@@ -20,11 +20,23 @@ export interface TradesTableProps {
 }
 
 /**
- * Avatar for a PublicUser: custom uploaded image when present, otherwise the
- * deterministic gradient avatar. Shared by the market components.
+ * Avatar for a trader: a linked Noxia user gets their custom/gradient avatar,
+ * an anonymous wallet (no linked account — `user` is null) gets a deterministic
+ * identicon keyed by the wallet address instead.
  */
-export function PublicAvatar({ user, size = 28, className }: { user: PublicUser; size?: number; className?: string }) {
-  if (user.avatarUrl) {
+export function PublicAvatar({
+  user,
+  wallet,
+  size = 28,
+  className,
+}: {
+  user: PublicUser | null;
+  /** wallet address to key the identicon by when `user` is null */
+  wallet?: string;
+  size?: number;
+  className?: string;
+}) {
+  if (user?.avatarUrl) {
     return (
       <img
         src={user.avatarUrl}
@@ -37,7 +49,17 @@ export function PublicAvatar({ user, size = 28, className }: { user: PublicUser;
       />
     );
   }
-  return <UserAvatar seed={user.avatarSeed} name={user.username} size={size} className={className} />;
+  const seed = user?.avatarSeed ?? wallet ?? "?";
+  const name = user?.username ?? wallet ?? "?";
+  return <UserAvatar seed={seed} name={name} size={size} className={className} />;
+}
+
+/** "@username" for a linked user, or the shortened wallet address for an anonymous trader. */
+export function TraderName({ user, wallet, mine = false }: { user: PublicUser | null; wallet: string; mine?: boolean }) {
+  const t = useT();
+  if (mine) return <>{t("chart.you")}</>;
+  if (user) return <>@{user.username}</>;
+  return <span className="font-mono">{shortCa(wallet, 4, 4)}</span>;
 }
 
 /** Shared empty-state box used by the market tabs. */
@@ -77,7 +99,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
           <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <th className="px-3 py-2 font-medium">{t("trades.time")}</th>
             <th className="px-3 py-2 font-medium">{t("trades.type")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("trades.usdc")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("trades.sol")}</th>
             <th className="px-3 py-2 text-right font-medium">{t("trades.tokens")}</th>
             <th className="px-3 py-2 text-right font-medium">{t("trades.price")}</th>
             <th className="px-3 py-2 font-medium">{t("trades.trader")}</th>
@@ -86,7 +108,7 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
         <tbody className="divide-y divide-border">
           {rows.map((tr, i) => {
             const buy = tr.side === "buy";
-            const mine = !!user && user.id === tr.userId;
+            const mine = !!user && !!user.walletAddress && user.walletAddress === tr.wallet;
             return (
               <motion.tr
                 key={tr.id}
@@ -109,21 +131,30 @@ export function TradesTable({ trades, ticker, limit = 100, className }: TradesTa
                     {buy ? t("trade.buy") : t("trade.sell")}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-medium">{usd(tr.usdc)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-medium">{sol(tr.sol)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
                   {fmtTokens(tr.tokens)} <span className="text-muted-foreground">{ticker}</span>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-muted-foreground">{priceUsd(tr.price)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right text-muted-foreground">{priceSol(tr.priceSol)}</td>
                 <td className="px-3 py-2">
-                  <Link
-                    href={`/u/${encodeURIComponent(tr.user.username)}`}
-                    className="inline-flex max-w-[160px] items-center gap-2 hover:underline"
-                  >
-                    <PublicAvatar user={tr.user} size={20} />
-                    <span className="truncate font-medium">
-                      {mine ? t("chart.you") : `@${tr.user.username}`}
+                  {tr.user ? (
+                    <Link
+                      href={`/u/${encodeURIComponent(tr.user.username)}`}
+                      className="inline-flex max-w-[160px] items-center gap-2 hover:underline"
+                    >
+                      <PublicAvatar user={tr.user} wallet={tr.wallet} size={20} />
+                      <span className="truncate font-medium">
+                        <TraderName user={tr.user} wallet={tr.wallet} mine={mine} />
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="inline-flex max-w-[160px] items-center gap-2">
+                      <PublicAvatar user={null} wallet={tr.wallet} size={20} />
+                      <span className="truncate font-medium">
+                        <TraderName user={null} wallet={tr.wallet} mine={mine} />
+                      </span>
                     </span>
-                  </Link>
+                  )}
                 </td>
               </motion.tr>
             );

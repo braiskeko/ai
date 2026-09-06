@@ -1,16 +1,27 @@
 import { formatDistanceToNowStrict, format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import type { AppConfig } from "@shared/schema";
+import { SOLANA_ADDRESS_RE } from "@shared/schema";
+
+// ---------------------------------------------------------------------------
+// Generic helpers
+// ---------------------------------------------------------------------------
 
 export const pct = (p: number, digits = 0) => `${(p * 100).toFixed(digits)}%`;
 
-/** Price shown in cents, Polymarket style: 0.41 -> "41¢" */
-export const cents = (p: number) => {
-  const c = p * 100;
-  if (c < 1) return "<1¢";
-  if (c > 99) return ">99¢";
-  return `${Math.round(c)}¢`;
-};
+/** SOL/USD used while /api/config hasn't loaded yet (mirrors server SOL_USD_FALLBACK default). */
+export const SOL_USD_FALLBACK = 150;
 
-export const usd = (n: number, opts: { compact?: boolean; digits?: number } = {}) => {
+/** Live SOL/USD rate from `GET /api/config` (refreshed by the server every 60s). */
+export function useSolUsd(): number {
+  const { data } = useQuery<AppConfig>({ queryKey: ["/api/config"], staleTime: Infinity, gcTime: Infinity });
+  return data?.solUsd ?? SOL_USD_FALLBACK;
+}
+
+/** Solana address shape (mint / wallet / pool) — base58, 32-44 chars. */
+export const looksLikeCa = (s: string): boolean => SOLANA_ADDRESS_RE.test(s);
+
+const fmtDollar = (n: number, opts: { compact?: boolean; digits?: number } = {}) => {
   const { compact = false, digits } = opts;
   if (compact && Math.abs(n) >= 1000) {
     return new Intl.NumberFormat("en-US", {
@@ -28,10 +39,12 @@ export const usd = (n: number, opts: { compact?: boolean; digits?: number } = {}
   }).format(n);
 };
 
-export const signedUsd = (n: number) => (n >= 0 ? `+${usd(n)}` : `-${usd(Math.abs(n))}`);
+/** Converts a SOL amount to USD (using the given SOL/USD rate) and formats it as currency. */
+export const usd = (sol: number, solUsd: number): string => fmtDollar((sol || 0) * (solUsd || 0));
 
-export const shares = (n: number) =>
-  new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n);
+/** Signed USD amount from a SOL figure: 0.5 → "+$75.00", -0.5 → "-$75.00". */
+export const signedUsd = (sol: number, solUsd: number): string =>
+  `${sol >= 0 ? "+" : "-"}${usd(Math.abs(sol), solUsd)}`;
 
 export const timeAgo = (iso: string | Date) => {
   const d = typeof iso === "string" ? new Date(iso) : iso;
@@ -63,6 +76,8 @@ const toSubscript = (n: number) =>
     .map((d) => SUBSCRIPT_DIGITS[Number(d)] ?? d)
     .join("");
 
+const trimZeros = (s: string) => s.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+
 /** Compact dollar amount: 3700 → "$3.7K", 1_234_000 → "$1.2M", 12.5 → "$12.50". */
 export const compactUsd = (n: number): string => {
   if (!Number.isFinite(n)) return "$0";
@@ -76,7 +91,15 @@ export const compactUsd = (n: number): string => {
   return `${sign}${priceUsd(abs)}`;
 };
 
-const trimZeros = (s: string) => s.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+/** Compact SOL amount: 3700 → "3.7K SOL", 12.5 → "12.5 SOL". */
+export const compactSol = (n: number): string => {
+  if (!Number.isFinite(n)) return "0 SOL";
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e6) return `${sign}${trimZeros((abs / 1e6).toFixed(2))}M SOL`;
+  if (abs >= 1e3) return `${sign}${trimZeros((abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1))}K SOL`;
+  return `${sign}${sol(abs)}`;
+};
 
 /** Token amounts: 12_400_000 → "12.4M", 950 → "950", 0.5 → "0.5". */
 export const tokens = (n: number): string => {
@@ -91,14 +114,13 @@ export const tokens = (n: number): string => {
 };
 
 /**
- * Price per token. Tiny prices use the subscript-zero notation popular on DEX
+ * Price per token in USD. Tiny prices use the subscript-zero notation popular on DEX
  * screeners: 0.0000372 → "$0.0₄372". Larger prices fall back to plain dollars.
  */
 export const priceUsd = (p: number): string => {
   if (!Number.isFinite(p) || p <= 0) return "$0.00";
   if (p >= 1) return `$${p.toFixed(2)}`;
   if (p >= 0.01) return `$${p.toFixed(4)}`;
-  // count leading zeros after the decimal point
   const str = p.toFixed(20);
   const decimals = str.slice(2);
   const zeros = decimals.match(/^0*/)?.[0].length ?? 0;
@@ -107,11 +129,44 @@ export const priceUsd = (p: number): string => {
   return `$0.0${toSubscript(zeros)}${significant}`;
 };
 
-/** "Ab12Cd…noxia" — first 4 chars + last 5 (the "noxia" suffix). */
+/**
+ * Price per token in SOL, same subscript notation as `priceUsd` but suffixed "SOL"
+ * instead of "$": 0.0000372 → "0.0₄372 SOL".
+ */
+export const priceSol = (p: number): string => {
+  if (!Number.isFinite(p) || p <= 0) return "0 SOL";
+  if (p >= 1) return `${p.toFixed(4)} SOL`;
+  if (p >= 0.01) return `${p.toFixed(6)} SOL`;
+  const str = p.toFixed(20);
+  const decimals = str.slice(2);
+  const zeros = decimals.match(/^0*/)?.[0].length ?? 0;
+  const significant = decimals.slice(zeros, zeros + 3).replace(/0+$/, "") || "0";
+  if (zeros < 3) return `0.${"0".repeat(zeros)}${significant} SOL`;
+  return `0.0${toSubscript(zeros)}${significant} SOL`;
+};
+
+/** Plain SOL amount: 0.0421 → "0.0421 SOL", 1 → "1 SOL", 1234.5 → "1,234.5 SOL". */
+export const sol = (n: number, maxDigits = 4): string => {
+  if (!Number.isFinite(n)) return "0 SOL";
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs === 0) return "0 SOL";
+  if (abs < 1) {
+    // keep enough precision that tiny SOL amounts don't collapse to "0 SOL"
+    const digits = Math.max(maxDigits, Math.min(9, -Math.floor(Math.log10(abs)) + 2));
+    return `${sign}${trimZeros(abs.toFixed(digits))} SOL`;
+  }
+  return `${sign}${new Intl.NumberFormat("en-US", { maximumFractionDigits: maxDigits }).format(abs)} SOL`;
+};
+
+/** Signed SOL amount: 0.5 → "+0.5 SOL", -0.5 → "-0.5 SOL". */
+export const signedSol = (n: number): string => `${n >= 0 ? "+" : "-"}${sol(Math.abs(n))}`;
+
+/** "Ab12Cd…noxia" — first 4 chars + last 5 (the vanity "noxia" suffix, when present). */
 export const shortCa = (ca: string, head = 4, tail = 5): string =>
   ca.length <= head + tail + 1 ? ca : `${ca.slice(0, head)}…${ca.slice(-tail)}`;
 
-/** "0xAb12…9f3c" style EVM address. */
+/** "Ab12…9f3c" style short wallet/account address. */
 export const shortAddress = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 
 /** Signed percentage change: 0.123 → "+12.3%", -0.05 → "-5.0%". */
@@ -131,16 +186,4 @@ export const age = (iso: string | Date): string => {
   const mo = Math.floor(d / 30);
   if (mo < 12) return `${mo}mo`;
   return `${Math.floor(d / 365)}y`;
-};
-
-export const endsIn = (iso: string | Date) => {
-  const d = new Date(iso);
-  if (d.getTime() < Date.now()) return "Ended";
-  return `Ends ${formatDistanceToNowStrict(d, { addSuffix: false })
-    .replace(" days", "d")
-    .replace(" day", "d")
-    .replace(" hours", "h")
-    .replace(" hour", "h")
-    .replace(" months", "mo")
-    .replace(" month", "mo")} from now`;
 };

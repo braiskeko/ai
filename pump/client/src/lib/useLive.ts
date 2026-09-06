@@ -1,44 +1,42 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Query } from "@tanstack/react-query";
-import type {
-  Candle,
-  CoinDetail,
-  CoinSummary,
-  CommentView,
-  Deposit,
-  PublicUser,
-  SafeUser,
-  Trade,
-  Withdrawal,
-} from "@shared/schema";
+import type { Candle, CoinDetail, CoinSummary, CommentView, PlatformStats, PublicUser, SafeUser, Trade } from "@shared/schema";
 import { CANDLE_INTERVAL_MS } from "@shared/schema";
 import { queryClient } from "./queryClient";
-import { toast } from "@/hooks/use-toast";
-import { usd } from "@/lib/format";
-import { translate as t } from "@/i18n";
 
 // ---------------------------------------------------------------------------
-// Frame types (mirror server/routes.ts `broadcast(event, payload)` calls)
+// Wire frame types (mirror server/routes.ts `broadcast(type, payload)` calls):
+//
+//   {type:"trade", trade, coin} | {type:"coin:created", coin} | {type:"coin:updated", coin}
+//   | {type:"coin:graduated", coin} | {type:"comment", comment, ca} | {type:"stats", stats}
 // ---------------------------------------------------------------------------
 
-export type LiveTrade = Trade & { user: PublicUser };
+export type LiveTrade = Trade & { user: PublicUser | null };
 export interface LiveTradeItem {
   coin: CoinSummary;
   trade: LiveTrade;
 }
-export type LiveComment = CommentView & { ca: string };
 
-export type LiveFrame =
-  | { event: "coin:created"; payload: CoinSummary }
-  | { event: "trade"; payload: LiveTradeItem }
-  | { event: "comment:created"; payload: LiveComment }
-  | { event: "comment:updated"; payload: LiveComment }
-  | { event: "deposit"; payload: { userId: number; deposit: Deposit } }
-  | { event: "withdrawal:updated"; payload: { userId: number; withdrawal: Withdrawal } }
-  | { event: "balance:updated"; payload: { userId: number; balance: number } };
+type WireFrame =
+  | { type: "trade"; trade: LiveTrade; coin: CoinSummary }
+  | { type: "coin:created"; coin: CoinSummary }
+  | { type: "coin:updated"; coin: CoinSummary }
+  | { type: "coin:graduated"; coin: CoinSummary }
+  | { type: "comment"; comment: CommentView; ca: string }
+  | { type: "stats"; stats: PlatformStats };
 
-export type LiveEvent = LiveFrame["event"];
-export type LivePayload<E extends LiveEvent> = Extract<LiveFrame, { event: E }>["payload"];
+export type LiveEvent = WireFrame["type"];
+
+/** Payload handed to `useLiveEvent`/`onLiveEvent` subscribers, per event name. */
+export type LivePayload<E extends LiveEvent> = E extends "trade"
+  ? LiveTradeItem
+  : E extends "coin:created" | "coin:updated" | "coin:graduated"
+    ? CoinSummary
+    : E extends "comment"
+      ? { comment: CommentView; ca: string }
+      : E extends "stats"
+        ? PlatformStats
+        : never;
 
 export type LiveStatus = "connected" | "connecting" | "offline";
 
@@ -64,13 +62,8 @@ const isCoinListKey = (q: Query) => {
   return k === "/api/coins" || k.startsWith("/api/coins?");
 };
 
-/** Anything under /api/coins (lists, king, details, candles) */
+/** Anything under /api/coins (lists, details, candles) */
 const isCoinsPrefixKey = (q: Query) => keyString(q).startsWith("/api/coins");
-
-const isCoinDetailKey = (q: Query) => {
-  const k = keyString(q);
-  return k.startsWith("/api/coins/") && k !== "/api/coins/king" && !k.endsWith("/candles");
-};
 
 /** A list key is "newest first" when it has no sort or sort=new, and no search term. */
 function listShowsNewest(key: string): boolean {
@@ -115,17 +108,17 @@ function prependCoin(coin: CoinSummary) {
   }
 }
 
-/** Fold a trade into 1-minute candles (mutates nothing; returns a new array). */
-export function applyTradeToCandles(candles: Candle[], trade: Trade): Candle[] {
+/** Fold a trade into 1-minute candles (mutates nothing; returns a new array). Prices/volume are in SOL. */
+export function applyTradeToCandles(candles: Candle[], trade: Pick<Trade, "priceSol" | "sol" | "createdAt">): Candle[] {
   const bucket = Math.floor(Date.parse(trade.createdAt) / CANDLE_INTERVAL_MS) * CANDLE_INTERVAL_MS;
   const last = candles[candles.length - 1];
   if (last && last.t === bucket) {
     const updated: Candle = {
       ...last,
-      h: Math.max(last.h, trade.price),
-      l: Math.min(last.l, trade.price),
-      c: trade.price,
-      v: last.v + trade.usdc,
+      h: Math.max(last.h, trade.priceSol),
+      l: Math.min(last.l, trade.priceSol),
+      c: trade.priceSol,
+      v: last.v + trade.sol,
     };
     return [...candles.slice(0, -1), updated];
   }
@@ -133,10 +126,10 @@ export function applyTradeToCandles(candles: Candle[], trade: Trade): Candle[] {
     // out-of-order (clock skew); fold into the latest candle rather than corrupting the series
     return applyTradeToCandles(candles, { ...trade, createdAt: new Date(last.t).toISOString() });
   }
-  const open = last ? last.c : trade.price;
+  const open = last ? last.c : trade.priceSol;
   return [
     ...candles,
-    { t: bucket, o: open, h: Math.max(open, trade.price), l: Math.min(open, trade.price), c: trade.price, v: trade.usdc },
+    { t: bucket, o: open, h: Math.max(open, trade.priceSol), l: Math.min(open, trade.priceSol), c: trade.priceSol, v: trade.sol },
   ];
 }
 
@@ -154,29 +147,20 @@ function patchCoinDetail(coin: CoinSummary, trade: LiveTrade) {
       commentsList: old.commentsList,
       topHolders: old.topHolders,
       myHolding: old.myHolding,
+      creatorClaimableSol: old.creatorClaimableSol,
     };
   });
   queryClient.setQueryData<Candle[]>([`/api/coins/${coin.ca}/candles`], (old) =>
     Array.isArray(old) ? applyTradeToCandles(old, trade) : old,
   );
-  // My own trade changes my holding/top holders: refetch the detail quietly.
-  if (me !== undefined && trade.userId === me) {
+  // My own trade changes my holding/top holders/claimable fees: refetch the detail quietly.
+  if (me !== undefined && (trade.userId === me || coin.creatorId === me)) {
     void queryClient.invalidateQueries({ queryKey: [`/api/coins/${coin.ca}`] });
   }
 }
 
-function patchKing(coin: CoinSummary) {
-  const king = queryClient.getQueryData<CoinSummary | null>(["/api/coins/king"]);
-  if (king === undefined) return;
-  if (king && king.id === coin.id) {
-    queryClient.setQueryData<CoinSummary | null>(["/api/coins/king"], { ...king, ...coin });
-  } else if (!king || coin.marketCap > king.marketCap) {
-    void queryClient.invalidateQueries({ queryKey: ["/api/coins/king"] });
-  }
-}
-
-function upsertComment(comment: LiveComment) {
-  queryClient.setQueryData<CoinDetail>([`/api/coins/${comment.ca}`], (old) => {
+function upsertComment(comment: CommentView, ca: string) {
+  queryClient.setQueryData<CoinDetail>([`/api/coins/${ca}`], (old) => {
     if (!old) return old;
     const idx = old.commentsList.findIndex((c) => c.id === comment.id);
     if (idx === -1) {
@@ -188,10 +172,10 @@ function upsertComment(comment: LiveComment) {
   });
   queryClient.setQueriesData<CoinSummary[]>({ predicate: isCoinListKey }, (old) => {
     if (!Array.isArray(old)) return old;
-    const idx = old.findIndex((c) => c.id === comment.coinId);
+    const idx = old.findIndex((c) => c.ca === ca);
     if (idx === -1) return old;
     const next = old.slice();
-    const known = queryClient.getQueryData<CoinDetail>([`/api/coins/${comment.ca}`]);
+    const known = queryClient.getQueryData<CoinDetail>([`/api/coins/${ca}`]);
     next[idx] = { ...old[idx], comments: known ? known.comments : old[idx].comments };
     return next;
   });
@@ -250,34 +234,46 @@ export function onLiveEvent<E extends LiveEvent>(event: E, handler: Handler<E>):
   };
 }
 
-function emit(frame: LiveFrame) {
-  const set = eventListeners.get(frame.event);
+function emit<E extends LiveEvent>(event: E, payload: LivePayload<E>) {
+  const set = eventListeners.get(event);
   if (!set) return;
   set.forEach((h) => {
     try {
-      h(frame.payload);
+      h(payload);
     } catch {
       /* listener errors must not break the socket */
     }
   });
 }
 
-function handleFrame(frame: LiveFrame) {
-  switch (frame.event) {
+function handleFrame(frame: WireFrame) {
+  switch (frame.type) {
     case "coin:created": {
-      const coin = frame.payload;
+      const coin = frame.coin;
       prependCoin(coin);
       markRecentCoin(coin.id);
-      patchKing(coin);
       void queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      emit("coin:created", coin);
+      break;
+    }
+    case "coin:updated": {
+      patchCoinLists(frame.coin);
+      queryClient.setQueryData<CoinDetail>([`/api/coins/${frame.coin.ca}`], (old) => (old ? { ...old, ...frame.coin } : old));
+      emit("coin:updated", frame.coin);
+      break;
+    }
+    case "coin:graduated": {
+      patchCoinLists(frame.coin);
+      queryClient.setQueryData<CoinDetail>([`/api/coins/${frame.coin.ca}`], (old) => (old ? { ...old, ...frame.coin } : old));
+      void queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      emit("coin:graduated", frame.coin);
       break;
     }
     case "trade": {
-      const { coin, trade } = frame.payload;
+      const { coin, trade } = frame;
       patchCoinLists(coin);
       patchCoinDetail(coin, trade);
-      patchKing(coin);
-      pushLiveTrade(frame.payload);
+      pushLiveTrade({ coin, trade });
       void queryClient.invalidateQueries({ queryKey: ["/api/activity"], exact: false });
       void queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       const me = currentUserId();
@@ -285,61 +281,28 @@ function handleFrame(frame: LiveFrame) {
         void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
         void queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
       }
+      emit("trade", { coin, trade });
       break;
     }
-    case "comment:created":
-    case "comment:updated":
-      upsertComment(frame.payload);
-      break;
-    case "deposit": {
-      const { userId, deposit } = frame.payload;
-      if (userId !== currentUserId()) break;
-      void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-      toast({
-        title: t("common.depositConfirmed", { amount: usd(deposit.amount) }),
-        description: t("common.depositCredited", { amount: usd(deposit.amount) }),
-      });
+    case "comment": {
+      upsertComment(frame.comment, frame.ca);
+      emit("comment", { comment: frame.comment, ca: frame.ca });
       break;
     }
-    case "balance:updated": {
-      const { userId, balance } = frame.payload;
-      if (userId !== currentUserId()) break;
-      void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-      void queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
-      toast({ title: t("admin.balanceUpdated"), description: t("common.balanceUpdated", { amount: usd(balance) }) });
-      break;
-    }
-    case "withdrawal:updated": {
-      const { userId, withdrawal } = frame.payload;
-      if (userId !== currentUserId()) break;
-      void queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      void queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-      if (withdrawal.status === "sent") {
-        toast({
-          title: t("common.withdrawalSent"),
-          description: t("common.withdrawalOnItsWay", { amount: usd(withdrawal.amount) }),
-        });
-      } else if (withdrawal.status === "failed") {
-        toast({
-          variant: "destructive",
-          title: t("common.withdrawalFailed"),
-          description: withdrawal.error ?? t("common.fundsReturned"),
-        });
-      }
+    case "stats": {
+      queryClient.setQueryData(["/api/stats"], frame.stats);
+      emit("stats", frame.stats);
       break;
     }
   }
-  emit(frame);
 }
 
-function parseFrame(raw: unknown): LiveFrame | null {
+function parseFrame(raw: unknown): WireFrame | null {
   if (typeof raw !== "string") return null;
   try {
-    const parsed = JSON.parse(raw) as { event?: unknown; payload?: unknown };
-    if (!parsed || typeof parsed.event !== "string") return null;
-    return parsed as LiveFrame;
+    const parsed = JSON.parse(raw) as { type?: unknown };
+    if (!parsed || typeof parsed.type !== "string") return null;
+    return parsed as WireFrame;
   } catch {
     return null;
   }

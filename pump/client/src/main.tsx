@@ -1,3 +1,9 @@
+// Wallet adapters (and the base58/borsh code paths they pull in) assume a Node
+// `Buffer` global. Polyfill it before anything else in the app touches it.
+import { Buffer } from "buffer";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).Buffer ??= Buffer;
+
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";

@@ -1,63 +1,37 @@
 import { randomBytes } from "crypto";
-import type { ChainInfo } from "@shared/schema";
 
 /**
  * All runtime configuration lives here and comes from environment variables.
- * See .env.example for documentation of each variable.
+ *
+ * Noxia is a non-custodial Solana launchpad: the server never holds keys for
+ * user funds. The only chain-related secrets it may hold are the pre-mined
+ * vanity MINT keypairs (VANITY_DIR), which are one-shot, never funded and only
+ * ever co-sign the pool creation transaction the user themselves signs.
  */
 
-const CHAINS: Record<string, ChainInfo> = {
-  polygon: {
-    key: "polygon",
-    name: "Polygon",
-    chainId: 137,
-    testnet: false,
-    // Native USDC on Polygon PoS (Circle)
-    usdcAddress: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-    explorer: "https://polygonscan.com",
-    rpcUrl: "https://polygon-rpc.com",
-    confirmations: 30,
-  },
-  amoy: {
-    key: "amoy",
-    name: "Polygon Amoy (testnet)",
-    chainId: 80002,
-    testnet: true,
-    usdcAddress: "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582",
-    explorer: "https://amoy.polygonscan.com",
-    rpcUrl: "https://rpc-amoy.polygon.technology",
-    confirmations: 5,
-  },
-  base: {
-    key: "base",
-    name: "Base",
-    chainId: 8453,
-    testnet: false,
-    usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    explorer: "https://basescan.org",
-    rpcUrl: "https://mainnet.base.org",
-    confirmations: 12,
-  },
-  "base-sepolia": {
-    key: "base-sepolia",
-    name: "Base Sepolia (testnet)",
-    chainId: 84532,
-    testnet: true,
-    usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    explorer: "https://sepolia.basescan.org",
-    rpcUrl: "https://sepolia.base.org",
-    confirmations: 3,
-  },
-};
+const env = (k: string, fallback = ""): string => process.env[k]?.trim() || fallback;
 
-const env = (k: string, fallback = "") => process.env[k]?.trim() || fallback;
+export type Cluster = "mainnet-beta" | "devnet";
 
-const chainKey = env("CHAIN", "amoy");
-const chainBase = CHAINS[chainKey] ?? CHAINS.amoy;
+const cluster: Cluster = env("SOLANA_CLUSTER", "devnet") === "mainnet-beta" ? "mainnet-beta" : "devnet";
+
+const defaultRpcUrl = cluster === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : "https://api.devnet.solana.com";
+const rpcUrl = env("RPC_URL", defaultRpcUrl);
+
+/** wss endpoint derived from the http one when RPC_WS_URL is not given (what web3.js does by default). */
+function deriveWsUrl(http: string): string | null {
+  try {
+    const url = new URL(http);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
 
 export const config = {
   appName: env("APP_NAME", "Noxia"),
-  /** Public URL of the deployment, used in magic-link emails. */
+  /** Public URL of the deployment: magic-link emails and absolute metadata URLs. */
   appUrl: env("APP_URL", `http://localhost:${env("PORT", "5000")}`),
   port: Number(env("PORT", "5000")),
   isProd: process.env.NODE_ENV === "production",
@@ -65,9 +39,6 @@ export const config = {
   /** Secret used to sign session cookies. Random per boot if unset (sessions won't survive restarts). */
   sessionSecret: env("SESSION_SECRET") || randomBytes(32).toString("hex"),
   sessionSecretIsEphemeral: !env("SESSION_SECRET"),
-
-  /** One-off balance credits applied at boot, e.g. "alice:1000,bob:250" (each entry applied once). */
-  initialCredits: env("INITIAL_CREDITS"),
 
   /** Comma separated list of admin emails. */
   adminEmails: env("ADMIN_EMAILS")
@@ -77,10 +48,13 @@ export const config = {
 
   google: { clientId: env("GOOGLE_CLIENT_ID") || null },
   apple: { clientId: env("APPLE_CLIENT_ID") || null },
-  /** Reown/WalletConnect Cloud project id (free at cloud.reown.com). Injected wallets work without it. */
-  walletConnectProjectId: env("WALLETCONNECT_PROJECT_ID") || null,
+
   /** Directory for uploaded coin images / comment attachments. */
   uploadsDir: env("UPLOADS_DIR", "data/uploads"),
+  /** Directory holding the Metaplex metadata JSON we serve at /api/meta/<mint>.json. */
+  metaDir: env("META_DIR", "data/meta"),
+  /** Directory holding pre-mined vanity mint keypairs ({publicKey, secretKey} JSON files). */
+  vanityDir: env("VANITY_DIR", "data/vanity"),
 
   email: {
     resendApiKey: env("RESEND_API_KEY") || null,
@@ -93,21 +67,27 @@ export const config = {
    */
   instantEmailLogin: env("INSTANT_EMAIL_LOGIN", "1") !== "0",
   /**
-   * Seed demo coins and bot traders on an empty database. Defaults to on for testnets
-   * and off for mainnets, so a real-money deployment starts clean.
+   * Fabricate a handful of fake coins for offline UI work. Never on mainnet, never
+   * when a real DBC config is configured. Off by default everywhere.
    */
-  seedDemo: env("SEED_DEMO", chainBase.testnet ? "1" : "0") !== "0",
+  seedDemo: env("SEED_DEMO", "0") !== "0",
 
-  chain: {
-    ...chainBase,
-    rpcUrl: env("RPC_URL") || chainBase.rpcUrl,
-  } as ChainInfo,
-  /** BIP-39 phrase used to derive one deposit address per user. Generated on first boot if unset. */
-  depositMnemonic: env("DEPOSIT_MNEMONIC") || null,
-  /** Hot wallet that pays withdrawals. Withdrawals stay "pending" when unset. */
-  treasuryPrivateKey: env("TREASURY_PRIVATE_KEY") || null,
-  /** Set to "0" to disable the on-chain deposit watcher (e.g. in CI). */
-  depositsEnabled: env("DEPOSITS_ENABLED", "1") !== "0",
+  solana: {
+    cluster,
+    testnet: cluster !== "mainnet-beta",
+    rpcUrl,
+    rpcWsUrl: env("RPC_WS_URL") || deriveWsUrl(rpcUrl),
+    /** Meteora Dynamic Bonding Curve partner config Noxia launches through (base58). */
+    dbcConfig: env("DBC_CONFIG") || null,
+    /** Wallet that receives the platform share of every swap fee (the config's feeClaimer). */
+    treasuryWallet: env("TREASURY_WALLET") || null,
+    /** Used until the first successful CoinGecko response (and whenever it fails). */
+    solUsdFallback: Number(env("SOL_USD_FALLBACK", "150")) || 150,
+    explorer: "https://solscan.io",
+  },
+
+  /** Bearer token for the vanity-key uploader (`x-admin-token` header). */
+  adminApiToken: env("ADMIN_API_TOKEN") || null,
 
   /** Postgres connection string (Neon works). Falls back to a JSON file when unset. */
   databaseUrl: env("DATABASE_URL") || null,
