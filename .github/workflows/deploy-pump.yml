@@ -1,6 +1,6 @@
 name: Deploy Noxia (pump) to cPanel
 
-# Builds the pump app (./pump) and deploys it to app.noxia.work through the cPanel API
+# Builds the Next app (./pump) and deploys it to app.noxia.work through the cPanel API
 # (no SSH needed) — the same mechanism as deploy-cpanel.yml for Foresight. Trigger it
 # manually from the Actions tab (Run workflow). Store credentials as repository secrets
 # (CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN) or pass them as inputs for a one-off run.
