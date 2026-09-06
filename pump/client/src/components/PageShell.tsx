@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Navbar } from "@/components/Navbar";
+import { MobileTabs, Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { cn } from "@/lib/utils";
 
@@ -12,16 +12,20 @@ export function PageShell({
   className,
   wide = false,
   noFooter = false,
+  noHeader = false,
 }: {
   children: ReactNode;
   className?: string;
   /** max-w-screen-2xl instead of max-w-7xl (coin page, home grid) */
   wide?: boolean;
   noFooter?: boolean;
+  /** Drops the top bar — a screen that is somebody's page, not a section of the app. */
+  noHeader?: boolean;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Navbar />
+      {!noHeader && <Navbar />}
+      {noHeader && <MobileTabs />}
       <main
         className={cn(
           "mx-auto w-full px-4 py-6 pb-24 md:pb-10",

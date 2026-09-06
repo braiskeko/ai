@@ -94,17 +94,6 @@ export function Navbar() {
   };
 
   const avatarSeed = user?.avatarUrl ?? user?.avatarSeed ?? "";
-  // Always the stable route: it resolves the session itself, so the tab works before
-  // /api/me has answered and survives a rename.
-  const profileHref = "/profile";
-
-  const mobileTabs = [
-    { href: "/", key: "nav.home", icon: Home },
-    { href: "/search", key: "nav.search", icon: Search },
-    { href: "/create", key: "nav.create", icon: PlusCircle, brand: true },
-    { href: "/people", key: "nav.people", icon: Users },
-    { href: profileHref, key: "nav.profile", icon: UserIcon, avatar: true },
-  ] as const;
 
   return (
     <>
@@ -286,7 +275,25 @@ export function Navbar() {
         </Link>
       </header>
 
-      {/* Mobile bottom tab bar */}
+      <MobileTabs />
+    </>
+  );
+}
+
+/** The floating bottom tab bar — rendered on its own by header-less pages. */
+export function MobileTabs() {
+  const t = useT();
+  const [location] = useLocation();
+  const { user } = useAuth();
+  const mobileTabs = [
+    { href: "/", key: "nav.home", icon: Home },
+    { href: "/search", key: "nav.search", icon: Search },
+    { href: "/create", key: "nav.create", icon: PlusCircle, brand: true },
+    { href: "/people", key: "nav.people", icon: Users },
+    { href: "/profile", key: "nav.profile", icon: UserIcon, avatar: true },
+  ] as const;
+
+  return (
       <nav
         aria-label={t("nav.mobile")}
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
@@ -326,6 +333,5 @@ export function Navbar() {
           })}
         </div>
       </nav>
-    </>
   );
 }

@@ -110,26 +110,36 @@ async function fetchImage(url: string): Promise<{ body: Buffer; type: string } |
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
     if (!(await resolvesToPublicHost(parsed.hostname))) return null;
 
-    const res = await fetch(parsed.toString(), {
-      redirect: "manual",
-      headers: { accept: "image/*,*/*;q=0.8", "user-agent": "Mozilla/5.0 (compatible; NextBot/1.0)" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    // AbortController rather than AbortSignal.timeout: this also runs on hosts
+    // whose Node predates it.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    // (typed off fetch itself: the name `Response` here is express's)
+    let upstream: Awaited<ReturnType<typeof fetch>>;
+    try {
+      upstream = await fetch(parsed.toString(), {
+        redirect: "manual",
+        headers: { accept: "image/*,*/*;q=0.8", "user-agent": "Mozilla/5.0 (compatible; NextBot/1.0)" },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
-    if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get("location");
+    if (upstream.status >= 300 && upstream.status < 400) {
+      const location = upstream.headers.get("location");
       if (!location) return null;
       current = new URL(location, parsed).toString();
       continue;
     }
-    if (!res.ok) return null;
+    if (!upstream.ok) return null;
 
-    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+    const type = (upstream.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
     if (!type.startsWith("image/")) return null;
-    const declared = Number(res.headers.get("content-length") ?? 0);
+    const declared = Number(upstream.headers.get("content-length") ?? 0);
     if (declared > MAX_BYTES) return null;
 
-    const body = Buffer.from(await res.arrayBuffer());
+    const body = Buffer.from(await upstream.arrayBuffer());
     if (body.length === 0 || body.length > MAX_BYTES) return null;
     return { body, type };
   }
@@ -148,6 +158,12 @@ export async function imageProxy(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  // A runtime without global fetch can still help: point the browser at the origin.
+  if (typeof fetch !== "function") {
+    res.redirect(302, url);
+    return;
+  }
+
   const now = Date.now();
   const hit = cache.get(url);
   if (hit && now - hit.at < CACHE_TTL_MS) {
@@ -156,7 +172,7 @@ export async function imageProxy(req: Request, res: Response): Promise<void> {
   }
   const failedAt = failures.get(url);
   if (failedAt !== undefined && now - failedAt < NEGATIVE_TTL_MS) {
-    res.status(404).end();
+    giveUp(res, url);
     return;
   }
 
@@ -164,7 +180,7 @@ export async function imageProxy(req: Request, res: Response): Promise<void> {
     const image = await fetchImage(url);
     if (!image) {
       failures.set(url, now);
-      res.status(404).end();
+      giveUp(res, url);
       return;
     }
     failures.delete(url);
@@ -172,8 +188,22 @@ export async function imageProxy(req: Request, res: Response): Promise<void> {
     send(res, image.body, image.type);
   } catch {
     failures.set(url, now);
-    res.status(404).end();
+    giveUp(res, url);
   }
+}
+
+/**
+ * We could not fetch it — hand the browser the origin URL instead. It may well
+ * succeed where we did not (a gateway that answers browsers but not servers), and
+ * when it fails too the client falls back to its initials tile.
+ */
+function giveUp(res: Response, url: string): void {
+  if (/^https?:\/\//i.test(url)) {
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.redirect(302, url);
+    return;
+  }
+  res.status(404).end();
 }
 
 function send(res: Response, body: Buffer, type: string): void {

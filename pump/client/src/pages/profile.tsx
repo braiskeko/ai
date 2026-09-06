@@ -455,7 +455,7 @@ export default function ProfilePage({ username: explicit }: { username?: string 
   const rangeValueSol = points[points.length - 1] ?? 0;
 
   return (
-    <PageShell>
+    <PageShell noHeader className="pt-4">
       <div className="space-y-6">
         <section className="surface relative overflow-hidden p-5">
           {/* History sits to the left of settings, the way the design has it. */}

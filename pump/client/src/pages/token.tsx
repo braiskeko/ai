@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
-import { CandleChart, type ChartInterval } from "@/components/CandleChart";
+import { CandleChart, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -68,8 +68,8 @@ const SLIPPAGE_PRESETS_BPS = [100, 300, 500, 1000] as const;
 const DEFAULT_SLIPPAGE_BPS = 500;
 const SLIPPAGE_KEY = "nx_slippage_bps";
 const QUOTE_DEBOUNCE_MS = 300;
-const CHART_INTERVAL_KEY = "nx_chart_interval";
-const INTERVALS: ReadonlySet<string> = new Set(["1m", "5m", "15m", "1h"]);
+const CHART_RANGE_KEY = "nx_chart_range";
+const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
 /** Each fetch also records a price sample server-side, which is what draws the chart. */
 const REFRESH_MS = 60_000;
 
@@ -850,11 +850,11 @@ export default function TokenPage() {
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
 
-  const [interval, setInterval_] = useState<ChartInterval>(() => loadPref(CHART_INTERVAL_KEY, INTERVALS, "1m"));
-  const onIntervalChange = useCallback((i: ChartInterval) => {
-    setInterval_(i);
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1D"));
+  const onRangeChange = useCallback((r: ChartRange) => {
+    setRange(r);
     try {
-      localStorage.setItem(CHART_INTERVAL_KEY, i);
+      localStorage.setItem(CHART_RANGE_KEY, r);
     } catch {
       /* storage unavailable */
     }
@@ -907,9 +907,8 @@ export default function TokenPage() {
                 ticker={data.symbol}
                 unit="USD"
                 supply={data.supply}
-                height={380}
-                interval={interval}
-                onIntervalChange={onIntervalChange}
+                range={range}
+                onRangeChange={onRangeChange}
                 className="rounded-3xl border border-border bg-card"
               />
               <p className="mt-2 px-1 text-[11px] leading-snug text-muted-foreground">{t("token.chartHint")}</p>

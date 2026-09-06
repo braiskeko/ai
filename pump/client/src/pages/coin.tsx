@@ -26,7 +26,7 @@ import {
 import type { CoinDetail, ExternalToken, UnsignedTx } from "@shared/schema";
 import { CREATOR_FEE_SHARE, GRADUATION_MCAP_USD, SWAP_FEE, TOTAL_SUPPLY } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
-import { CandleChart, type ChartInterval, type ChartMode } from "@/components/CandleChart";
+import { CandleChart, type ChartMode, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
 import { TradePanel } from "@/components/TradePanel";
 import { Comments } from "@/components/Comments";
@@ -58,8 +58,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
 const CHART_MODE_KEY = "nx_chart_mode";
-const CHART_INTERVAL_KEY = "nx_chart_interval";
-const INTERVALS: ReadonlySet<string> = new Set(["1m", "5m", "15m", "1h"]);
+const CHART_RANGE_KEY = "nx_chart_range";
+const RANGES: ReadonlySet<string> = new Set(["1H", "4H", "1D", "7D", "1M", "ALL"]);
 
 function loadPref<T extends string>(key: string, allowed: ReadonlySet<string>, fallback: T): T {
   try {
@@ -635,14 +635,14 @@ export default function CoinPage() {
   });
 
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "mcap"));
-  const [interval, setInterval_] = useState<ChartInterval>(() => loadPref(CHART_INTERVAL_KEY, INTERVALS, "1m"));
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1D"));
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
     savePref(CHART_MODE_KEY, m);
   }, []);
-  const onIntervalChange = useCallback((i: ChartInterval) => {
-    setInterval_(i);
-    savePref(CHART_INTERVAL_KEY, i);
+  const onRangeChange = useCallback((r: ChartRange) => {
+    setRange(r);
+    savePref(CHART_RANGE_KEY, r);
   }, []);
 
   const data = coin.data;
@@ -690,11 +690,10 @@ export default function CoinPage() {
                 // falling back to SOL when the rate has not loaded yet.
                 unit={solUsd > 0 ? "USD" : "SOL"}
                 rate={solUsd > 0 ? solUsd : 1}
-                height={380}
                 mode={mode}
                 onModeChange={onModeChange}
-                interval={interval}
-                onIntervalChange={onIntervalChange}
+                range={range}
+                onRangeChange={onRangeChange}
                 className="-mx-4 sm:mx-0 sm:rounded-3xl sm:border sm:border-border sm:bg-card"
               />
             </section>

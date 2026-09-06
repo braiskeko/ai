@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 export type ChartInterval = "1m" | "5m" | "15m" | "1h";
+/** What the chips under the chart pick: a window of time, not a candle size. */
+export type ChartRange = "1H" | "4H" | "1D" | "7D" | "1M" | "ALL";
 export type ChartMode = "price" | "mcap";
 /** Denomination of the candles: our own coins are priced in SOL, external tokens in USD. */
 export type ChartUnit = "SOL" | "USD";
@@ -47,13 +49,14 @@ export interface CandleChartProps {
   rate?: number;
   /** Supply the "mcap" mode multiplies the price by (default: our own TOTAL_SUPPLY). */
   supply?: number;
+  /** Fixed pixel height; by default the chart is shorter on phones than on desktop. */
   height?: number;
   /** Controlled mode; when omitted the chart keeps its own state (default "price"). */
   mode?: ChartMode;
   onModeChange?: (mode: ChartMode) => void;
-  /** Controlled interval; when omitted the chart keeps its own state (default "1m"). */
-  interval?: ChartInterval;
-  onIntervalChange?: (interval: ChartInterval) => void;
+  /** Controlled range; when omitted the chart keeps its own state (default "1D"). */
+  range?: ChartRange;
+  onRangeChange?: (range: ChartRange) => void;
   className?: string;
 }
 
@@ -66,7 +69,6 @@ const DOWN = "#f43f5e";
 const UP_VOL = "rgba(34, 197, 94, 0.35)";
 const DOWN_VOL = "rgba(244, 63, 94, 0.35)";
 
-const INTERVALS: ChartInterval[] = ["1m", "5m", "15m", "1h"];
 const INTERVAL_MS: Record<ChartInterval, number> = {
   "1m": CANDLE_INTERVAL_MS,
   "5m": 5 * CANDLE_INTERVAL_MS,
@@ -74,14 +76,26 @@ const INTERVAL_MS: Record<ChartInterval, number> = {
   "1h": 60 * CANDLE_INTERVAL_MS,
 };
 
-/** Only the most recent trades get an avatar marker (performance, and so the candles stay visible). */
-const MAX_MARKERS = 24;
 /**
- * Bars shown when the chart first draws. Fitting hundreds of one-minute bars into a phone
- * width renders every candle sub-pixel — which reads as "the chart is broken" — so the view
- * opens on a window this wide and the user can scroll or pinch out for the rest.
+ * Each range picks the candle size that fills the window with a readable number of
+ * bars — an hour of one-minute candles, a month of hourly ones — so a chip changes
+ * what you see rather than what a bar means.
  */
-const VISIBLE_BARS = 72;
+const RANGES: { key: ChartRange; interval: ChartInterval; bars: number }[] = [
+  { key: "1H", interval: "1m", bars: 60 },
+  { key: "4H", interval: "5m", bars: 48 },
+  { key: "1D", interval: "15m", bars: 96 },
+  { key: "7D", interval: "1h", bars: 168 },
+  { key: "1M", interval: "1h", bars: 720 },
+  { key: "ALL", interval: "1h", bars: Number.POSITIVE_INFINITY },
+];
+const RANGE_BY_KEY = new Map(RANGES.map((r) => [r.key, r]));
+
+/** Only the most recent trades get an avatar marker (performance, and so the candles stay visible). */
+const MAX_MARKERS = 14;
+/** Avatars float this far above the price they mark, so they never sit on the candle. */
+const ANCHOR_OFFSET = 12;
+
 /** Gaps between candles are filled with flat candles up to this many bars. */
 const MAX_FILLED_BARS = 3000;
 /** Grid cell (px) used to detect overlapping avatars; overlapping ones stack with STACK_OFFSET. */
@@ -262,6 +276,17 @@ function cssHsl(token: string, alpha?: number): string {
   return alpha === undefined ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** 300px on a phone, 380 from sm up — enough that the chips below stay in view. */
+function useResponsiveHeight(): number {
+  const [height, setHeight] = useState(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 300 : 380));
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerWidth < 640 ? 300 : 380);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return height;
+}
+
 function useChartPalette(): Palette {
   const [palette, setPalette] = useState<Palette>(readPalette);
   useEffect(() => {
@@ -313,35 +338,39 @@ export function CandleChart({
   unit = "SOL",
   rate = 1,
   supply = TOTAL_SUPPLY,
-  height = 380,
+  height,
   mode: modeProp,
   onModeChange,
-  interval: intervalProp,
-  onIntervalChange,
+  range: rangeProp,
+  onRangeChange,
   className,
 }: CandleChartProps) {
   const t = useT();
   const { user } = useAuth();
   const palette = useChartPalette();
+  const measured = useResponsiveHeight();
+  const chartHeight = height ?? measured;
 
   // Controlled-or-uncontrolled mode / interval.
   const [modeState, setModeState] = useState<ChartMode>(modeProp ?? "price");
-  const [intervalState, setIntervalState] = useState<ChartInterval>(intervalProp ?? "1m");
+  const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "1D");
   useEffect(() => {
     if (modeProp) setModeState(modeProp);
   }, [modeProp]);
   useEffect(() => {
-    if (intervalProp) setIntervalState(intervalProp);
-  }, [intervalProp]);
+    if (rangeProp) setRangeState(rangeProp);
+  }, [rangeProp]);
   const mode = modeProp ?? modeState;
-  const interval = intervalProp ?? intervalState;
+  const range = rangeProp ?? rangeState;
+  const spec = RANGE_BY_KEY.get(range) ?? RANGES[2];
+  const interval = spec.interval;
   const setMode = (m: ChartMode) => {
     setModeState(m);
     onModeChange?.(m);
   };
-  const setInterval_ = (i: ChartInterval) => {
-    setIntervalState(i);
-    onIntervalChange?.(i);
+  const setRange = (r: ChartRange) => {
+    setRangeState(r);
+    onRangeChange?.(r);
   };
 
   const conversion = Number.isFinite(rate) && rate > 0 ? rate : 1;
@@ -399,6 +428,8 @@ export function CandleChart({
   const rafRef = useRef(0);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const rangeRef = useRef(range);
+  rangeRef.current = range;
   const unitRef = useRef(unit);
   unitRef.current = unit;
   markersRef.current = markers;
@@ -424,7 +455,8 @@ export function CandleChart({
         const idx = nearestIndex(bucketTimesRef.current, m.bucketMs);
         x = idx >= 0 ? ts.logicalToCoordinate(idx as Logical) : null;
       }
-      const y = series.priceToCoordinate(m.value);
+      const priceY = series.priceToCoordinate(m.value);
+      const y = priceY === null ? null : priceY - m.size / 2 - ANCHOR_OFFSET;
       if (x === null || y === null || x < -m.size || x > pane.width + m.size || y < -m.size || y > pane.height + m.size) {
         el.style.display = "none";
         continue;
@@ -478,7 +510,7 @@ export function CandleChart({
     }
     const chart = createChart(el, {
       width: el.clientWidth || 300,
-      height,
+      height: chartHeight,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: palette.text,
@@ -576,7 +608,7 @@ export function CandleChart({
 
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
-      if (w > 0) chart.applyOptions({ width: w, height });
+      if (w > 0) chart.applyOptions({ width: w, height: chartHeight });
       scheduleRef.current();
     });
     ro.observe(el);
@@ -597,7 +629,7 @@ export function CandleChart({
       lastDataRef.current = null;
       placedRef.current.clear();
     };
-  }, [hasData, height, palette]);
+  }, [hasData, chartHeight, palette]);
 
   // ---- Push data (incremental when only the tail changed) -----------------
   useEffect(() => {
@@ -614,7 +646,7 @@ export function CandleChart({
       },
     });
 
-    const key = `${mode}|${interval}`;
+    const key = `${mode}|${range}`;
     const prev = lastDataRef.current;
     const sameBar = (a: CandlestickData<UTCTimestamp>, b: CandlestickData<UTCTimestamp>) =>
       a.time === b.time && a.open === b.open && a.high === b.high && a.low === b.low && a.close === b.close;
@@ -637,14 +669,15 @@ export function CandleChart({
       // Open on the most recent window rather than the whole history: fitting hundreds of
       // bars into a phone width makes every candle a hairline (see VISIBLE_BARS).
       const last = candleData.length - 1;
+      const window = RANGE_BY_KEY.get(rangeRef.current)?.bars ?? 96;
       chart.timeScale().setVisibleLogicalRange({
-        from: Math.max(0, last - VISIBLE_BARS) as Logical,
+        from: (Number.isFinite(window) ? Math.max(0, last - window) : 0) as Logical,
         to: (last + 3) as Logical,
       });
     }
     lastDataRef.current = { key, data: candleData };
     scheduleRef.current();
-  }, [candleData, volumeData, mode, unit, interval, palette, height]);
+  }, [candleData, volumeData, mode, unit, range, palette, chartHeight]);
 
   // ---- New trades: pop marker + follow real time ---------------------------
   const lastTradeId = markers.length ? markers[markers.length - 1].trade.id : 0;
@@ -680,26 +713,9 @@ export function CandleChart({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Controls */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
-          {(["price", "mcap"] as ChartMode[]).map((m) => (
-            <ToggleButton key={m} active={mode === m} onClick={() => setMode(m)}>
-              {m === "price" ? t("chart.price") : t("chart.mcap")}
-            </ToggleButton>
-          ))}
-        </div>
-        <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
-          {INTERVALS.map((i) => (
-            <ToggleButton key={i} active={interval === i} onClick={() => setInterval_(i)}>
-              {t(`chart.${i}`)}
-            </ToggleButton>
-          ))}
-        </div>
-      </div>
 
       {/* Chart */}
-      <div className="relative w-full overflow-hidden rounded-xl" style={{ height }}>
+      <div className="relative w-full overflow-hidden rounded-xl" style={{ height: chartHeight }}>
         {!hasData ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
             <BarChart3 className="h-6 w-6 opacity-60" />
@@ -776,6 +792,33 @@ export function CandleChart({
             )}
           </>
         )}
+      </div>
+
+      {/* Ranges under the chart, with the price/market-cap switch on the right. */}
+      <div className="mt-2 flex items-center gap-1 px-1">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setRange(r.key)}
+            aria-pressed={range === r.key}
+            className={cn(
+              "tap h-8 flex-1 rounded-xl text-[13px] font-bold transition-colors",
+              range === r.key ? "bg-secondary text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {r.key}
+          </button>
+        ))}
+        <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+        <button
+          type="button"
+          onClick={() => setMode(mode === "price" ? "mcap" : "price")}
+          aria-label={mode === "price" ? t("chart.mcap") : t("chart.price")}
+          className="tap h-8 shrink-0 rounded-xl px-2.5 text-[13px] font-bold text-muted-foreground"
+        >
+          {mode === "price" ? t("chart.price") : t("chart.mcap")}
+        </button>
       </div>
     </div>
   );

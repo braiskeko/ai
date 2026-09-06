@@ -274,6 +274,21 @@ function rowFromToken(token: ExternalToken): Row {
   };
 }
 
+/**
+ * What "trending" means here: traded a lot in the last 24h, and going up.
+ *
+ * Volume dominates (on a log scale, so a $10M day beats a $100K one without a
+ * hundredfold gap), size is a mild tiebreak so dust with one wash trade cannot
+ * top the list, and the 24h move adds the momentum — bounded, because a +900%
+ * on no volume is noise, not a trend.
+ */
+function trendingScore(row: Row): number {
+  const volume = Math.log10(1 + Math.max(0, row.volumeUsd));
+  const size = 0.4 * Math.log10(1 + Math.max(0, row.marketCapUsd));
+  const momentum = Math.max(-0.5, Math.min(3, row.change24h));
+  return volume + size + momentum;
+}
+
 /** Rank the merged list the way the active chip asks for. */
 function rankRows(rows: Row[], sort: Sort): Row[] {
   const byTime = (a: Row, b: Row) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? "");
@@ -285,8 +300,7 @@ function rankRows(rows: Row[], sort: Sort): Row[] {
     case "volume":
       return rows.slice().sort((a, b) => b.volumeUsd - a.volumeUsd);
     case "trending":
-      // Volume relative to size: what is moving, not merely what is large.
-      return rows.slice().sort((a, b) => b.volumeUsd / (b.marketCapUsd || 1) - a.volumeUsd / (a.marketCapUsd || 1));
+      return rows.slice().sort((a, b) => trendingScore(b) - trendingScore(a));
     case "graduated":
       return rows.slice().sort((a, b) => b.marketCapUsd - a.marketCapUsd);
   }
