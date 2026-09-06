@@ -12,6 +12,7 @@ import {
   GRADUATION_MCAP_USD,
   LAUNCH_MCAP_USD,
   CHAINS,
+  EVM_ADDRESS_RE,
   SOLANA_ADDRESS_RE,
   parseTokenId,
   SWAP_FEE,
@@ -548,6 +549,48 @@ function chainExplorerUrl(chain: Chain, address: string): string {
     default:
       return explorerUrl("token", address);
   }
+}
+
+/**
+ * A token by its contract address.
+ *
+ * Pasting a CA should find the coin whatever chain it is on, and a name search
+ * does not reliably do that — so an address-shaped query is looked up directly:
+ * the mint through the aggregator on Solana, the contract on every EVM chain we
+ * list. Everything is cached, and a chain that does not know it simply returns
+ * nothing.
+ */
+async function lookupByAddress(query: string, chains: Chain[]): Promise<ExternalToken[]> {
+  const address = query.trim();
+  const solanaShaped = SOLANA_ADDRESS_RE.test(address);
+  const evmShaped = EVM_ADDRESS_RE.test(address);
+  if (!solanaShaped && !evmShaped) return [];
+
+  const found = await Promise.all(
+    chains.map(async (chain): Promise<ExternalToken | null> => {
+      if (chain === "solana") {
+        if (!solanaShaped) return null;
+        const viaJupiter = await jupiter.getToken(address);
+        if (viaJupiter) return viaJupiter.token;
+        return (await markets.getToken("solana", address))?.token ?? null;
+      }
+      if (!evmShaped) return null;
+      return (await markets.getToken(chain, address))?.token ?? null;
+    }),
+  );
+  return found.filter((t): t is ExternalToken => !!t);
+}
+
+/** First occurrence of each token id wins, so a direct hit outranks a fuzzy one. */
+function dedupeTokens(tokens: ExternalToken[]): ExternalToken[] {
+  const seen = new Set<string>();
+  const out: ExternalToken[] = [];
+  for (const token of tokens) {
+    if (seen.has(token.id)) continue;
+    seen.add(token.id);
+    out.push(token);
+  }
+  return out;
 }
 
 /** `?chain=` → the chains to read, defaulting to every one we list. */
@@ -1157,7 +1200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return q ? markets.searchTokens(chain, q, limit) : markets.listTokens(chain, list, limit);
         }),
       );
-      const merged = interleave(perChain).slice(0, limit);
+      // A pasted contract address is not a fuzzy search: look it up directly on
+      // every chain we list, and put whatever answers first.
+      const direct = q ? await lookupByAddress(q, chains) : [];
+      const merged = dedupeTokens([...direct, ...interleave(perChain)]).slice(0, limit);
       // Sampling here means a token already has some history the first time
       // somebody opens it, not only from that moment on.
       for (const token of merged) {
