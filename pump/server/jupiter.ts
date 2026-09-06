@@ -25,6 +25,7 @@ import {
   SOL_MINT,
   type Candle,
   type ExternalStatus,
+  tokenId,
   type ExternalToken,
   type TradeQuote,
 } from "@shared/schema";
@@ -275,6 +276,8 @@ export function parseJupToken(raw: unknown): { token: ExternalToken; extras: Jup
   const topHolders = stripUndefined(t.audit?.topHoldersPercentage);
 
   const token: ExternalToken = {
+    id: tokenId("solana", t.id),
+    chain: "solana",
     mint: t.id,
     name: (t.name ?? t.symbol ?? t.id).trim() || t.id,
     symbol: (t.symbol ?? "").trim().toUpperCase() || "???",
@@ -288,6 +291,7 @@ export function parseJupToken(raw: unknown): { token: ExternalToken; extras: Jup
     volume24hUsd: finite(stats?.buyVolume) + finite(stats?.sellVolume),
     holders: Math.max(0, Math.round(finite(t.holderCount))),
     verified: t.isVerified === true,
+    tradable: true,
     createdAt: isoOrNull(t.firstPool?.createdAt),
     source: "jupiter",
   };

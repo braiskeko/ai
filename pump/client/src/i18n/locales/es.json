@@ -567,5 +567,9 @@
   "profile.history": "Historial",
   "profile.historyHint": "Compras, ventas y lanzamientos, del más reciente al más antiguo.",
   "profile.signedOutTitle": "Tu perfil",
-  "profile.signedOutHint": "Inicia sesión para ver tu saldo, posiciones e historial."
+  "profile.signedOutHint": "Inicia sesión para ver tu saldo, posiciones e historial.",
+  "home.allChains": "Todas",
+  "token.notTradableTitle": "Todavía no se puede operar {chain} aquí",
+  "token.notTradableHint": "Next ejecuta swaps en Solana por ahora. Precios, gráficos y depósitos funcionan en todas las redes de la lista.",
+  "token.openMarket": "Abrir el mercado"
 }

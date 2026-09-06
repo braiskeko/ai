@@ -632,5 +632,9 @@
   "profile.history": "History",
   "profile.historyHint": "Buys, sells and launches, newest first.",
   "profile.signedOutTitle": "Your profile",
-  "profile.signedOutHint": "Sign in to see your balance, positions and history."
+  "profile.signedOutHint": "Sign in to see your balance, positions and history.",
+  "home.allChains": "All chains",
+  "token.notTradableTitle": "{chain} tokens are not tradable here yet",
+  "token.notTradableHint": "Next executes swaps on Solana today. Prices, charts and deposits work on every chain listed.",
+  "token.openMarket": "Open the market"
 }

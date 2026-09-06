@@ -11,7 +11,9 @@ import {
   CREATOR_FEE_SHARE,
   GRADUATION_MCAP_USD,
   LAUNCH_MCAP_USD,
+  CHAINS,
   SOLANA_ADDRESS_RE,
+  parseTokenId,
   SWAP_FEE,
   TOKEN_DECIMALS,
   TOTAL_SUPPLY,
@@ -35,6 +37,7 @@ import {
   type AdminOverview,
   type AppConfig,
   type AuthProvider,
+  type Chain,
   type Coin,
   type CoinDetail,
   type CoinSummary,
@@ -70,6 +73,7 @@ import { config } from "./config";
 import { magicLinkDevMode, sendMagicLink } from "./email";
 import * as indexer from "./indexer";
 import * as jupiter from "./jupiter";
+import * as markets from "./markets";
 import { buildTokenMetadata, metadataUri, readTokenMetadata, saveTokenMetadata } from "./meta";
 import {
   buildClaimCreatorFeeTx,
@@ -414,19 +418,26 @@ function externalMiss(): [number, string] {
  * into the in-memory ring buffer, which is where the chart's candles come from
  * (the free Jupiter tier has no OHLC endpoint).
  */
-async function buildExternalDetail(mint: string, viewerWallet: string | null): Promise<ExternalTokenDetail> {
-  if (!isMint(mint)) throw new HttpError(404, "Token not found");
+async function buildExternalDetail(rawId: string, viewerWallet: string | null): Promise<ExternalTokenDetail> {
+  const parsed = parseTokenId(rawId);
+  if (!parsed) throw new HttpError(404, "Token not found");
+  if (parsed.chain !== "solana") return buildEvmDetail(parsed.chain, parsed.address);
+  const mint = parsed.address;
   const found = await jupiter.getToken(mint);
   if (!found) throw new HttpError(...externalMiss());
 
   jupiter.recordPrice(mint, found.token.priceUsd);
+  // Real OHLCV for the token's deepest pool; the sampled ring buffer is the
+  // fallback for a pool GeckoTerminal does not know.
+  const poolId = found.extras.pool?.id ?? null;
+  const charted = poolId ? await markets.getCandles("solana", poolId) : [];
   const balances = viewerWallet
     ? await getTokenBalances(viewerWallet, [mint]).catch(() => new Map<string, number>())
     : null;
   const { extras } = found;
   return {
     ...found.token,
-    candles: jupiter.candlesFor(mint),
+    candles: charted.length > 0 ? charted : jupiter.candlesFor(mint),
     supply: extras.supply,
     organicScore: extras.organicScore,
     buys24h: extras.buys24h,
@@ -438,6 +449,79 @@ async function buildExternalDetail(mint: string, viewerWallet: string | null): P
     explorerUrl: explorerUrl("token", mint),
     jupiterUrl: jupiter.jupiterSwapUrl(mint),
   };
+}
+
+/**
+ * A token on a chain Next does not trade on yet: real numbers and real candles
+ * from its deepest pool, no quote path, and `tradable: false` so the UI offers
+ * the DEX instead of a Buy button it could not honour.
+ */
+async function buildEvmDetail(chain: Chain, address: string): Promise<ExternalTokenDetail> {
+  const found = await markets.getToken(chain, address);
+  if (!found) throw new HttpError(...externalMiss());
+  const candles = found.pool ? await markets.getCandles(chain, found.pool.address) : [];
+  const supply = found.token.priceUsd > 0 ? found.token.marketCapUsd / found.token.priceUsd : 0;
+  return {
+    ...found.token,
+    candles,
+    supply,
+    organicScore: 0,
+    buys24h: 0,
+    sells24h: 0,
+    audit: { mintAuthorityDisabled: null, freezeAuthorityDisabled: null, topHoldersPercent: null },
+    links: { website: null, twitter: null, telegram: null },
+    pool: found.pool ? { id: found.pool.address, dex: found.pool.dex, createdAt: null } : null,
+    myTokens: 0,
+    explorerUrl: chainExplorerUrl(chain, address),
+    jupiterUrl: `https://www.geckoterminal.com/${chain === "ethereum" ? "eth" : chain}/tokens/${address}`,
+  };
+}
+
+/** Block explorer for a contract on each supported chain. */
+function chainExplorerUrl(chain: Chain, address: string): string {
+  switch (chain) {
+    case "ethereum":
+      return `https://etherscan.io/token/${address}`;
+    case "base":
+      return `https://basescan.org/token/${address}`;
+    case "bsc":
+      return `https://bscscan.com/token/${address}`;
+    case "monad":
+      return `https://monadexplorer.com/token/${address}`;
+    case "hyperliquid":
+      return `https://hyperevmscan.io/token/${address}`;
+    case "robinhood":
+      return `https://explorer.robinhood.com/token/${address}`;
+    default:
+      return explorerUrl("token", address);
+  }
+}
+
+/** `?chain=` → the chains to read, defaulting to every one we list. */
+function requestedChains(raw: string | undefined): Chain[] {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (!value || value === "all") return CHAINS;
+  const wanted = value
+    .split(",")
+    .map((c) => c.trim())
+    .filter((c): c is Chain => (CHAINS as string[]).includes(c));
+  return wanted.length > 0 ? wanted : CHAINS;
+}
+
+/**
+ * Round-robins the per-chain lists so one busy chain cannot fill the whole feed
+ * before another gets a row.
+ */
+function interleave(lists: ExternalToken[][]): ExternalToken[] {
+  const out: ExternalToken[] = [];
+  const longest = lists.reduce((max, l) => Math.max(max, l.length), 0);
+  for (let i = 0; i < longest; i++) {
+    for (const list of lists) {
+      const item = list[i];
+      if (item) out.push(item);
+    }
+  }
+  return out;
 }
 
 /**
@@ -994,10 +1078,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     wrap(async (req, res) => {
       const limit = parseLimit(req.query.limit, 50, 100);
       const q = (queryString(req.query.q) ?? queryString(req.query.search) ?? "").trim();
-      const tokens: ExternalToken[] = q
-        ? await jupiter.searchTokens(q, limit)
-        : await jupiter.listTokens(tokenListQuerySchema.parse(queryString(req.query.list)), limit);
-      res.json(tokens);
+      const list = tokenListQuerySchema.parse(queryString(req.query.list));
+      const chains = requestedChains(queryString(req.query.chain));
+
+      // Solana comes from Jupiter, every other chain from GeckoTerminal; both
+      // degrade to an empty list rather than failing the request.
+      const perChain = await Promise.all(
+        chains.map(async (chain): Promise<ExternalToken[]> => {
+          if (chain === "solana") {
+            return q ? jupiter.searchTokens(q, limit) : jupiter.listTokens(list, limit);
+          }
+          return q ? markets.searchTokens(chain, q, limit) : markets.listTokens(chain, list, limit);
+        }),
+      );
+      res.json(interleave(perChain).slice(0, limit));
     }),
   );
 
@@ -1005,6 +1099,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/tokens/:mint",
     wrap(async (req, res) => {
       res.json(await buildExternalDetail(req.params.mint, req.user?.walletAddress ?? null));
+    }),
+  );
+
+  /** Same as above for a token id that carries its chain ("base:0x…"). */
+  app.get(
+    "/api/tokens/:chain/:address",
+    wrap(async (req, res) => {
+      res.json(await buildExternalDetail(`${req.params.chain}:${req.params.address}`, req.user?.walletAddress ?? null));
     }),
   );
 

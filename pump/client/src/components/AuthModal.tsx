@@ -145,13 +145,13 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       queryClient.setQueryData(["/api/me"], u);
       void queryClient.invalidateQueries();
       onOpenChange(false);
+      // Landing back in the app already says you are signed in; only the wallet
+      // link — which is not otherwise visible — is worth a toast.
       if (linkingWallet) {
         toast({
           title: t("auth.walletLinked"),
           description: t("auth.walletLinkedDesc", { address: u.walletAddress ? shortAddr(u.walletAddress) : "" }),
         });
-      } else {
-        toast({ title: t("auth.welcomeBack", { name: u.username }), description: t("auth.signedIn") });
       }
     },
     [onOpenChange, toast, t, linkingWallet],

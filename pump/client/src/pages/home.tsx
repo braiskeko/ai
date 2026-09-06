@@ -15,7 +15,8 @@ import {
   BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
-import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
+import type { Chain, CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
+import { CHAINS, CHAIN_LABELS } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { BalanceHeader } from "@/components/BalanceHeader";
 import { CoinCardSkeleton } from "@/components/CoinCard";
@@ -49,6 +50,8 @@ interface Row {
   verified: boolean;
   /** launched here, so it can carry the launchpad badge */
   own: boolean;
+  /** which chain the token lives on (ours are Solana) */
+  chain: Chain;
   coinId?: number;
 }
 
@@ -114,6 +117,34 @@ function SortPills({
             )}
           >
             {t(labelKey)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Chain filter: every chain at once, or one of them. */
+function ChainPills({ chain, onChange }: { chain: Chain | "all"; onChange: (c: Chain | "all") => void }) {
+  const t = useT();
+  const options: (Chain | "all")[] = ["all", ...CHAINS];
+  return (
+    <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 pt-1 sm:mx-0 sm:px-0" role="tablist">
+      {options.map((key) => {
+        const active = key === chain;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(key)}
+            className={cn(
+              "tap h-8 shrink-0 rounded-full px-3.5 text-[13px] transition-colors",
+              active ? "bg-foreground font-bold text-background" : "bg-secondary/60 font-semibold text-muted-foreground",
+            )}
+          >
+            {key === "all" ? t("home.allChains") : CHAIN_LABELS[key]}
           </button>
         );
       })}
@@ -188,6 +219,7 @@ function TokenRow({
   verified,
   highlight,
   fallback,
+  chain,
 }: {
   href: string;
   image: string | null;
@@ -198,6 +230,7 @@ function TokenRow({
   verified?: boolean;
   highlight?: boolean;
   fallback: string;
+  chain?: Chain;
 }) {
   const t = useT();
   const up = change24h >= 0;
@@ -220,7 +253,14 @@ function TokenRow({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-bold leading-tight">{title}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[17px] font-bold leading-tight">{title}</span>
+          {chain && chain !== "solana" && (
+            <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              {CHAIN_LABELS[chain]}
+            </span>
+          )}
+        </span>
         <span className="mt-0.5 block truncate text-[15px] text-muted-foreground tabular">
           {compactUsd(marketCapUsd)} {t("home.mc")}
         </span>
@@ -253,14 +293,16 @@ function rowFromCoin(coin: CoinSummary, solUsd: number): Row {
     createdAt: coin.createdAt,
     verified: false,
     own: true,
+    chain: "solana",
     coinId: coin.id,
   };
 }
 
 function rowFromToken(token: ExternalToken): Row {
   return {
-    key: `sol:${token.mint}`,
-    href: `/t/${token.mint}`,
+    key: token.id,
+    href: `/t/${token.id}`,
+    chain: token.chain,
     image: token.icon,
     title: token.symbol.toUpperCase(),
     fallback: token.symbol,
@@ -322,6 +364,16 @@ export default function Home() {
   const q = (params.get("q") ?? "").trim();
   const rawSort = params.get("sort") ?? "";
   const sort: Sort = SORT_KEYS.has(rawSort) ? (rawSort as Sort) : "trending";
+  const rawChain = params.get("chain") ?? "";
+  const chain: Chain | "all" = (CHAINS as string[]).includes(rawChain) ? (rawChain as Chain) : "all";
+
+  const setChain = (next: Chain | "all") => {
+    const p = new URLSearchParams(search);
+    if (next === "all") p.delete("chain");
+    else p.set("chain", next);
+    const qs = p.toString();
+    navigate(qs ? `/?${qs}` : "/", { replace: true });
+  };
 
   const setSort = (next: Sort) => {
     const p = new URLSearchParams(search);
@@ -350,11 +402,16 @@ export default function Home() {
     const p = new URLSearchParams();
     p.set("list", EXTERNAL_LISTS[sort] ?? "trending");
     if (q) p.set("q", q);
+    if (chain !== "all") p.set("chain", chain);
     p.set("limit", String(LIST_LIMIT));
     return `/api/tokens?${p.toString()}`;
-  }, [sort, q]);
+  }, [sort, q, chain]);
 
-  const coins = useQuery<CoinSummary[]>({ queryKey: [coinsKey], staleTime: 30_000 });
+  const coins = useQuery<CoinSummary[]>({
+    queryKey: [coinsKey],
+    staleTime: 30_000,
+    enabled: chain === "all" || chain === "solana",
+  });
   // Graduated is a launchpad-only notion, so the aggregator is not asked for it.
   const tokens = useQuery<ExternalToken[]>({ queryKey: [tokensKey], staleTime: 30_000, enabled: sort !== "graduated" });
   const recent = useRecentlyCreatedIds();
@@ -399,6 +456,7 @@ export default function Home() {
             </div>
           )}
 
+          <ChainPills chain={chain} onChange={setChain} />
           <SortPills sort={sort} onChange={setSort} ariaLabel={t("home.sortBy")} />
 
           <div>
@@ -461,6 +519,7 @@ export default function Home() {
                   verified={row.verified}
                   highlight={row.coinId !== undefined && recent.has(row.coinId)}
                   fallback={row.fallback}
+                  chain={row.chain}
                 />
               ))
             )}

@@ -556,11 +556,57 @@ export interface AdminOverview {
 export const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 /** Where an external token's data came from. Only Jupiter today. */
-export type ExternalSource = "jupiter";
+export type ExternalSource = "jupiter" | "geckoterminal";
+
+/**
+ * Chains Next lists tokens from. Solana is the one it launches and trades on;
+ * the rest are read-only for now (prices, charts and deposits), which the token
+ * page says plainly rather than pretending.
+ */
+export type Chain = "solana" | "ethereum" | "base" | "bsc" | "monad" | "hyperliquid" | "robinhood";
+
+export const CHAINS: Chain[] = ["solana", "ethereum", "base", "bsc", "monad", "hyperliquid", "robinhood"];
+
+/** Human labels, kept here so server and client cannot drift. */
+export const CHAIN_LABELS: Record<Chain, string> = {
+  solana: "Solana",
+  ethereum: "Ethereum",
+  base: "Base",
+  bsc: "BNB Chain",
+  monad: "Monad",
+  hyperliquid: "Hyperliquid",
+  robinhood: "Robinhood",
+};
+
+/** `solana:<mint>` / `base:0x…` — the id a token is addressed by across the app. */
+export function tokenId(chain: Chain, address: string): string {
+  return `${chain}:${address}`;
+}
+
+/** Parses a token id; a bare address is Solana, which keeps old links working. */
+export function parseTokenId(raw: string): { chain: Chain; address: string } | null {
+  const value = raw.trim();
+  if (!value) return null;
+  const split = value.indexOf(":");
+  if (split === -1) {
+    return SOLANA_ADDRESS_RE.test(value) ? { chain: "solana", address: value } : null;
+  }
+  const chain = value.slice(0, split) as Chain;
+  const address = value.slice(split + 1);
+  if (!CHAINS.includes(chain) || !address) return null;
+  if (chain === "solana" ? !SOLANA_ADDRESS_RE.test(address) : !EVM_ADDRESS_RE.test(address)) return null;
+  return { chain, address };
+}
+
+/** EVM contract addresses. */
+export const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 /** A token discovered through the aggregator, as shown in the "Solana" feed. */
 export interface ExternalToken {
-  /** token mint address (base58) */
+  /** `chain:address` — how the token is addressed in URLs and query keys */
+  id: string;
+  chain: Chain;
+  /** contract address: a base58 mint on Solana, an 0x address elsewhere */
   mint: string;
   name: string;
   symbol: string;
@@ -579,6 +625,8 @@ export interface ExternalToken {
   /** ISO timestamp of the first pool, when known */
   createdAt: string | null;
   source: ExternalSource;
+  /** whether Next can execute a swap for it today (Solana only, for now) */
+  tradable: boolean;
 }
 
 /** Mint-level safety flags reported by the aggregator (null = unknown). */

@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ExternalTokenDetail, TradeQuote, UnsignedTx, WalletView } from "@shared/schema";
+import { CHAIN_LABELS, parseTokenId } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { CandleChart, type ChartRange } from "@/components/CandleChart";
 import { TokenImage } from "@/components/TokenImage";
@@ -492,7 +493,7 @@ function ExternalTradePanel({ token, className }: { token: ExternalTokenDetail; 
         ),
       });
       setRaw("");
-      void qc.invalidateQueries({ queryKey: [`/api/tokens/${token.mint}`] });
+      void qc.invalidateQueries({ queryKey: [`/api/tokens/${token.chain}/${token.mint}`] });
       void qc.invalidateQueries({ queryKey: ["/api/wallet"] });
     } catch (e) {
       toast({ variant: "destructive", title: t("trade.failed"), description: apiErrorMessage(e) });
@@ -790,6 +791,29 @@ function Chip({
   );
 }
 
+/**
+ * A token on a chain Next cannot swap on yet. Saying so — and pointing at a place
+ * that can — beats a Buy button that would fail.
+ */
+function OffChainNotice({ token }: { token: ExternalTokenDetail }) {
+  const t = useT();
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5 text-center">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-foreground">
+        <ExternalLink className="h-5 w-5" />
+      </div>
+      <h2 className="mt-3 text-base font-bold">{t("token.notTradableTitle", { chain: CHAIN_LABELS[token.chain] })}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("token.notTradableHint")}</p>
+      <Button asChild className="mt-4 w-full rounded-xl font-semibold">
+        <a href={token.jupiterUrl} target="_blank" rel="noopener noreferrer">
+          {t("token.openMarket")}
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      </Button>
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -823,10 +847,13 @@ export default function TokenPage() {
   const t = useT();
   const [, navigate] = useLocation();
   const { mint = "" } = useParams<{ mint: string }>();
-  const valid = looksLikeCa(mint);
+  // `/t/<mint>` is Solana; `/t/<chain>:<address>` is any other chain we list.
+  const parsed = parseTokenId(decodeURIComponent(mint));
+  const valid = parsed !== null;
+  const apiPath = parsed ? `/api/tokens/${parsed.chain}/${parsed.address}` : "";
 
   const token = useQuery<ExternalTokenDetail>({
-    queryKey: [`/api/tokens/${mint}`],
+    queryKey: [apiPath],
     enabled: valid,
     staleTime: 20_000,
     // Each refetch also samples the price server-side, which is what feeds the chart.
@@ -834,7 +861,7 @@ export default function TokenPage() {
     retry: (failureCount, err) => !isNotFoundError(err) && failureCount < 2,
   });
 
-  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1D"));
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1H"));
   const onRangeChange = useCallback((r: ChartRange) => {
     setRange(r);
     try {
@@ -898,9 +925,13 @@ export default function TokenPage() {
             </section>
 
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
-              <div className="hidden lg:block">
-                <ExternalTradePanel token={data} />
-              </div>
+              {data.tradable ? (
+                <div className="hidden lg:block">
+                  <ExternalTradePanel token={data} />
+                </div>
+              ) : (
+                <OffChainNotice token={data} />
+              )}
               <AuditCard token={data} />
             </aside>
           </div>
@@ -908,7 +939,7 @@ export default function TokenPage() {
       )}
 
       {/* Mobile: Buy/Sell push the full-screen keypad; Sell only when there is a position. */}
-      {data && (
+      {data && data.tradable && (
         <div className="fixed inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] z-30 px-4 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2.5">
             <Button

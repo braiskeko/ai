@@ -3,6 +3,7 @@ import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardPaste, Search as SearchIcon, X } from "lucide-react";
 import type { CoinSummary, ExternalToken, TraderRank } from "@shared/schema";
+import { CHAIN_LABELS } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { TokenImage } from "@/components/TokenImage";
 import { TraderRow, TraderStripCard } from "@/components/TraderCard";
@@ -68,6 +69,8 @@ interface Row {
   change24h: number;
   marketCapUsd: number;
   source: "next" | "solana";
+  /** label shown on the badge — the chain for external tokens */
+  chainLabel?: string;
 }
 
 function fromCoin(c: CoinSummary, solUsd: number): Row {
@@ -85,8 +88,8 @@ function fromCoin(c: CoinSummary, solUsd: number): Row {
 }
 function fromToken(t: ExternalToken): Row {
   return {
-    key: `s${t.mint}`,
-    href: `/t/${t.mint}`,
+    key: t.id,
+    href: `/t/${t.id}`,
     name: t.name,
     ticker: t.symbol,
     imageUrl: t.icon,
@@ -94,6 +97,7 @@ function fromToken(t: ExternalToken): Row {
     change24h: t.change24h,
     marketCapUsd: t.marketCapUsd,
     source: "solana",
+    chainLabel: CHAIN_LABELS[t.chain],
   };
 }
 
@@ -114,7 +118,7 @@ function ResultRow({ row, onDismiss }: { row: Row; onDismiss: () => void }) {
                 row.source === "next" ? "bg-primary/15 text-primary" : "bg-violet/15 text-violet",
               )}
             >
-              {row.source === "next" ? t("search.badgeNext") : t("search.badgeSolana")}
+              {row.source === "next" ? t("search.badgeNext") : (row.chainLabel ?? t("search.badgeSolana"))}
             </span>
           </span>
           <span className="block truncate text-xs uppercase text-muted-foreground">

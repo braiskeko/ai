@@ -6,6 +6,7 @@ import type { CoinDetail, ExternalTokenDetail, TradeQuote, UnsignedTx, WalletVie
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorMessage, useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n";
+import { useDepositSheet } from "@/components/DepositSheet";
 import { useWalletTx } from "@/lib/solana";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { compactUsd, looksLikeCa, priceUsd, signedPct, tokens as fmtTokens, useSolUsd } from "@/lib/format";
@@ -134,6 +135,7 @@ export default function TradeSheetPage() {
   const [, navigate] = useLocation();
   const { user, openLogin } = useAuth();
   const { publicKey, connected, signAndSend } = useWalletTx();
+  const deposit = useDepositSheet();
 
   const [buyMatch, buyParams] = useRoute<{ mint: string }>("/buy/:mint");
   const [, sellParams] = useRoute<{ mint: string }>("/sell/:mint");
@@ -223,6 +225,10 @@ export default function TradeSheetPage() {
       openLogin();
       return;
     }
+    if (exceedsBalance) {
+      deposit.open();
+      return;
+    }
     if (invalid || submitting || target.disabled) return;
     setSubmitting(true);
     try {
@@ -269,12 +275,13 @@ export default function TradeSheetPage() {
     // The account has its own wallet; the only wait is while it is being set up.
     if (!connected) return t("wallet.preparing");
     if (target.disabled) return t("trade.migrated");
-    if (exceedsBalance) return t("trade.insufficient");
+    // Not enough cash is not a dead end: the button becomes the way to add some.
+    if (exceedsBalance) return t("home.deposit");
     if (exceedsOwned) return t("trade.notEnoughTokens");
     if (amountUsd <= 0) return t("tradeSheet.enterAmount");
     return isBuy ? t("tradeSheet.buyAmount", { amount: compactUsd(amountUsd) }) : t("tradeSheet.sellAmount", { amount: compactUsd(amountUsd) });
   };
-  const ctaDisabled = submitting || !target || (canTrade && (invalid || target.disabled));
+  const ctaDisabled = submitting || !target || (canTrade && ((invalid && !exceedsBalance) || target.disabled));
   const showAsIdle = !target || amountUsd <= 0 || (canTrade && target.disabled);
 
   return (
@@ -421,6 +428,7 @@ export default function TradeSheetPage() {
           {ctaLabel()}
         </button>
       </div>
+      {deposit.sheet}
     </div>
   );
 }

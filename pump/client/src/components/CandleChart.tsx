@@ -54,7 +54,7 @@ export interface CandleChartProps {
   /** Controlled mode; when omitted the chart keeps its own state (default "price"). */
   mode?: ChartMode;
   onModeChange?: (mode: ChartMode) => void;
-  /** Controlled range; when omitted the chart keeps its own state (default "1D"). */
+  /** Controlled range; when omitted the chart keeps its own state (default "1H"). */
   range?: ChartRange;
   onRangeChange?: (range: ChartRange) => void;
   className?: string;
@@ -353,7 +353,7 @@ export function CandleChart({
 
   // Controlled-or-uncontrolled mode / interval.
   const [modeState, setModeState] = useState<ChartMode>(modeProp ?? "price");
-  const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "1D");
+  const [rangeState, setRangeState] = useState<ChartRange>(rangeProp ?? "1H");
   useEffect(() => {
     if (modeProp) setModeState(modeProp);
   }, [modeProp]);
@@ -362,7 +362,7 @@ export function CandleChart({
   }, [rangeProp]);
   const mode = modeProp ?? modeState;
   const range = rangeProp ?? rangeState;
-  const spec = RANGE_BY_KEY.get(range) ?? RANGES[2];
+  const spec = RANGE_BY_KEY.get(range) ?? RANGES[0];
   const interval = spec.interval;
   const setMode = (m: ChartMode) => {
     setModeState(m);
@@ -669,7 +669,7 @@ export function CandleChart({
       // Open on the most recent window rather than the whole history: fitting hundreds of
       // bars into a phone width makes every candle a hairline (see VISIBLE_BARS).
       const last = candleData.length - 1;
-      const window = RANGE_BY_KEY.get(rangeRef.current)?.bars ?? 96;
+      const window = RANGE_BY_KEY.get(rangeRef.current)?.bars ?? 60;
       chart.timeScale().setVisibleLogicalRange({
         from: (Number.isFinite(window) ? Math.max(0, last - window) : 0) as Logical,
         to: (last + 3) as Logical,

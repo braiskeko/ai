@@ -635,7 +635,7 @@ export default function CoinPage() {
   });
 
   const [mode, setMode] = useState<ChartMode>(() => loadPref(CHART_MODE_KEY, new Set(["price", "mcap"]), "mcap"));
-  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1D"));
+  const [range, setRange] = useState<ChartRange>(() => loadPref(CHART_RANGE_KEY, RANGES, "1H"));
   const onModeChange = useCallback((m: ChartMode) => {
     setMode(m);
     savePref(CHART_MODE_KEY, m);
