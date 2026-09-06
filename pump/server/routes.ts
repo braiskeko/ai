@@ -1470,9 +1470,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/wallet",
     wrap(async (req, res) => {
       const wallet = req.user?.walletAddress ?? null;
+      const onChain = wallet ? await getSolBalance(wallet).catch(() => 0) : 0;
+      // A showcase balance an admin set for this wallet stands in for the real one.
+      const demo = storage.demoFor(wallet);
       const view: WalletView = {
         wallet,
-        balanceSol: wallet ? await getSolBalance(wallet).catch(() => 0) : 0,
+        balanceSol: demo?.balanceSol ?? onChain,
         solUsd: getSolUsd(),
         chain: clusterInfo(),
       };
@@ -1605,6 +1608,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAdmin,
     wrap((req, res) => {
       res.json(storage.listUsers(queryString(req.query.search) ?? queryString(req.query.q) ?? "", parseLimit(req.query.limit, 100, 500)));
+    }),
+  );
+
+  /**
+   * Showcase figures for one account: what the leaderboard shows as its PnL and
+   * what its wallet reports as cash. Both are display-only — no trade, holding or
+   * on-chain balance is touched — and sending 0 for a field clears it.
+   */
+  app.post(
+    "/api/admin/demo",
+    requireAdmin,
+    wrap((req, res) => {
+      const input = z
+        .object({
+          username: z.string().trim().min(1).max(64).optional(),
+          wallet: z.string().regex(SOLANA_ADDRESS_RE).optional(),
+          pnlUsd: z.number().finite().optional(),
+          cashUsd: z.number().finite().min(0).optional(),
+        })
+        .parse(req.body);
+
+      const wallet =
+        input.wallet ??
+        storage.listUsers(input.username ?? "", 5).find((u) => u.username.toLowerCase() === (input.username ?? "").replace(/^@/, "").toLowerCase())
+          ?.walletAddress ??
+        null;
+      if (!wallet) throw new HttpError(404, "That account has no wallet yet");
+
+      const solUsd = Math.max(getSolUsd(), 1e-9);
+      const figures = storage.setDemo(wallet, {
+        pnlSol: input.pnlUsd === undefined ? storage.demoFor(wallet)?.pnlSol : input.pnlUsd / solUsd,
+        balanceSol: input.cashUsd === undefined ? storage.demoFor(wallet)?.balanceSol : input.cashUsd / solUsd,
+      });
+      res.json({
+        wallet,
+        pnlUsd: (figures?.pnlSol ?? 0) * solUsd,
+        cashUsd: (figures?.balanceSol ?? 0) * solUsd,
+      });
     }),
   );
 

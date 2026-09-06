@@ -20,6 +20,7 @@ import type { AdminOverview, UnsignedTx, User } from "@shared/schema";
 import { PageShell } from "@/components/PageShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth, apiErrorMessage } from "@/hooks/useAuth";
@@ -362,6 +363,58 @@ function UsersTab() {
 // Page
 // ---------------------------------------------------------------------------
 
+
+/**
+ * Showcase figures for one account.
+ *
+ * Display only: the leaderboard PnL and the cash the wallet reports, for demos
+ * and screenshots of a platform that has barely traded. Nothing is written to a
+ * trade, a holding or the chain, and 0 in a field clears it.
+ */
+function DemoFiguresCard() {
+  const t = useT();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [username, setUsername] = useState("");
+  const [pnlUsd, setPnlUsd] = useState("");
+  const [cashUsd, setCashUsd] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!username.trim()) return;
+    setSaving(true);
+    try {
+      await apiRequest("POST", "/api/admin/demo", {
+        username: username.trim(),
+        ...(pnlUsd.trim() ? { pnlUsd: Number(pnlUsd) } : {}),
+        ...(cashUsd.trim() ? { cashUsd: Number(cashUsd) } : {}),
+      });
+      toast({ title: t("admin.demoSaved", { username: username.trim() }) });
+      void qc.invalidateQueries({ queryKey: ["/api/wallet"] });
+      void qc.invalidateQueries({ queryKey: ["/api/traders?range=all&limit=150"] });
+    } catch (err) {
+      toast({ variant: "destructive", title: t("common.error"), description: apiErrorMessage(err, t("common.error")) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="surface p-4 sm:p-5">
+      <h2 className="text-sm font-bold">{t("admin.demoTitle")}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{t("admin.demoHint")}</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px_160px_auto]">
+        <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@handle" className="rounded-lg" />
+        <Input value={pnlUsd} onChange={(e) => setPnlUsd(e.target.value)} inputMode="decimal" placeholder={t("admin.demoPnl")} className="rounded-lg tabular" />
+        <Input value={cashUsd} onChange={(e) => setCashUsd(e.target.value)} inputMode="decimal" placeholder={t("admin.demoCash")} className="rounded-lg tabular" />
+        <Button onClick={() => void save()} disabled={saving || !username.trim()} className="rounded-lg font-semibold">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export default function AdminPage() {
   const t = useT();
   const { isAdmin, isLoading, user } = useAuth();
@@ -395,6 +448,7 @@ export default function AdminPage() {
         <StatsStrip overview={overview.data} />
         <IndexerCard overview={overview.data} />
         <ClaimableFeesCard overview={overview.data} />
+        <DemoFiguresCard />
 
         <section>
           <h2 className="mb-2 text-sm font-bold">{t("admin.users")}</h2>

@@ -715,5 +715,10 @@
   "perps.liquidationPrice": "Liquidation price",
   "perps.slTp": "Stop Loss / Take Profit",
   "perps.addSlTp": "Add SL/TP",
-  "trade.minimum": "Minimum {amount}"
+  "trade.minimum": "Minimum {amount}",
+  "admin.demoTitle": "Showcase figures",
+  "admin.demoHint": "Display only: the leaderboard PnL and the cash a wallet reports. No trade, holding or on-chain balance changes; 0 clears a field.",
+  "admin.demoPnl": "PnL (USD)",
+  "admin.demoCash": "Cash (USD)",
+  "admin.demoSaved": "Updated @{username}"
 }

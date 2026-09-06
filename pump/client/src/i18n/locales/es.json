@@ -650,5 +650,10 @@
   "perps.liquidationPrice": "Precio de liquidación",
   "perps.slTp": "Stop Loss / Take Profit",
   "perps.addSlTp": "Añadir SL/TP",
-  "trade.minimum": "Mínimo {amount}"
+  "trade.minimum": "Mínimo {amount}",
+  "admin.demoTitle": "Cifras de escaparate",
+  "admin.demoHint": "Solo visual: el PnL del ranking y el saldo que muestra una wallet. No cambia ninguna operación, posición ni saldo real; 0 lo borra.",
+  "admin.demoPnl": "PnL (USD)",
+  "admin.demoCash": "Saldo (USD)",
+  "admin.demoSaved": "@{username} actualizado"
 }

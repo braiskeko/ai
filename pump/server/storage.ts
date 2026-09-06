@@ -134,6 +134,20 @@ export interface State {
   cursors: Record<string, string>;
   /** wallet follows wallet — anyone who has traded is followable, account or not */
   follows: Follow[];
+  /**
+   * Showcase figures, per wallet, set by an admin.
+   *
+   * Nothing here is earned: it is a display overlay for demos and screenshots of
+   * an app that has barely traded yet. It never touches trades, holdings or the
+   * chain — clearing an entry puts the account back to its real numbers.
+   */
+  demo?: Record<string, DemoFigures>;
+}
+
+/** An admin-set overlay for one wallet. Amounts are SOL, like everything stored. */
+export interface DemoFigures {
+  pnlSol?: number;
+  balanceSol?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +223,7 @@ function emptyState(): State {
     comments: [],
     cursors: {},
     follows: [],
+    demo: {},
   };
 }
 
@@ -227,6 +242,7 @@ interface LooseState {
   comments?: Partial<Comment>[];
   cursors?: Record<string, string>;
   follows?: Partial<Follow>[];
+  demo?: Record<string, DemoFigures>;
 }
 
 function withDefaults<T extends object>(defaults: T, loaded: Partial<T>): T {
@@ -346,6 +362,7 @@ export function restoreState(json: string): State {
     comments,
     cursors: loose.cursors ?? {},
     follows,
+    demo: loose.demo ?? {},
   };
 }
 
@@ -1351,11 +1368,16 @@ export class Storage {
     const wallets = new Set<string>([...Array.from(realized.keys()), ...Array.from(unrealized.keys())]);
     // "Following" listings must include every followed wallet, even one with no trades yet.
     if (onlyWallets) onlyWallets.forEach((w) => wallets.add(w));
+    // A wallet carrying showcase figures belongs on the board too.
+    const demo = this.state.demo ?? {};
+    Object.keys(demo).forEach((w) => {
+      if (demo[w]?.pnlSol) wallets.add(w);
+    });
 
     const rows: TraderRank[] = [];
     wallets.forEach((wallet) => {
       if (onlyWallets && !onlyWallets.has(wallet)) return;
-      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0));
+      const pnlSol = round9((realized.get(wallet) ?? 0) + (unrealized.get(wallet) ?? 0) + (demo[wallet]?.pnlSol ?? 0));
       const topTokens = (positions.get(wallet) ?? [])
         .sort((a, b) => b.valueSol - a.valueSol)
         .slice(0, 3)
@@ -1423,6 +1445,24 @@ export class Storage {
     // Whoever is actually on the board first, then everyone else by handle.
     rows.sort((a, b) => b.pnlSol - a.pnlSol || (a.user?.username ?? "").localeCompare(b.user?.username ?? ""));
     return rows.slice(0, limit);
+  }
+
+  /** The showcase overlay for a wallet, if an admin set one. */
+  demoFor(wallet: string | null | undefined): DemoFigures | null {
+    if (!wallet) return null;
+    return this.state.demo?.[wallet] ?? null;
+  }
+
+  /** Sets (or, with an empty object, clears) a wallet's showcase figures. */
+  setDemo(wallet: string, figures: DemoFigures): DemoFigures | null {
+    if (!this.state.demo) this.state.demo = {};
+    const next: DemoFigures = {};
+    if (Number.isFinite(figures.pnlSol) && figures.pnlSol !== 0) next.pnlSol = figures.pnlSol;
+    if (Number.isFinite(figures.balanceSol) && figures.balanceSol !== 0) next.balanceSol = figures.balanceSol;
+    if (Object.keys(next).length === 0) delete this.state.demo[wallet];
+    else this.state.demo[wallet] = next;
+    this.persist();
+    return this.state.demo[wallet] ?? null;
   }
 
   /** Where `wallet` sits on the leaderboard; unranked (no trades/holdings yet) sits just past the end. */
