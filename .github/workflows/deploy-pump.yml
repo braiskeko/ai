@@ -1,4 +1,4 @@
-# deploy marker 20260913T074245Z
+# deploy marker 20260913T074658Z
 name: Deploy Noxia (pump) to cPanel
 
 # Builds the Next app (pump/) and deploys it to app.noxia.work through the cPanel API
@@ -145,3 +145,27 @@ jobs:
           export TREASURY_WALLET="${TREASURY_WALLET:-$TREASURY_FALLBACK}"
           export ZIP_PATH="pump/${APP_ROOT}-cpanel.zip"
           node pump/scripts/cpanel-remote-deploy.mjs
+
+      - name: Verify the deployed page
+        if: always()
+        run: |
+          set -uo pipefail
+          # A deploy is only good if the page it serves can actually boot: fetch
+          # index.html and confirm every bundle it names is really there. A blank
+          # screen usually means exactly this check failing.
+          html=$(curl -fsS --max-time 30 https://app.noxia.work/ || true)
+          if [ -z "$html" ]; then echo "::error::the app served no HTML"; exit 1; fi
+          echo "--- cache headers ---"
+          curl -sI --max-time 20 https://app.noxia.work/ | grep -i '^cache-control' || echo "(none)"
+          echo "--- referenced assets ---"
+          missing=0
+          for asset in $(printf '%s' "$html" | grep -o '/assets/[^"]*' | sort -u); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://app.noxia.work$asset")
+            echo "$code $asset"
+            [ "$code" = "200" ] || missing=1
+          done
+          if [ "$missing" != "0" ]; then
+            echo "::error::the page references assets the server does not serve"
+            exit 1
+          fi
+          echo "the deployed page and its assets are complete"
