@@ -225,7 +225,6 @@ function TokenHeader({ token }: { token: ExternalTokenDetail }) {
         <div className="min-w-0">
           <div className="text-[40px] font-extrabold leading-none tracking-tight tabular">{priceUsd(token.priceUsd)}</div>
           <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-1.5 text-[15px] font-semibold tabular", up ? "text-up" : "text-down")}>
-            <span className="align-[0.15em] text-[9px]">{up ? "\u25b2" : "\u25bc"}</span>
             <span>{priceUsd(Math.abs(changeUsd))}</span>
             <span>({signedPct(token.change24h)})</span>
             <span className="font-medium text-muted-foreground">24h</span>
