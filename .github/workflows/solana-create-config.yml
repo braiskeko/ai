@@ -1,0 +1,67 @@
+name: Create the Solana curve config (one-off)
+
+# Coin creation needs one on-chain account: Next's Meteora Dynamic Bonding Curve
+# config. It is created once per cluster, costs ~0.03 SOL of rent, and its address
+# is what the server reads as DBC_CONFIG. Run this from the Actions tab.
+#
+# Before running:
+#   1. Put the payer's secret key in the repository secret SOLANA_PAYER_SECRET
+#      (base58, or the JSON array a Solana keypair file holds). That wallet pays
+#      the rent and must hold at least 0.05 SOL.
+#   2. Optionally set the repository variable TREASURY_WALLET — the wallet that
+#      claims the platform's share of the fees. It defaults to the treasury the
+#      deploy already uses.
+#
+# After it succeeds it prints DBC_CONFIG=<address>. Save that as the repository
+# variable DBC_CONFIG and run the deploy workflow; launching turns on by itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: "Cluster"
+        type: choice
+        options: ["mainnet-beta", "devnet"]
+        default: "mainnet-beta"
+      treasury:
+        description: "Fee claimer wallet (defaults to the TREASURY_WALLET variable)"
+        required: false
+        default: ""
+      rpc_url:
+        description: "RPC override (recommended: the public endpoint rate-limits)"
+        required: false
+        default: ""
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pump/package-lock.json
+      - name: Install
+        working-directory: pump
+        run: npm ci
+      - name: Create the config
+        working-directory: pump
+        env:
+          CLUSTER: ${{ inputs.cluster }}
+          PAYER: ${{ secrets.SOLANA_PAYER_SECRET }}
+          TREASURY: ${{ inputs.treasury || vars.TREASURY_WALLET || 'Aso3VE2WZgomkjkh2HBPfDvghrvMqJaSXfUnfPyaMd9x' }}
+          RPC_URL: ${{ inputs.rpc_url || secrets.SOLANA_RPC_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PAYER:-}" ]; then
+            echo "SOLANA_PAYER_SECRET is not set — add it as a repository secret first." >&2
+            exit 2
+          fi
+          node scripts/solana/create-config.mjs
+      - name: Keep the config file
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbc-config
+          path: pump/scripts/solana/config.*.json
+          if-no-files-found: warn

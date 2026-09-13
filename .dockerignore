@@ -1,0 +1,41 @@
+# Se instalan dentro de la imagen con `npm ci` (nunca copiar los del host:
+# pueden contener binarios nativos de otra plataforma).
+node_modules
+npm-debug.log*
+
+# Se genera dentro de la imagen con `npm run build`.
+dist
+
+# Estado local de desarrollo (persistencia JSON). En Docker se monta un volumen.
+data
+
+# Control de versiones y CI
+.git
+.gitignore
+.github
+
+# Secretos locales: jamás dentro de una imagen. Sólo se permite la plantilla.
+.env
+.env.*
+!.env.example
+
+# Material de diseño y capturas que no forman parte de la app.
+attached_assets
+
+# PNG de la raíz del repo (icono generado de 1,7 MB). En .dockerignore `*.png`
+# sólo afecta a la raíz, no a client/public/**, así que los recursos del
+# cliente no se ven afectados.
+*.png
+
+# Archivos del sistema / editores
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+
+# Archivos de despliegue que no necesita la imagen
+Dockerfile
+.dockerignore
+render.yaml
+README.md
+replit.nix

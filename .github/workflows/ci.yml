@@ -1,0 +1,63 @@
+# CI de Foresight: comprobación de tipos, compilación y prueba de arranque del
+# servidor en modo producción. Se ejecuta en cada push y en cada pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Si llegan varios pushes seguidos a la misma rama, cancela la ejecución
+# anterior para no gastar minutos de más.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Typecheck & build (Node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      CI: "true"
+      # El observador de depósitos en cadena no tiene sentido en CI.
+      DEPOSITS_ENABLED: "0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar tipos (tsc)
+        run: npm run check
+
+      - name: Compilar cliente y servidor
+        run: npm run build
+
+      # Arranca el bundle de producción exactamente como lo hará el host y
+      # comprueba que /api/config responde (misma ruta que el healthcheck de
+      # Render y del Dockerfile). Detecta paquetes que faltan en runtime.
+      - name: Smoke test del servidor en producción
+        env:
+          PORT: "5055"
+          SESSION_SECRET: ci-only-secret-not-for-production
+          DATA_FILE: ${{ runner.temp }}/foresight/state.json
+        run: |
+          npm start &
+          SERVER_PID=$!
+          curl --silent --show-error --fail \
+            --retry 30 --retry-delay 1 --retry-all-errors --retry-connrefused \
+            http://127.0.0.1:5055/api/config
+          echo
+          kill "$SERVER_PID" || true

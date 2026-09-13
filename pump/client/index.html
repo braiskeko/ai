@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Next · Launch a memecoin</title>
+    <meta
+      name="description"
+      content="Next is a memecoin launchpad. Create a token in seconds, trade it on a live bonding curve with USDC and earn 10% of the fees on every swap of your coin."
+    />
+    <meta name="theme-color" content="#0f1116" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Next · Launch a memecoin" />
+    <meta
+      property="og:description"
+      content="Launch a memecoin in seconds. Live bonding-curve trading, instant contract addresses and 10% of your coin's volume paid to you."
+    />
+    <meta property="og:image" content="/favicon.svg" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash. Dark is the default.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          var dark = t === "light" ? false : true;
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      /*
+        A blank screen should say something.
+
+        If the app has not mounted a few seconds after the page loaded, whatever
+        stopped it is written here instead of leaving a dark rectangle: usually a
+        bundle that went missing under an open tab, which one reload fixes.
+      */
+      (function () {
+        var failures = [];
+        window.addEventListener("error", function (e) {
+          failures.push(String((e && (e.message || e.type)) || "error"));
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          failures.push(String((e && e.reason) || "rejection"));
+        });
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML =
+            '<div style="font:15px/1.5 system-ui,sans-serif;color:#c9cdd6;padding:24px;text-align:center">' +
+            "<p style=\"font-weight:700;color:#fff\">Next could not start</p>" +
+            "<p>" +
+            (failures[0] ? String(failures[0]).slice(0, 200) : "The app did not load.") +
+            "</p>" +
+            '<button style="margin-top:12px;padding:10px 18px;border:0;border-radius:12px;background:#5b5bd6;color:#fff;font-weight:700" onclick="location.reload()">Reload</button>' +
+            "</div>";
+        }, 8000);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

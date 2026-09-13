@@ -1,0 +1,336 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Next design tokens — a social trading app, not a terminal.
+ * Dark is the default look; the `.dark` class is applied before first paint by
+ * index.html (defaulting to dark when the visitor has no stored preference).
+ *
+ * Near-black ground with barely-lifted surfaces, hairline borders and generous
+ * radii so the web app reads like a native mobile one. One electric green carries
+ * every affirmative action; red is reserved for selling and losses.
+ *
+ *   background #0a0b0e · surface #14161b · elevated #1b1e25 · hairline #22262f
+ *   text #eceef3 · muted #8b93a5 · green #3ee97f · red #ff4d6a · violet #a78bfa · gold #ffc53d
+ */
+@layer base {
+  :root {
+    /* Light variant: paper-white surfaces on a soft grey ground */
+    --background: 228 30% 96%;
+    --foreground: 224 24% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 24% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 24% 8%;
+    --primary: 236 88% 62%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 236 82% 54%;
+    --secondary: 226 22% 93%;
+    --secondary-foreground: 224 24% 8%;
+    --muted: 226 22% 93%;
+    --muted-foreground: 223 12% 44%;
+    --accent: 226 22% 90%;
+    --accent-foreground: 224 24% 8%;
+    --destructive: 350 95% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 18% 87%;
+    --input: 224 18% 87%;
+    --ring: 236 88% 62%;
+    --radius: 1.15rem;
+    /* Shared semantic colours used across the app */
+    --yes: 145 72% 40%;
+    --no: 358 85% 55%;
+    --up: 145 72% 40%;
+    --down: 358 85% 55%;
+    --violet: 255 92% 66%;
+    --gold: 42 100% 52%;
+    --chart-1: 145 72% 40%;
+    --chart-2: 358 85% 55%;
+    --chart-3: 255 92% 66%;
+    --chart-4: 42 100% 52%;
+    --chart-5: 199 89% 48%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 24% 8%;
+    --sidebar-primary: 236 88% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 226 22% 90%;
+    --sidebar-accent-foreground: 224 24% 8%;
+    --sidebar-border: 224 18% 87%;
+    --sidebar-ring: 236 88% 62%;
+  }
+
+  .dark {
+    --background: 228 22% 4%;
+    --foreground: 228 22% 94%;
+    --card: 228 17% 8%;
+    --card-foreground: 228 22% 94%;
+    --popover: 228 16% 11%;
+    --popover-foreground: 228 22% 94%;
+    --primary: 236 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 236 88% 58%;
+    --secondary: 222 15% 14%;
+    --secondary-foreground: 228 22% 94%;
+    --muted: 222 15% 14%;
+    --muted-foreground: 222 12% 62%;
+    --accent: 222 14% 18%;
+    --accent-foreground: 228 22% 94%;
+    --destructive: 350 100% 65%;
+    --destructive-foreground: 225 17% 5%;
+    --border: 221 15% 16%;
+    --input: 221 15% 16%;
+    --ring: 236 90% 66%;
+    --yes: 145 72% 48%;
+    --no: 0 100% 65%;
+    --up: 145 72% 48%;
+    --down: 0 100% 65%;
+    --violet: 255 92% 76%;
+    --gold: 42 100% 62%;
+    --chart-1: 145 72% 48%;
+    --chart-2: 0 100% 65%;
+    --chart-3: 255 92% 76%;
+    --chart-4: 42 100% 62%;
+    --chart-5: 199 89% 60%;
+    --sidebar-background: 222 17% 9%;
+    --sidebar-foreground: 228 22% 94%;
+    --sidebar-primary: 236 90% 66%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 14% 18%;
+    --sidebar-accent-foreground: 228 22% 94%;
+    --sidebar-border: 221 15% 16%;
+    --sidebar-ring: 236 90% 66%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif;
+    font-feature-settings: "cv11", "ss01", "tnum";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus for plain interactive elements (shadcn components bring their own rings). */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Native form controls follow the accent colour */
+  input[type="range"] {
+    accent-color: hsl(var(--primary));
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Extra semantic colours live in tailwind.config.ts (up/down/violet/gold → text-gold, bg-violet/15, …) */
+
+  /* Soft accent glow for the primary call to action and highlighted rows */
+  .glow-primary {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 8px 30px -8px hsl(var(--primary) / 0.45);
+  }
+  .glow-gold {
+    box-shadow: 0 0 0 1px hsl(var(--gold) / 0.4), 0 8px 30px -8px hsl(var(--gold) / 0.5);
+  }
+
+  /*
+   * Surfaces. The app reads as a stack of soft, floating panels rather than a grid of
+   * outlined boxes: hairline border, a whisper of shadow, and a lift on hover.
+   */
+  .surface {
+    @apply rounded-3xl border border-border bg-card;
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.18), 0 12px 32px -24px hsl(0 0% 0% / 0.9);
+  }
+  .card-hover {
+    transition: transform 160ms cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 160ms ease, border-color 160ms ease,
+      background-color 160ms ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.18), 0 18px 40px -24px hsl(var(--primary) / 0.6);
+  }
+  /* Native-app press feedback: everything tappable dips slightly. */
+  .tap {
+    transition: transform 120ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 120ms ease;
+  }
+  .tap:active {
+    transform: scale(0.97);
+  }
+  /* Feed rows: full-bleed on mobile, separated by hairlines instead of boxes. */
+  .feed-row {
+    @apply relative flex items-center gap-3 px-4 py-3 transition-colors;
+  }
+  .feed-row:hover {
+    background: hsl(var(--accent) / 0.5);
+  }
+  .feed-divide > * + * {
+    border-top: 1px solid hsl(var(--border) / 0.7);
+  }
+  /* Small uppercase label used above numbers */
+  .label {
+    @apply text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  }
+  /* Big number, tight and tabular, the way a trading app shows a balance */
+  .stat {
+    @apply text-2xl font-extrabold tracking-tight tabular;
+  }
+  /* Keeps the mobile bottom bar clear of the home indicator */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Clears the floating bottom bar (pill height + its margin). */
+  .pb-nav {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Same, plus room for a page-level action bar sitting above the navigation. */
+  .pb-nav-actions {
+    padding-bottom: calc(11rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Opening logo: rises into place, then breathes while the splash holds. */
+  .splash-mark {
+    animation: splash-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both, splash-breathe 2.6s 620ms ease-in-out infinite;
+    text-shadow: 0 18px 60px hsl(var(--primary) / 0.45);
+  }
+  /* The wordmark: lowercase, tight, with the accent dot carrying the brand colour. */
+  .wordmark {
+    @apply font-display font-bold lowercase tracking-tight;
+  }
+  @keyframes splash-rise {
+    from {
+      opacity: 0;
+      transform: scale(0.82) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  @keyframes splash-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  /* A number that just moved: one soft tint behind it, then gone. */
+  .tick-up,
+  .tick-down {
+    border-radius: 6px;
+    padding: 0 3px;
+    margin: 0 -3px;
+  }
+  .tick-up {
+    animation: tick-up 900ms ease-out;
+  }
+  .tick-down {
+    animation: tick-down 900ms ease-out;
+  }
+  @keyframes tick-up {
+    from {
+      background-color: hsl(var(--up) / 0.22);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes tick-down {
+    from {
+      background-color: hsl(var(--down) / 0.22);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+
+  /* Horizontal marquee used by the LiveTicker (content is rendered twice for a seamless loop) */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee var(--marquee-duration, 40s) linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Hides recharts' default focus outline on the chart surface */
+  .recharts-wrapper:focus,
+  .recharts-surface:focus {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none;
+    }
+    .card-hover:hover,
+    .tap:active {
+      transform: none;
+    }
+    .splash-mark {
+      animation: none;
+    }
+  }
+}
